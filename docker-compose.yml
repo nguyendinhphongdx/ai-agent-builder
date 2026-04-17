@@ -1,0 +1,52 @@
+# Root orchestration - includes all services and apps
+# Usage: docker compose up
+#
+# Network: all containers join "agentforge" network
+# so they can reach each other by service name (postgres, redis, backend, etc.)
+
+include:
+  - path: services/postgres/docker-compose.yml
+  - path: services/redis/docker-compose.yml
+  - path: services/rabbitmq/docker-compose.yml
+  - path: services/code-sandbox/docker-compose.yml
+  - path: services/socket/docker-compose.yml
+
+services:
+  backend:
+    build: ./apps/backend
+    ports:
+      - "8000:8000"
+    env_file: ./apps/backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/lc_agent
+      DATABASE_URL_SYNC: postgresql://postgres:postgres@postgres:5432/lc_agent
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      code-sandbox:
+        condition: service_started
+      socket:
+        condition: service_started
+    networks:
+      - agentforge
+
+  frontend:
+    build: ./apps/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      NEXT_PUBLIC_WS_URL: ws://localhost:8000/api
+    depends_on:
+      - backend
+      - socket
+    networks:
+      - agentforge
+
+networks:
+  agentforge:
+    name: agentforge

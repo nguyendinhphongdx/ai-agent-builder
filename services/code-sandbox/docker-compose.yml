@@ -1,0 +1,16 @@
+services:
+  code-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8000"
+    networks:
+      - agentforge
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+
+networks:
+  agentforge:
+    external: true

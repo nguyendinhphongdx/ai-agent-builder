@@ -1,0 +1,1191 @@
+[
+  {
+    "id": "api-agent-endpoints",
+    "path": "api/agent-endpoints.md",
+    "title": "Agent API Endpoints",
+    "domain": "api",
+    "tags": [
+      "agents",
+      "crud",
+      "tools",
+      "knowledge-bases",
+      "attach",
+      "detach"
+    ],
+    "related": [
+      "frontend-feature-agents",
+      "api-tool-endpoints",
+      "api-knowledge-endpoints"
+    ],
+    "summary": "Documents all Agent CRUD endpoints plus tool and knowledge base attach/detach operations with request/response examples."
+  },
+  {
+    "id": "api-auth-endpoints",
+    "path": "api/auth-endpoints.md",
+    "title": "Auth API Endpoints",
+    "domain": "api",
+    "tags": [
+      "auth",
+      "jwt",
+      "cookies",
+      "register",
+      "login",
+      "refresh",
+      "logout"
+    ],
+    "related": [
+      "frontend-feature-auth",
+      "frontend-api-client"
+    ],
+    "summary": "Documents POST register/login/refresh/logout and GET me endpoints with httpOnly cookie-based JWT authentication."
+  },
+  {
+    "id": "api-conversation-endpoints",
+    "path": "api/conversation-endpoints.md",
+    "title": "Conversation API Endpoints",
+    "domain": "api",
+    "tags": [
+      "conversations",
+      "messages",
+      "pagination",
+      "chat"
+    ],
+    "related": [
+      "frontend-feature-chat",
+      "api-websocket-protocol"
+    ],
+    "summary": "Documents Conversation CRUD and message listing with pagination, including request/response examples."
+  },
+  {
+    "id": "api-knowledge-endpoints",
+    "path": "api/knowledge-endpoints.md",
+    "title": "Knowledge Base API Endpoints",
+    "domain": "api",
+    "tags": [
+      "knowledge",
+      "rag",
+      "documents",
+      "upload",
+      "embeddings",
+      "retrieval",
+      "pgvector"
+    ],
+    "related": [
+      "api-agent-endpoints",
+      "flows-document-upload"
+    ],
+    "summary": "Documents Knowledge Base CRUD, document upload (multipart), and semantic query endpoints with request/response examples."
+  },
+  {
+    "id": "api-multi-agent-endpoints",
+    "path": "api/multi-agent-endpoints.md",
+    "title": "Multi-Agent API Endpoints",
+    "domain": "api",
+    "tags": [
+      "multi-agent",
+      "supervisor",
+      "peer",
+      "collaboration",
+      "langgraph"
+    ],
+    "related": [
+      "frontend-feature-agents-editor",
+      "flows-multi-agent-collaboration"
+    ],
+    "summary": "Documents the supervisor and peer collaboration endpoints and the providers listing endpoint with request/response examples."
+  },
+  {
+    "id": "api-tool-endpoints",
+    "path": "api/tool-endpoints.md",
+    "title": "Tool API Endpoints",
+    "domain": "api",
+    "tags": [
+      "tools",
+      "crud",
+      "testing",
+      "registry",
+      "execution"
+    ],
+    "related": [
+      "frontend-feature-tools",
+      "api-agent-endpoints",
+      "flows-tool-execution"
+    ],
+    "summary": "Documents Tool CRUD endpoints and the test endpoint that builds and invokes tools via the tool registry."
+  },
+  {
+    "id": "api-websocket-protocol",
+    "path": "api/websocket-protocol.md",
+    "title": "WebSocket Chat Protocol",
+    "domain": "api",
+    "tags": [
+      "websocket",
+      "streaming",
+      "chat",
+      "protocol",
+      "real-time",
+      "langgraph"
+    ],
+    "related": [
+      "frontend-websocket-client",
+      "frontend-feature-chat",
+      "api-conversation-endpoints"
+    ],
+    "summary": "Documents the full WebSocket protocol for chat streaming in both directions -- client-to-server messages and server-to-client events."
+  },
+  {
+    "id": "api-workflow-endpoints",
+    "path": "api/workflow-endpoints.md",
+    "title": "Workflow API Endpoints",
+    "domain": "api",
+    "tags": [
+      "workflows",
+      "crud",
+      "execution",
+      "graph",
+      "runs",
+      "langgraph"
+    ],
+    "related": [
+      "frontend-feature-workflows",
+      "flows-workflow-execution"
+    ],
+    "summary": "Documents Workflow CRUD, graph save, execute, and run history endpoints with request/response examples."
+  },
+  {
+    "id": "architecture-socket-service",
+    "path": "architecture/socket-service.md",
+    "title": "Socket Service (NestJS)",
+    "domain": "architecture",
+    "tags": ["socket", "websocket", "realtime", "nestjs", "socket.io", "events", "rooms"],
+    "related": ["api-websocket-protocol", "frontend-websocket-client"],
+    "summary": "Documents the NestJS Socket Service — architecture, rooms, emit API, frontend integration, and event conventions."
+  },
+  {
+    "id": "arch-dependencies",
+    "path": "architecture/dependencies.md",
+    "title": "Dependencies - All Packages & Version Policy",
+    "domain": "architecture",
+    "tags": [
+      "dependencies",
+      "packages",
+      "pyproject",
+      "package-json",
+      "versions",
+      "langchain",
+      "nextjs"
+    ],
+    "related": [
+      "arch-system-overview",
+      "conventions-backend",
+      "conventions-frontend"
+    ],
+    "summary": "All backend (pyproject.toml) and frontend (package.json) dependencies with rationale. Version policy uses minimum version constraints."
+  },
+  {
+    "id": "arch-deployment",
+    "path": "architecture/deployment.md",
+    "title": "Deployment - Docker Compose & Environment",
+    "domain": "architecture",
+    "tags": [
+      "docker",
+      "docker-compose",
+      "deployment",
+      "environment",
+      "ports",
+      "volumes",
+      "healthcheck"
+    ],
+    "related": [
+      "arch-system-overview",
+      "arch-project-structure"
+    ],
+    "summary": "Docker Compose orchestration. Services extend from services/ dir. Backend port 8000, frontend 3000, postgres 5432, redis 6379, rabbitmq 5672/15672."
+  },
+  {
+    "id": "arch-project-structure",
+    "path": "architecture/project-structure.md",
+    "title": "Project Structure - Monorepo Layout",
+    "domain": "architecture",
+    "tags": [
+      "project-structure",
+      "monorepo",
+      "apps",
+      "services",
+      "docs",
+      "directory-layout"
+    ],
+    "related": [
+      "arch-system-overview",
+      "arch-deployment",
+      "conventions-backend",
+      "conventions-frontend"
+    ],
+    "summary": "Monorepo with apps/ (backend + frontend), services/ (postgres, redis, rabbitmq), docs/ (specifications), mcp-docs/ (MCP server)."
+  },
+  {
+    "id": "arch-system-overview",
+    "path": "architecture/system-overview.md",
+    "title": "System Overview - Tech Stack & Data Flow",
+    "domain": "architecture",
+    "tags": [
+      "architecture",
+      "tech-stack",
+      "data-flow",
+      "fastapi",
+      "nextjs",
+      "langchain",
+      "langgraph",
+      "pgvector"
+    ],
+    "related": [
+      "arch-project-structure",
+      "arch-deployment",
+      "arch-dependencies"
+    ],
+    "summary": "High-level system architecture. FastAPI backend + Next.js 16 frontend + PostgreSQL/pgvector. LangGraph for agent orchestration. JWT httpOnly cookies for auth."
+  },
+  {
+    "id": "backend-workflow-execution-redesign",
+    "path": "backend/workflow-execution-redesign.md",
+    "title": "Workflow Execution Engine Redesign",
+    "domain": "backend",
+    "tags": ["workflows", "execution", "langgraph", "nodes", "state", "redesign"],
+    "related": ["frontend-workflow-editor-architecture-research"],
+    "summary": "Redesign of workflow execution engine — structured per-node I/O, items-based data flow, N-way branching, merge waiting, and new node executors."
+  },
+  {
+    "id": "agent-executor",
+    "path": "backend/agent-executor.md",
+    "title": "Agent Executor",
+    "domain": "backend",
+    "tags": [
+      "langgraph",
+      "streaming",
+      "tools",
+      "rag",
+      "executor"
+    ],
+    "related": [
+      "table-agents",
+      "table-tools",
+      "table-knowledge",
+      "multi-agent"
+    ],
+    "summary": "LangGraph-based agent executor that builds LLM instances, assembles tool sets, and streams execution events to callers."
+  },
+  {
+    "id": "backend-agents",
+    "path": "backend/agents.md",
+    "title": "Agents",
+    "domain": "backend",
+    "tags": [
+      "agents",
+      "llm",
+      "crud",
+      "tools",
+      "knowledge-base"
+    ],
+    "related": [
+      "backend-tools",
+      "backend-knowledge",
+      "backend-llm-providers",
+      "backend-conversations"
+    ],
+    "summary": "Agent model with LLM config, CRUD operations, and attach/detach for tools and knowledge bases via junction tables."
+  },
+  {
+    "id": "backend-auth",
+    "path": "backend/auth.md",
+    "title": "Authentication",
+    "domain": "backend",
+    "tags": [
+      "auth",
+      "jwt",
+      "cookie",
+      "bcrypt",
+      "security"
+    ],
+    "related": [
+      "backend-config",
+      "backend-database"
+    ],
+    "summary": "JWT-based auth via httpOnly cookies, bcrypt password hashing, access/refresh token flow, and get_current_user dependency."
+  },
+  {
+    "id": "backend-config",
+    "path": "backend/config.md",
+    "title": "Application Configuration",
+    "domain": "backend",
+    "tags": [
+      "config",
+      "settings",
+      "env",
+      "pydantic"
+    ],
+    "related": [
+      "backend-database",
+      "backend-auth",
+      "backend-llm-providers"
+    ],
+    "summary": "Settings class using pydantic-settings, all environment variables, defaults, and .env file loading."
+  },
+  {
+    "id": "backend-conversations",
+    "path": "backend/conversations.md",
+    "title": "Conversations",
+    "domain": "backend",
+    "tags": [
+      "conversations",
+      "messages",
+      "websocket",
+      "streaming",
+      "langgraph"
+    ],
+    "related": [
+      "backend-agents",
+      "backend-llm-providers",
+      "backend-tools",
+      "backend-knowledge"
+    ],
+    "summary": "Conversation and Message models, WebSocket chat handler with LangGraph streaming, save_message with counter updates."
+  },
+  {
+    "id": "backend-database",
+    "path": "backend/database.md",
+    "title": "Database Layer",
+    "domain": "backend",
+    "tags": [
+      "database",
+      "sqlalchemy",
+      "asyncpg",
+      "session",
+      "mixins"
+    ],
+    "related": [
+      "backend-config"
+    ],
+    "summary": "SQLAlchemy async setup with DeclarativeBase, UUID and Timestamp mixins, async session factory, and get_db dependency."
+  },
+  {
+    "id": "backend-knowledge",
+    "path": "backend/knowledge.md",
+    "title": "Knowledge Bases",
+    "domain": "backend",
+    "tags": [
+      "knowledge",
+      "rag",
+      "embedding",
+      "pgvector",
+      "chunking",
+      "ingestion"
+    ],
+    "related": [
+      "backend-agents",
+      "backend-database",
+      "backend-config"
+    ],
+    "summary": "KnowledgeBase and Document models, ingestion pipeline (parse, chunk, embed, store), and cosine similarity retrieval via pgvector."
+  },
+  {
+    "id": "backend-llm-providers",
+    "path": "backend/llm-providers.md",
+    "title": "LLM Providers",
+    "domain": "backend",
+    "tags": [
+      "llm",
+      "openai",
+      "anthropic",
+      "ollama",
+      "langchain",
+      "provider"
+    ],
+    "related": [
+      "backend-agents",
+      "backend-config"
+    ],
+    "summary": "Unified LLM factory producing LangChain BaseChatModel instances from provider name and config, supporting OpenAI, Anthropic, and Ollama."
+  },
+  {
+    "id": "backend-tools",
+    "path": "backend/tools.md",
+    "title": "Tools",
+    "domain": "backend",
+    "tags": [
+      "tools",
+      "registry",
+      "builder",
+      "langchain",
+      "structured-tool"
+    ],
+    "related": [
+      "backend-agents",
+      "backend-config"
+    ],
+    "summary": "Tool model, ToolRegistry with builder pattern, four built-in builders (HTTP, CodeExec, WebScrape, DBQuery), JSON Schema to Pydantic conversion, and CRUD endpoints."
+  },
+  {
+    "id": "multi-agent",
+    "path": "backend/multi-agent.md",
+    "title": "Multi-Agent Orchestration",
+    "domain": "backend",
+    "tags": [
+      "multi-agent",
+      "supervisor",
+      "peer",
+      "langgraph",
+      "collaboration"
+    ],
+    "related": [
+      "agent-executor",
+      "table-agents"
+    ],
+    "summary": "Two multi-agent patterns built on LangGraph -- supervisor (hub-and-spoke delegation) and peer (sequential collaboration chain)."
+  },
+  {
+    "id": "storage",
+    "path": "backend/storage.md",
+    "title": "File Storage",
+    "domain": "backend",
+    "tags": [
+      "storage",
+      "upload",
+      "filesystem"
+    ],
+    "related": [
+      "table-knowledge"
+    ],
+    "summary": "Local filesystem storage layer for uploaded files with UUID-based naming and subdirectory organization."
+  },
+  {
+    "id": "workflows",
+    "path": "backend/workflows.md",
+    "title": "Workflow Engine",
+    "domain": "backend",
+    "tags": [
+      "workflow",
+      "langgraph",
+      "stategraph",
+      "compiler",
+      "execution"
+    ],
+    "related": [
+      "table-workflows",
+      "agent-executor",
+      "table-tools"
+    ],
+    "summary": "Workflow system that compiles a graph of nodes and edges into a LangGraph StateGraph, executes it, and tracks runs with per-node logging."
+  },
+  {
+    "id": "conventions-api",
+    "path": "conventions/api-conventions.md",
+    "title": "API Conventions - REST, Status Codes, Auth, Errors",
+    "domain": "conventions",
+    "tags": [
+      "conventions",
+      "api",
+      "rest",
+      "status-codes",
+      "auth",
+      "cookies",
+      "cors",
+      "pagination",
+      "errors"
+    ],
+    "related": [
+      "conventions-backend",
+      "api-auth-endpoints"
+    ],
+    "summary": "REST API at /api prefix. JWT in httpOnly cookies. Standard status codes. Error format: {detail: string}. Pagination via limit/offset query params."
+  },
+  {
+    "id": "conventions-backend",
+    "path": "conventions/backend-conventions.md",
+    "title": "Backend Conventions - Python Code Style & Module Pattern",
+    "domain": "conventions",
+    "tags": [
+      "conventions",
+      "backend",
+      "python",
+      "fastapi",
+      "module-pattern",
+      "router",
+      "service",
+      "schema",
+      "naming"
+    ],
+    "related": [
+      "arch-project-structure",
+      "conventions-database",
+      "conventions-api"
+    ],
+    "summary": "Backend uses 4-layer module pattern: router.py (endpoints) → service.py (business logic) → models/ (ORM) → schemas.py (Pydantic). Python 3.12, async everywhere, type hints required."
+  },
+  {
+    "id": "conventions-component-patterns",
+    "path": "conventions/component-patterns.md",
+    "title": "Component Patterns - shadcn/ui with @base-ui/react",
+    "domain": "conventions",
+    "tags": [
+      "conventions",
+      "shadcn",
+      "base-ui",
+      "no-asChild",
+      "buttonVariants",
+      "render-prop",
+      "radix",
+      "components"
+    ],
+    "related": [
+      "conventions-frontend",
+      "frontend-layout"
+    ],
+    "summary": "shadcn/ui uses @base-ui/react (NOT @radix-ui). No asChild prop. Use buttonVariants() for link styling, render prop for trigger composition."
+  },
+  {
+    "id": "conventions-database",
+    "path": "conventions/database-conventions.md",
+    "title": "Database Conventions - Naming, Types, Indexes",
+    "domain": "conventions",
+    "tags": [
+      "conventions",
+      "database",
+      "postgresql",
+      "naming",
+      "uuid",
+      "jsonb",
+      "indexes",
+      "soft-delete",
+      "timestamps"
+    ],
+    "related": [
+      "database-schema-overview",
+      "conventions-backend"
+    ],
+    "summary": "snake_case plural table names. UUID v4 PKs. JSONB for flexible configs. TimestampMixin for created_at/updated_at. Soft delete via status/is_archived."
+  },
+  {
+    "id": "conventions-frontend",
+    "path": "conventions/frontend-conventions.md",
+    "title": "Frontend Conventions - Feature Architecture & State Management",
+    "domain": "conventions",
+    "tags": [
+      "conventions",
+      "frontend",
+      "nextjs",
+      "feature-based",
+      "thin-app-router",
+      "tanstack-query",
+      "zustand",
+      "import-rules"
+    ],
+    "related": [
+      "arch-project-structure",
+      "conventions-component-patterns",
+      "frontend-app-router"
+    ],
+    "summary": "Feature-based architecture. Thin App Router (pages only have metadata + View import). TanStack Query for server state, Zustand only for UI state. No cross-feature imports."
+  },
+  {
+    "id": "schema-overview",
+    "path": "database/schema-overview.md",
+    "title": "Database Schema Overview",
+    "domain": "database",
+    "tags": [
+      "schema",
+      "postgresql",
+      "er-diagram",
+      "models"
+    ],
+    "related": [
+      "table-users",
+      "table-agents",
+      "table-tools",
+      "table-knowledge",
+      "table-conversations",
+      "table-workflows",
+      "table-api-keys"
+    ],
+    "summary": "Overview of all 16 database tables, their relationships, shared mixins, and naming conventions."
+  },
+  {
+    "id": "table-agents",
+    "path": "database/table-agents.md",
+    "title": "Table: agents",
+    "domain": "database",
+    "tags": [
+      "agents",
+      "llm",
+      "configuration",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-users",
+      "table-tools",
+      "table-knowledge",
+      "agent-executor"
+    ],
+    "summary": "Agent configuration table with LLM settings, system prompt, and N-N junctions to tools and knowledge bases."
+  },
+  {
+    "id": "table-api-keys",
+    "path": "database/table-api-keys.md",
+    "title": "Table: api_keys",
+    "domain": "database",
+    "tags": [
+      "api-keys",
+      "encryption",
+      "providers",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-users",
+      "table-agents"
+    ],
+    "summary": "Encrypted API key storage for external LLM providers, with per-user default key selection and usage tracking."
+  },
+  {
+    "id": "table-conversations",
+    "path": "database/table-conversations.md",
+    "title": "Tables: conversations, messages",
+    "domain": "database",
+    "tags": [
+      "conversations",
+      "messages",
+      "tool-calls",
+      "tokens",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-agents",
+      "table-users",
+      "agent-executor"
+    ],
+    "summary": "Conversation and message tables supporting chat history, message branching, tool call logging, token tracking, and user feedback."
+  },
+  {
+    "id": "table-knowledge",
+    "path": "database/table-knowledge.md",
+    "title": "Tables: knowledge_bases, documents, document_chunks",
+    "domain": "database",
+    "tags": [
+      "knowledge-base",
+      "rag",
+      "embedding",
+      "pgvector",
+      "chunking",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-agents",
+      "storage",
+      "agent-executor"
+    ],
+    "summary": "Three-table knowledge pipeline -- knowledge base configuration, uploaded documents with processing status, and pgvector-embedded chunks for semantic search."
+  },
+  {
+    "id": "table-tools",
+    "path": "database/table-tools.md",
+    "title": "Table: tools",
+    "domain": "database",
+    "tags": [
+      "tools",
+      "api",
+      "function",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-agents",
+      "agent-executor",
+      "workflows"
+    ],
+    "summary": "Custom tool definitions with type-specific JSONB config and JSON Schema input/output declarations."
+  },
+  {
+    "id": "table-users",
+    "path": "database/table-users.md",
+    "title": "Table: users",
+    "domain": "database",
+    "tags": [
+      "users",
+      "authentication",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "table-agents",
+      "table-tools",
+      "table-api-keys"
+    ],
+    "summary": "User account table with authentication fields and one-to-many ownership relationships to all major resources."
+  },
+  {
+    "id": "table-workflows",
+    "path": "database/table-workflows.md",
+    "title": "Tables: workflows, workflow_nodes, workflow_edges, workflow_runs",
+    "domain": "database",
+    "tags": [
+      "workflows",
+      "nodes",
+      "edges",
+      "execution",
+      "schema"
+    ],
+    "related": [
+      "schema-overview",
+      "workflows",
+      "table-agents"
+    ],
+    "summary": "Four-table workflow system storing versioned DAGs of typed nodes and edges, with execution history including per-node traces and cost tracking."
+  },
+  {
+    "id": "flows-agent-creation",
+    "path": "flows/agent-creation.md",
+    "title": "Agent Creation Flow",
+    "domain": "flows",
+    "tags": [
+      "agents",
+      "creation",
+      "editor",
+      "tools",
+      "knowledge-base",
+      "preview"
+    ],
+    "related": [
+      "frontend-feature-agents-editor",
+      "api-agent-endpoints",
+      "frontend-feature-chat"
+    ],
+    "summary": "End-to-end flow from creating an agent through configuring LLM, attaching tools and knowledge bases, to testing via the preview chat."
+  },
+  {
+    "id": "flows-chat-with-agent",
+    "path": "flows/chat-with-agent.md",
+    "title": "Chat with Agent Flow",
+    "domain": "flows",
+    "tags": [
+      "chat",
+      "websocket",
+      "streaming",
+      "tool-calls",
+      "conversations"
+    ],
+    "related": [
+      "api-websocket-protocol",
+      "frontend-feature-chat",
+      "frontend-websocket-client"
+    ],
+    "summary": "End-to-end flow from creating a conversation through WebSocket connection, sending a message, streaming response with tool calls, to message persistence."
+  },
+  {
+    "id": "flows-document-upload",
+    "path": "flows/document-upload.md",
+    "title": "Document Upload and Ingestion Flow",
+    "domain": "flows",
+    "tags": [
+      "knowledge",
+      "upload",
+      "parsing",
+      "chunking",
+      "embeddings",
+      "pgvector",
+      "rag"
+    ],
+    "related": [
+      "api-knowledge-endpoints",
+      "frontend-feature-agents-editor"
+    ],
+    "summary": "End-to-end flow from file upload through storage, parsing, chunking, embedding with OpenAI, and storing vectors in pgvector."
+  },
+  {
+    "id": "flows-multi-agent-collaboration",
+    "path": "flows/multi-agent-collaboration.md",
+    "title": "Multi-Agent Collaboration Flow",
+    "domain": "flows",
+    "tags": [
+      "multi-agent",
+      "supervisor",
+      "peer",
+      "collaboration",
+      "langgraph",
+      "orchestration"
+    ],
+    "related": [
+      "api-multi-agent-endpoints",
+      "frontend-feature-agents-editor"
+    ],
+    "summary": "End-to-end flow for both supervisor (delegate to workers) and peer (sequential chain) multi-agent patterns using LangGraph StateGraphs."
+  },
+  {
+    "id": "flows-tool-execution",
+    "path": "flows/tool-execution.md",
+    "title": "Tool Execution Flow",
+    "domain": "flows",
+    "tags": [
+      "tools",
+      "execution",
+      "registry",
+      "langchain",
+      "structured-tool"
+    ],
+    "related": [
+      "api-tool-endpoints",
+      "frontend-feature-tools",
+      "flows-chat-with-agent"
+    ],
+    "summary": "End-to-end flow from agent deciding to call a tool through registry.build(), execution, and result return to the LLM."
+  },
+  {
+    "id": "flows-user-registration",
+    "path": "flows/user-registration.md",
+    "title": "User Registration Flow",
+    "domain": "flows",
+    "tags": [
+      "auth",
+      "registration",
+      "cookies",
+      "redirect",
+      "onboarding"
+    ],
+    "related": [
+      "api-auth-endpoints",
+      "frontend-feature-auth",
+      "frontend-layout"
+    ],
+    "summary": "End-to-end flow from register form submission through cookie setting, query cache update, redirect, and dashboard loading."
+  },
+  {
+    "id": "flows-workflow-execution",
+    "path": "flows/workflow-execution.md",
+    "title": "Workflow Execution Flow",
+    "domain": "flows",
+    "tags": [
+      "workflows",
+      "execution",
+      "langgraph",
+      "state-graph",
+      "compiler",
+      "nodes",
+      "runs"
+    ],
+    "related": [
+      "api-workflow-endpoints",
+      "frontend-feature-workflows",
+      "frontend-feature-workflows-nodes"
+    ],
+    "summary": "End-to-end flow from saving a workflow graph through compilation to LangGraph StateGraph, executing nodes, and tracking run results."
+  },
+  {
+    "id": "frontend-api-client",
+    "path": "frontend/api-client.md",
+    "title": "Axios API Client and Endpoint Constants",
+    "domain": "frontend",
+    "tags": [
+      "api",
+      "axios",
+      "http",
+      "interceptor",
+      "refresh-token",
+      "endpoints"
+    ],
+    "related": [
+      "frontend-feature-auth",
+      "api-auth-endpoints"
+    ],
+    "summary": "Documents the Axios client configuration with withCredentials, the 401 refresh interceptor, and the API endpoint constants map."
+  },
+  {
+    "id": "frontend-app-router",
+    "path": "frontend/app-router.md",
+    "title": "Next.js App Router Structure",
+    "domain": "frontend",
+    "tags": [
+      "routing",
+      "next.js",
+      "app-router",
+      "pages",
+      "metadata"
+    ],
+    "related": [
+      "frontend-layout",
+      "frontend-providers",
+      "frontend-feature-auth"
+    ],
+    "summary": "Documents all 14 routes across two route groups (auth and dashboard), metadata export rules, and when to use the \"use client\" directive."
+  },
+  {
+    "id": "frontend-feature-agents",
+    "path": "frontend/feature-agents.md",
+    "title": "Agents Feature Module",
+    "domain": "frontend",
+    "tags": [
+      "agents",
+      "crud",
+      "hooks",
+      "views",
+      "react-query"
+    ],
+    "related": [
+      "frontend-feature-agents-editor",
+      "frontend-feature-chat",
+      "api-agent-endpoints"
+    ],
+    "summary": "Documents the agents feature types, service layer, React Query hooks, and all views (Library, List, Detail, Create, Editor)."
+  },
+  {
+    "id": "frontend-feature-agents-editor",
+    "path": "frontend/feature-agents-editor.md",
+    "title": "Agent Editor Split-View Layout",
+    "domain": "frontend",
+    "tags": [
+      "agents",
+      "editor",
+      "split-view",
+      "knowledge",
+      "tools",
+      "multi-agent",
+      "preview-chat"
+    ],
+    "related": [
+      "frontend-feature-agents",
+      "frontend-feature-chat",
+      "frontend-websocket-client"
+    ],
+    "summary": "Documents the AgentEditorView split layout and its sub-components -- KnowledgeUploadSection, ToolsSelector, MultiAgentSection, and AgentPreviewChat."
+  },
+  {
+    "id": "frontend-feature-auth",
+    "path": "frontend/feature-auth.md",
+    "title": "Auth Feature Module",
+    "domain": "frontend",
+    "tags": [
+      "auth",
+      "login",
+      "register",
+      "jwt",
+      "hooks",
+      "forms",
+      "zod"
+    ],
+    "related": [
+      "frontend-api-client",
+      "api-auth-endpoints",
+      "frontend-layout"
+    ],
+    "summary": "Documents the auth feature including types, service, hooks (useAuth, useLogin, useRegister, useLogout), views, and Zod-validated forms."
+  },
+  {
+    "id": "frontend-feature-chat",
+    "path": "frontend/feature-chat.md",
+    "title": "Chat Feature Module",
+    "domain": "frontend",
+    "tags": [
+      "chat",
+      "websocket",
+      "zustand",
+      "streaming",
+      "conversations",
+      "messages"
+    ],
+    "related": [
+      "frontend-websocket-client",
+      "frontend-feature-chat-components",
+      "api-websocket-protocol"
+    ],
+    "summary": "Documents the chat feature types, service, Zustand store (chatStore), useChat hook, and WebSocket integration for real-time streaming."
+  },
+  {
+    "id": "frontend-feature-chat-components",
+    "path": "frontend/feature-chat-components.md",
+    "title": "Chat UI Components",
+    "domain": "frontend",
+    "tags": [
+      "chat",
+      "components",
+      "markdown",
+      "streaming",
+      "auto-scroll",
+      "ui"
+    ],
+    "related": [
+      "frontend-feature-chat",
+      "frontend-websocket-client"
+    ],
+    "summary": "Documents ChatWindow, MessageBubble, ChatInput, and StreamMarkdown components including auto-scroll behavior and streaming display logic."
+  },
+  {
+    "id": "frontend-feature-settings",
+    "path": "frontend/feature-settings.md",
+    "title": "Settings View",
+    "domain": "frontend",
+    "tags": [
+      "settings",
+      "api-keys",
+      "providers",
+      "configuration"
+    ],
+    "related": [
+      "frontend-layout",
+      "frontend-api-client"
+    ],
+    "summary": "Documents the SettingsView component covering API key management for LLM providers and general configuration options."
+  },
+  {
+    "id": "frontend-feature-tools",
+    "path": "frontend/feature-tools.md",
+    "title": "Tools Feature Module",
+    "domain": "frontend",
+    "tags": [
+      "tools",
+      "crud",
+      "tool-types",
+      "testing",
+      "hooks"
+    ],
+    "related": [
+      "api-tool-endpoints",
+      "frontend-feature-agents-editor"
+    ],
+    "summary": "Documents the tools feature types (including TOOL_TYPE_META), service, hooks, ToolListView, ToolCreateDialog, and ToolDetailSheet."
+  },
+  {
+    "id": "frontend-feature-workflows",
+    "path": "frontend/feature-workflows.md",
+    "title": "Workflows Feature Module",
+    "domain": "frontend",
+    "tags": [
+      "workflows",
+      "crud",
+      "zustand",
+      "react-flow",
+      "hooks",
+      "store"
+    ],
+    "related": [
+      "frontend-feature-workflows-editor",
+      "frontend-feature-workflows-nodes",
+      "api-workflow-endpoints"
+    ],
+    "summary": "Documents the workflows feature types, service, hooks, Zustand store (workflowEditorStore), and NODE_TYPES constants."
+  },
+  {
+    "id": "frontend-feature-workflows-editor",
+    "path": "frontend/feature-workflows-editor.md",
+    "title": "Workflow Editor View and Canvas",
+    "domain": "frontend",
+    "tags": [
+      "workflows",
+      "editor",
+      "react-flow",
+      "canvas",
+      "palette",
+      "inspector",
+      "toolbar"
+    ],
+    "related": [
+      "frontend-feature-workflows",
+      "frontend-feature-workflows-nodes"
+    ],
+    "summary": "Documents WorkflowEditorView layout, Canvas with React Flow setup, NodePalette drag-and-drop, NodeInspector config editing, and WorkflowToolbar controls."
+  },
+  {
+    "id": "frontend-feature-workflows-nodes",
+    "path": "frontend/feature-workflows-nodes.md",
+    "title": "Workflow Node Types and BaseNode Component",
+    "domain": "frontend",
+    "tags": [
+      "workflows",
+      "nodes",
+      "react-flow",
+      "handles",
+      "config-fields",
+      "constants"
+    ],
+    "related": [
+      "frontend-feature-workflows",
+      "frontend-feature-workflows-editor"
+    ],
+    "summary": "Documents all 8 node types with their handles, config fields, icon/color mapping, and the BaseNode React Flow component."
+  },
+  {
+    "id": "frontend-workflow-editor-architecture-research",
+    "path": "frontend/workflow-editor-architecture-research.md",
+    "title": "Workflow Editor Architecture Research (n8n & Dify)",
+    "domain": "frontend",
+    "tags": [
+      "workflows",
+      "architecture",
+      "research",
+      "n8n",
+      "dify",
+      "design-patterns",
+      "node-registry",
+      "handles"
+    ],
+    "related": [
+      "frontend-feature-workflows-editor",
+      "frontend-feature-workflows-nodes"
+    ],
+    "summary": "Research into n8n and Dify workflow editor architectures — design patterns, folder structures, node type systems, handle/output patterns, and proposed architecture for AgentForge."
+  },
+  {
+    "id": "frontend-layout",
+    "path": "frontend/layout.md",
+    "title": "Dashboard Layout, Sidebar, and Header",
+    "domain": "frontend",
+    "tags": [
+      "layout",
+      "sidebar",
+      "header",
+      "navigation",
+      "auth-guard",
+      "dark-theme"
+    ],
+    "related": [
+      "frontend-app-router",
+      "frontend-feature-auth",
+      "frontend-providers"
+    ],
+    "summary": "Documents the dashboard layout with auth guard, Sidebar navigation items, Header with user dropdown, and dark theme setup."
+  },
+  {
+    "id": "frontend-providers",
+    "path": "frontend/providers.md",
+    "title": "Provider Composition",
+    "domain": "frontend",
+    "tags": [
+      "providers",
+      "react-query",
+      "theme",
+      "next-themes",
+      "tanstack"
+    ],
+    "related": [
+      "frontend-app-router",
+      "frontend-layout"
+    ],
+    "summary": "Documents the Providers.tsx composition tree including QueryProvider, ThemeProvider, and Toaster setup."
+  },
+  {
+    "id": "frontend-websocket-client",
+    "path": "frontend/websocket-client.md",
+    "title": "WebSocket Client for Chat Streaming",
+    "domain": "frontend",
+    "tags": [
+      "websocket",
+      "streaming",
+      "chat",
+      "real-time"
+    ],
+    "related": [
+      "frontend-feature-chat",
+      "api-websocket-protocol"
+    ],
+    "summary": "Documents the createChatWS() factory function, WSMessage discriminated union types, and the handler callback interface."
+  }
+]

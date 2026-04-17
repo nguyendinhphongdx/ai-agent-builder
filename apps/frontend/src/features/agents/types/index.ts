@@ -1,0 +1,61 @@
+export interface Agent {
+  id: string;
+  name: string;
+  description: string | null;
+  avatar_url: string | null;
+  system_prompt: string;
+  llm_provider: string;
+  llm_model: string;
+  llm_config: Record<string, unknown>;
+  welcome_message: string | null;
+  max_turns: number;
+  is_published: boolean;
+  status: string;
+  tools: ToolBrief[];
+  knowledge_bases: KnowledgeBaseBrief[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  avatar_url: string | null;
+  llm_provider: string;
+  llm_model: string;
+  status: string;
+  is_published: boolean;
+  created_at: string;
+}
+
+export interface ToolBrief {
+  id: string;
+  name: string;
+  description: string;
+  tool_type: string;
+}
+
+export interface KnowledgeBaseBrief {
+  id: string;
+  name: string;
+  description: string | null;
+  total_documents: number;
+}
+
+export interface AgentCreateInput {
+  name: string;
+  description?: string;
+  system_prompt: string;
+  llm_provider?: string;
+  llm_model?: string;
+  llm_config?: Record<string, unknown>;
+  welcome_message?: string;
+  max_turns?: number;
+}
+
+export interface AgentUpdateInput extends Partial<AgentCreateInput> {
+  status?: string;
+  is_published?: boolean;
+  avatar_url?: string;
+}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "lc-agent-docs": {
+      "command": "npx",
+      "args": ["tsx", "mcp-docs/src/index.ts"],
+      "cwd": "d:/Code/Pers/lc-agent"
+    },
+	"shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    }
+  }
+}

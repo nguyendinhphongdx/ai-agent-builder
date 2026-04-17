@@ -1,0 +1,19 @@
+services:
+  socket:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      API_SECRET: ${API_SECRET:-change-me}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      REDIS_URL: redis://redis:6379/0
+    restart: unless-stopped
+    networks:
+      - agentforge
+
+networks:
+  agentforge:
+    external: true
+    name: agentforge
