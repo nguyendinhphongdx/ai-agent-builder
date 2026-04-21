@@ -73,14 +73,29 @@ export function NodePalette() {
 
       if (addNodeContext) {
         const targetEntry = getNodeEntry(type);
-        const firstInput = targetEntry?.definition.handles.inputs[0];
-        if (firstInput) {
-          onConnect({
-            source: addNodeContext.sourceNodeId,
-            target: newNodeId,
-            sourceHandle: addNodeContext.sourceHandleId,
-            targetHandle: firstInput.id,
-          });
+        if (addNodeContext.isSubConnection) {
+          // Sub-connection: new node is the SOURCE feeding into existing node's
+          // target slot (e.g. a Chat Model node feeds into an Agent's "model" slot)
+          const firstOutput = targetEntry?.definition.handles.outputs[0];
+          if (firstOutput) {
+            onConnect({
+              source: newNodeId,
+              target: addNodeContext.sourceNodeId,
+              sourceHandle: firstOutput.id,
+              targetHandle: addNodeContext.sourceHandleId,
+            });
+          }
+        } else {
+          // Normal: existing node's source flows into new node's input
+          const firstInput = targetEntry?.definition.handles.inputs[0];
+          if (firstInput) {
+            onConnect({
+              source: addNodeContext.sourceNodeId,
+              target: newNodeId,
+              sourceHandle: addNodeContext.sourceHandleId,
+              targetHandle: firstInput.id,
+            });
+          }
         }
       }
 

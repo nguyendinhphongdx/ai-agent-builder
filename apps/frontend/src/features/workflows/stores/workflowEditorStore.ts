@@ -14,6 +14,10 @@ import { getNodeEntry } from "../nodes/registry";
 export interface AddNodeContext {
   sourceNodeId: string;
   sourceHandleId: string;
+  /** When true, the referenced handle is a TARGET (e.g. sub-connections like
+   * an agent's "model" slot). The new node should connect UP into it as the
+   * source, not OUT from it as the target. */
+  isSubConnection?: boolean;
 }
 
 export type NodeRunStatus = "running" | "completed" | "failed";
@@ -78,6 +82,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>(
       const newEdge = {
         ...connection,
         id: crypto.randomUUID(),
+        type: "customEdge",
       };
       set({
         edges: addEdge(newEdge, get().edges as any),

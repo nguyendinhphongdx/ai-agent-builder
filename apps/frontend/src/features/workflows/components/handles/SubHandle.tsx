@@ -40,7 +40,11 @@ export function SubHandle({ handleId, nodeId, label, required }: SubHandleProps)
         <button
           onClick={(e) => {
             e.stopPropagation();
-            openNodePalette({ sourceNodeId: nodeId, sourceHandleId: handleId });
+            openNodePalette({
+              sourceNodeId: nodeId,
+              sourceHandleId: handleId,
+              isSubConnection: true,
+            });
           }}
           className="flex h-4 w-4 items-center justify-center rounded border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground hover:border-primary"
         >

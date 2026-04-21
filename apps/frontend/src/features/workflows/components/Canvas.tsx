@@ -8,17 +8,34 @@ import {
   BackgroundVariant,
   Controls,
   MiniMap,
+  MarkerType,
   type NodeTypes,
-
+  type EdgeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { CustomNode } from "./custom-nodes/CustomNode";
+import { CustomEdge } from "./edges/CustomEdge";
+import { SubEdge } from "./edges/SubEdge";
+import { ConnectionLine } from "./edges/ConnectionLine";
 import { getNodeEntry } from "../nodes/registry";
 import { useWorkflowEditorStore } from "../stores/workflowEditorStore";
 
 const nodeTypes: NodeTypes = {
   baseNode: CustomNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  customEdge: CustomEdge,
+  subEdge: SubEdge,
+};
+
+const defaultEdgeOptions = {
+  type: "customEdge",
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    color: "#b1b1b7",
+  },
 };
 
 export function Canvas() {
@@ -80,8 +97,19 @@ export function Canvas() {
         editNode(null);
         closeNodePalette();
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeId) {
-        removeNode(selectedNodeId);
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedNodeId) {
+          removeNode(selectedNodeId);
+          return;
+        }
+        // Delete selected edges
+        const state = useWorkflowEditorStore.getState();
+        const selectedEdges = state.edges.filter((edge) => edge.selected);
+        if (selectedEdges.length > 0) {
+          state.onEdgesChange(
+            selectedEdges.map((edge) => ({ id: edge.id, type: "remove" as const }))
+          );
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -103,9 +131,14 @@ export function Canvas() {
         onNodeClick={(_event, node) => selectNode(node.id)}
         onNodeDoubleClick={(_event, node) => { selectNode(node.id); editNode(node.id); }}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
+        connectionLineComponent={ConnectionLine}
+        edgesFocusable
+        edgesReconnectable
         deleteKeyCode={null}
         fitView
-        fitViewOptions={{ maxZoom: 0.85, padding: 0.3 }}
+        fitViewOptions={{ maxZoom: 1.2, padding: 0.3 }}
         minZoom={0.1}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
@@ -115,7 +148,7 @@ export function Canvas() {
           variant={BackgroundVariant.Dots}
           gap={16}
           size={1.5}
-          color={isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"}
+          color={isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.4 )"}
         />
         <Controls
           showInteractive={false}

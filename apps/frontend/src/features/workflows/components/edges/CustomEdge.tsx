@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
@@ -17,9 +18,10 @@ export function CustomEdge({
   targetY,
   sourcePosition,
   targetPosition,
-  style,
+  markerEnd,
   source,
   sourceHandleId,
+  selected,
 }: EdgeProps) {
   const [hovered, setHovered] = useState(false);
   const { onEdgesChange, openNodePalette } = useWorkflowEditorStore();
@@ -31,12 +33,13 @@ export function CustomEdge({
     targetY,
     sourcePosition,
     targetPosition,
+    curvature: 0.3,
   });
 
-  const arrowId = `arrow-${id}`;
-  const strokeColor = hovered
-    ? "hsl(var(--primary))"
-    : "hsl(var(--muted-foreground) / 0.4)";
+  const active = hovered || selected;
+  const strokeColor = active
+    ? "var(--primary)"
+    : "color-mix(in oklch, var(--muted-foreground) 55%, transparent)";
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,67 +55,55 @@ export function CustomEdge({
 
   return (
     <>
-      {/* Arrow marker definition */}
-      <defs>
-        <marker
-          id={arrowId}
-          viewBox="0 0 10 10"
-          refX="10"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto"
-        >
-          <path d="M 0 1 L 10 5 L 0 9 z" fill={strokeColor} />
-        </marker>
-      </defs>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        interactionWidth={24}
+        style={{
+          stroke: strokeColor,
+          strokeWidth: active ? 2.5 : 2,
+          strokeLinecap: "round",
+          transition: "stroke 0.15s, stroke-width 0.15s",
+        }}
+      />
 
-      {/* Invisible wider hit area */}
+      {/* Invisible hover area */}
       <path
         d={edgePath}
         fill="none"
         stroke="transparent"
-        strokeWidth={20}
+        strokeWidth={24}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       />
 
-      {/* Visible edge — arrow only at target end */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth={hovered ? 2 : 1.5}
-        markerEnd={`url(#${arrowId})`}
-        style={style}
-      />
-
-      {/* Hover toolbar */}
-      {hovered && (
-        <EdgeLabelRenderer>
-          <div
-            className="nodrag nopan pointer-events-auto absolute flex items-center gap-1"
-            style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            }}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+      <EdgeLabelRenderer>
+        <div
+          className="nodrag nopan absolute flex items-center gap-1"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: "all",
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          <button
+            onClick={handleAdd}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground hover:border-primary"
           >
-            <button
-              onClick={handleAdd}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground hover:border-primary"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </div>
-        </EdgeLabelRenderer>
-      )}
+            <Plus className="h-3 w-3" />
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }

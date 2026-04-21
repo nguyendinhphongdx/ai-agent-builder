@@ -7,32 +7,40 @@ Non-blocking: failures are silently ignored so workflow execution is never affec
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any
 
 import httpx
 
-SOCKET_SERVICE_URL = os.getenv("SOCKET_SERVICE_URL", "http://localhost:4000")
-SOCKET_API_SECRET = os.getenv("SOCKET_API_SECRET", "change-me")
+from app.config import settings
+
+# Serialize emits so events arrive at the socket server in the order they were
+# queued. Fire-and-forget tasks running concurrently can otherwise complete out
+# of order, causing visual glitches (e.g. two nodes appearing "running" at once
+# if the "completed" event for node A is overtaken by the "running" event for
+# node B).
+_emit_lock = asyncio.Lock()
 
 
 async def _emit(room: str, event: str, payload: dict[str, Any]) -> None:
     """Internal: POST to socket service. Swallows all errors."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(
-                f"{SOCKET_SERVICE_URL}/emit/room",
-                json={"room": room, "event": event, "payload": payload},
-                headers={"x-api-secret": SOCKET_API_SECRET},
-            )
-    except Exception:
-        pass  # Non-critical — never break workflow execution
+    async with _emit_lock:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    f"{settings.SOCKET_SERVICE_URL}/emit/room",
+                    json={"room": room, "event": event, "payload": payload},
+                    headers={"x-api-secret": settings.SOCKET_API_SECRET},
+                )
+        except Exception:
+            pass  # Non-critical — never break workflow execution
 
 
 def emit_to_room(room: str, event: str, payload: dict[str, Any]) -> None:
     """Fire-and-forget: emit event to a socket room.
 
-    Creates a background task — does NOT block the caller.
+    Creates a background task — does NOT block the caller. A module-level lock
+    inside ``_emit`` serializes the actual HTTP POSTs so delivery order matches
+    enqueue order.
     """
     try:
         loop = asyncio.get_running_loop()

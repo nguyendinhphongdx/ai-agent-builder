@@ -22,6 +22,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly connections: ConnectionsService,
   ) {}
 
+  private short(id: string): string {
+    return id.slice(0, 8);
+  }
+
   handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth?.token;
@@ -44,9 +48,11 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       this.connections.add(userId, client.id);
-      this.logger.log(`+ ${userId} (${client.id})`);
+      this.logger.log(
+        `CONNECT   user=${this.short(userId)} sock=${this.short(client.id)}`,
+      );
     } catch (err) {
-      this.logger.warn(`Rejected: ${(err as Error).message}`);
+      this.logger.warn(`REJECT    ${(err as Error).message}`);
       client.disconnect(true);
     }
   }
@@ -54,7 +60,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     const userId = this.connections.remove(client.id);
     if (userId) {
-      this.logger.log(`- ${userId} (${client.id})`);
+      this.logger.log(
+        `DISCONN   user=${this.short(userId)} sock=${this.short(client.id)}`,
+      );
     }
   }
 
@@ -62,7 +70,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleJoin(client: Socket, data: { room: string }) {
     if (data?.room) {
       client.join(data.room);
-      this.logger.log(`${client.data.userId} joined ${data.room}`);
+      this.logger.log(
+        `JOIN      user=${this.short(client.data.userId)} room=${data.room}`,
+      );
     }
   }
 
@@ -70,7 +80,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleLeave(client: Socket, data: { room: string }) {
     if (data?.room) {
       client.leave(data.room);
-      this.logger.log(`${client.data.userId} left ${data.room}`);
+      this.logger.log(
+        `LEAVE     user=${this.short(client.data.userId)} room=${data.room}`,
+      );
     }
   }
 }

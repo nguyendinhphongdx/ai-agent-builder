@@ -38,14 +38,31 @@ export function WorkflowEditorView({ workflowId }: WorkflowEditorViewProps) {
       data: { nodeType: n.node_type, label: n.label || "", config: n.config || {} },
     }));
 
-    const edges = (workflow.edges || []).map((e) => ({
-      id: e.id,
-      source: e.source_node_id,
-      target: e.target_node_id,
-      ...(e.source_handle ? { sourceHandle: e.source_handle } : {}),
-      ...(e.target_handle ? { targetHandle: e.target_handle } : {}),
-      ...(e.label ? { label: e.label } : {}),
-    }));
+    // Sub-connection handles (e.g. "sub_model") are TARGETS on the parent node,
+    // so any legacy edge that still records them as sourceHandle is reversed —
+    // swap it so React Flow can render. Same for target-side legacy rows.
+    const edges = (workflow.edges || []).map((e) => {
+      const srcIsSub = e.source_handle?.startsWith("sub_");
+      const tgtIsSub = e.target_handle?.startsWith("sub_");
+      const reversed = srcIsSub && !tgtIsSub;
+
+      return {
+        id: e.id,
+        type: "customEdge" as const,
+        source: reversed ? e.target_node_id : e.source_node_id,
+        target: reversed ? e.source_node_id : e.target_node_id,
+        ...(reversed
+          ? {
+              ...(e.target_handle ? { sourceHandle: e.target_handle } : {}),
+              ...(e.source_handle ? { targetHandle: e.source_handle } : {}),
+            }
+          : {
+              ...(e.source_handle ? { sourceHandle: e.source_handle } : {}),
+              ...(e.target_handle ? { targetHandle: e.target_handle } : {}),
+            }),
+        ...(e.label ? { label: e.label } : {}),
+      };
+    });
 
     // Auto-create Start node if workflow is empty
     if (nodes.length === 0) {
@@ -90,12 +107,7 @@ export function WorkflowEditorView({ workflowId }: WorkflowEditorViewProps) {
   };
 
   const handleRun = () => {
-    executeWorkflow.mutate(
-      { message: "Hello" },
-      {
-        onSuccess: () => router.push(`/workflows/${workflowId}/executions`),
-      }
-    );
+    executeWorkflow.mutate({ message: "Hello" });
   };
 
   if (isLoading) {
