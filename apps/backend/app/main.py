@@ -30,6 +30,7 @@ from app.knowledge.router import router as knowledge_router
 from app.tools.router import router as tools_router
 from app.workflows.router import router as workflows_router
 from app.multi_agent.router import router as multi_agent_router
+from app.webhooks.router import router as webhooks_router
 
 
 def create_app() -> FastAPI:
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router, prefix=settings.API_PREFIX)
     app.include_router(workflows_router, prefix=settings.API_PREFIX)
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
+    app.include_router(webhooks_router, prefix=settings.API_PREFIX)
 
     from app.uploads.router import router as upload_router
     app.include_router(upload_router, prefix=settings.API_PREFIX)

@@ -9,7 +9,6 @@ export const definition: NodeTypeDefinition = {
   icon: Play,
   color: "#10b981",
   category: "flow",
-  canDelete: false,
   shape: "rounded-l-full rounded-r-xl",
   handles: {
     inputs: [],

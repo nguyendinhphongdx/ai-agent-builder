@@ -91,7 +91,30 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>(
     },
 
     addNode: (node) => {
-      set({ nodes: [...get().nodes, node], isDirty: true });
+      const entry = getNodeEntry((node.data as { nodeType?: string }).nodeType ?? "");
+      const isEntry =
+        entry?.definition.type === "start" ||
+        entry?.definition.category === "trigger";
+
+      let nodes = get().nodes;
+      let edges = get().edges;
+
+      // A workflow has exactly one entry. Adding another one evicts the old.
+      if (isEntry) {
+        const existingEntries = nodes.filter((n) => {
+          const e = getNodeEntry((n.data as { nodeType?: string }).nodeType ?? "");
+          return e?.definition.type === "start" || e?.definition.category === "trigger";
+        });
+        if (existingEntries.length > 0) {
+          const evictIds = new Set(existingEntries.map((n) => n.id));
+          nodes = nodes.filter((n) => !evictIds.has(n.id));
+          edges = edges.filter(
+            (e) => !evictIds.has(e.source) && !evictIds.has(e.target),
+          );
+        }
+      }
+
+      set({ nodes: [...nodes, node], edges, isDirty: true });
     },
 
     removeNode: (id) => {
