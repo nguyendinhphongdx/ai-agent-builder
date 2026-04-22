@@ -1,5 +1,6 @@
 import { GitBranch } from "lucide-react";
 import type { NodeTypeDefinition } from "../types";
+import { NodeConnectionTypes } from "../types";
 import ConditionNodeComponent from "./node";
 import ConditionPanelComponent from "./panel";
 
@@ -11,10 +12,10 @@ export const definition: NodeTypeDefinition = {
   color: "#06b6d4",
   category: "logic",
   handles: {
-    inputs: [{ id: "default", type: "main" }],
+    inputs: [{ id: "default", type: NodeConnectionTypes.Main }],
     outputs: [
-      { id: "true", type: "conditional", label: "True" },
-      { id: "false", type: "conditional", label: "False" },
+      { id: "true", type: NodeConnectionTypes.Main, label: "True" },
+      { id: "false", type: NodeConnectionTypes.Main, label: "False" },
     ],
   },
   defaultData: () => ({

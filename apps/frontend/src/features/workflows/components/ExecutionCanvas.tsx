@@ -24,8 +24,8 @@ interface NodeExecution {
   node_type: string;
   label: string | null;
   status: string;
-  input_data: unknown;
-  output_data: unknown;
+  input_items: unknown;
+  output_items: unknown;
   error: string | null;
   tokens_used: number;
   started_at: string | null;
@@ -36,9 +36,10 @@ interface ExecutionCanvasProps {
   nodes: Node[];
   edges: Edge[];
   executionMap: Map<string, NodeExecution>;
+  onNodeClick?: (nodeId: string) => void;
 }
 
-export function ExecutionCanvas({ nodes, edges, executionMap }: ExecutionCanvasProps) {
+export function ExecutionCanvas({ nodes, edges, executionMap, onNodeClick }: ExecutionCanvasProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
@@ -77,7 +78,8 @@ export function ExecutionCanvas({ nodes, edges, executionMap }: ExecutionCanvasP
         nodeTypes={nodeTypes}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable
+        onNodeClick={(_event, node) => onNodeClick?.(node.id)}
         panOnDrag
         zoomOnScroll
         fitView
@@ -86,9 +88,9 @@ export function ExecutionCanvas({ nodes, edges, executionMap }: ExecutionCanvasP
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}
+          gap={16}
+          size={1.5}
+          color={isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"}
         />
         <Controls
           showInteractive={false}
@@ -102,13 +104,14 @@ export function ExecutionCanvas({ nodes, edges, executionMap }: ExecutionCanvasP
             const entry = getNodeEntry(node.data?.nodeType as string);
             return entry?.definition.color ?? (isDark ? "#444" : "#ccc");
           }}
-          nodeStrokeWidth={0}
+          nodeStrokeWidth={2}
           nodeBorderRadius={6}
-          maskColor={isDark ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.75)"}
-          maskStrokeColor="transparent"
+          maskColor={isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.06)"}
+          maskStrokeColor={isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"}
+          maskStrokeWidth={1}
           pannable
           zoomable
-          className="rounded-xl! border! border-border! bg-card/80! shadow-md!"
+          className="rounded-xl! border! border-border! bg-muted/50! shadow-sm!"
           style={{ width: 160, height: 100 }}
         />
       </ReactFlow>

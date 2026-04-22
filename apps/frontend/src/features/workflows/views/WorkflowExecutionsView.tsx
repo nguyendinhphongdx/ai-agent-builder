@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { workflowService } from "../services/workflowService";
 import { useWorkflow } from "../hooks/useWorkflows";
 import { ExecutionCanvas } from "../components/ExecutionCanvas";
+import { ExecutionNDVModal } from "../components/ExecutionNDVModal";
 import { cn } from "@/lib/utils";
 
 interface WorkflowExecutionsViewProps {
@@ -23,8 +24,8 @@ interface NodeExecution {
   node_type: string;
   label: string | null;
   status: string;
-  input_data: unknown;
-  output_data: unknown;
+  input_items: unknown;
+  output_items: unknown;
   error: string | null;
   tokens_used: number;
   started_at: string | null;
@@ -47,6 +48,7 @@ interface WorkflowRun {
 export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewProps) {
   const router = useRouter();
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [openNodeId, setOpenNodeId] = useState<string | null>(null);
 
   const { data: workflow, isLoading: loadingWorkflow } = useWorkflow(workflowId);
 
@@ -82,6 +84,11 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
       id: n.id,
       type: "baseNode" as const,
       position: { x: n.position_x, y: n.position_y },
+      // Seed size so MiniMap can place nodes immediately — React Flow v12 uses
+      // `initialWidth/initialHeight` for pre-measurement hints. Fallback defaults
+      // cover legacy rows that never persisted dimensions.
+      initialWidth: n.width ?? 200,
+      initialHeight: n.height ?? 70,
       data: {
         nodeType: n.node_type,
         label: n.label || "",
@@ -157,7 +164,10 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                   {(runs as WorkflowRun[]).map((run) => (
                     <button
                       key={run.id}
-                      onClick={() => setSelectedRunId(run.id)}
+                      onClick={() => {
+                        setSelectedRunId(run.id);
+                        setOpenNodeId(null);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors",
                         selectedRunId === run.id
@@ -238,6 +248,7 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                     nodes={flowNodes}
                     edges={flowEdges}
                     executionMap={executionMap}
+                    onNodeClick={setOpenNodeId}
                   />
                 </div>
               </>
@@ -249,6 +260,13 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
             )}
           </div>
         </div>
+
+        {/* NDV modal — shows input/output for the clicked execution node */}
+        <ExecutionNDVModal
+          open={!!openNodeId}
+          execution={openNodeId ? executionMap.get(openNodeId) ?? null : null}
+          onClose={() => setOpenNodeId(null)}
+        />
       </div>
     </ReactFlowProvider>
   );

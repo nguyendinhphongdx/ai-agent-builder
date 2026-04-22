@@ -159,13 +159,17 @@ class WorkflowExecuteRequest(BaseModel):
 
 
 class NodeExecutionLog(BaseModel):
-    """Log thực thi của một node."""
+    """Log thực thi của một node.
+
+    Field names mirror ``NodeExecution`` dataclass written by the runner —
+    n8n-style item lists.
+    """
     node_id: str
     node_type: str
     label: str | None = None
     status: str  # "running", "completed", "failed", "skipped"
-    input_data: dict | None = None
-    output_data: dict | None = None
+    input_items: list[dict] | None = None
+    output_items: list[dict] | None = None
     error: str | None = None
     started_at: str | None = None
     completed_at: str | None = None
@@ -180,7 +184,9 @@ class WorkflowRunResponse(BaseModel):
     conversation_id: uuid.UUID | None
     status: str
     input_data: dict
-    output_data: dict | None
+    # Workflow output follows n8n's item model: a list of item dicts. Kept as
+    # `dict | list | None` so legacy runs that stored a single dict still load.
+    output_data: dict | list | None
     error_message: str | None
     node_executions: list[dict]
     total_tokens: int

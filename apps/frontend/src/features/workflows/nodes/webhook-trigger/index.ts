@@ -10,6 +10,7 @@ export const definition: NodeTypeDefinition = {
   color: "#8b5cf6",
   category: "trigger",
   canDelete: false,
+  shape: "rounded-l-full rounded-r-xl",
   handles: {
     inputs: [],
     outputs: [{ id: "default", type: "main" }],

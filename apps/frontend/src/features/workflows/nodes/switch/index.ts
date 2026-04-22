@@ -1,5 +1,6 @@
 import { Route } from "lucide-react";
 import type { NodeTypeDefinition, NodeContentProps } from "../types";
+import { NodeConnectionTypes } from "../types";
 import SwitchPanelComponent from "./panel";
 
 export const definition: NodeTypeDefinition = {
@@ -10,12 +11,12 @@ export const definition: NodeTypeDefinition = {
   color: "#06b6d4",
   category: "logic",
   handles: {
-    inputs: [{ id: "default", type: "main" }],
+    inputs: [{ id: "default", type: NodeConnectionTypes.Main }],
     outputs: [
-      { id: "case_0", type: "conditional", label: "Case 1" },
-      { id: "case_1", type: "conditional", label: "Case 2" },
-      { id: "case_2", type: "conditional", label: "Case 3" },
-      { id: "default_out", type: "conditional", label: "Default" },
+      { id: "case_0", type: NodeConnectionTypes.Main, label: "Case 1" },
+      { id: "case_1", type: NodeConnectionTypes.Main, label: "Case 2" },
+      { id: "case_2", type: NodeConnectionTypes.Main, label: "Case 3" },
+      { id: "default_out", type: NodeConnectionTypes.Main, label: "Default" },
     ],
   },
   defaultData: () => ({

@@ -20,8 +20,8 @@ interface NodeExecution {
   node_type: string;
   label: string | null;
   status: string;
-  input_data: unknown;
-  output_data: unknown;
+  input_items: unknown;
+  output_items: unknown;
   error: string | null;
   tokens_used: number;
   started_at: string | null;
@@ -330,7 +330,7 @@ function NodeDetailView({
           <div className="flex flex-col p-4">
             <h4 className="mb-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Input</h4>
             <pre className="flex-1 rounded-lg border border-border bg-muted/50 p-3 text-xs font-mono overflow-auto whitespace-pre-wrap">
-              {JSON.stringify(node.input_data, null, 2) || "—"}
+              {JSON.stringify(node.input_items, null, 2) || "—"}
             </pre>
           </div>
           <div className="flex flex-col p-4">
@@ -343,7 +343,7 @@ function NodeDetailView({
             )}>
               {node.error
                 ? node.error
-                : JSON.stringify(node.output_data, null, 2) || "—"
+                : JSON.stringify(node.output_items, null, 2) || "—"
               }
             </pre>
           </div>

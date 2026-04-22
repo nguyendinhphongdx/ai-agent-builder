@@ -1,5 +1,6 @@
 import { Filter } from "lucide-react";
 import type { NodeTypeDefinition, NodeContentProps } from "../types";
+import { NodeConnectionTypes } from "../types";
 import FilterPanelComponent from "./panel";
 
 export const definition: NodeTypeDefinition = {
@@ -10,10 +11,10 @@ export const definition: NodeTypeDefinition = {
   color: "#10b981",
   category: "logic",
   handles: {
-    inputs: [{ id: "default", type: "main" }],
+    inputs: [{ id: "default", type: NodeConnectionTypes.Main }],
     outputs: [
-      { id: "matched", type: "conditional", label: "Matched" },
-      { id: "unmatched", type: "conditional", label: "Unmatched" },
+      { id: "matched", type: NodeConnectionTypes.Main, label: "Matched" },
+      { id: "unmatched", type: NodeConnectionTypes.Main, label: "Unmatched" },
     ],
   },
   defaultData: () => ({ expression: "" }),

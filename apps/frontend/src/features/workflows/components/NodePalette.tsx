@@ -1,11 +1,41 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getAllDefinitions, getNodeEntry, getDefinitionsByCategory } from "../nodes/registry";
-import { NODE_CATEGORIES } from "../nodes/types";
-import type { NodeCategory, NodeTypeDefinition } from "../nodes/types";
+import { NODE_CATEGORIES, NodeConnectionTypes } from "../nodes/types";
+import type {
+  NodeCategory,
+  NodeTypeDefinition,
+  HandlePort,
+  NodeConnectionType,
+} from "../nodes/types";
 import { useWorkflowEditorStore } from "../stores/workflowEditorStore";
+
+/** Does `def` have at least one output port compatible with the requested type + filter? */
+function canProvide(
+  def: NodeTypeDefinition,
+  requiredType: NodeConnectionType,
+  filter?: HandlePort["filter"],
+): boolean {
+  if (filter?.excludedNodes?.includes(def.type)) return false;
+  if (filter?.nodes && !filter.nodes.includes(def.type)) return false;
+  return def.handles.outputs.some((port) => port.type === requiredType);
+}
+
+/** Human label for a connection slot. */
+const SLOT_LABELS: Partial<Record<NodeConnectionType, string>> = {
+  [NodeConnectionTypes.AiLanguageModel]: "Chat Model",
+  [NodeConnectionTypes.AiMemory]: "Memory",
+  [NodeConnectionTypes.AiTool]: "Tool",
+  [NodeConnectionTypes.AiAgent]: "Agent",
+  [NodeConnectionTypes.AiEmbedding]: "Embedding",
+  [NodeConnectionTypes.AiOutputParser]: "Output Parser",
+  [NodeConnectionTypes.AiRetriever]: "Retriever",
+  [NodeConnectionTypes.AiReranker]: "Reranker",
+  [NodeConnectionTypes.AiTextSplitter]: "Text Splitter",
+  [NodeConnectionTypes.AiVectorStore]: "Vector Store",
+};
 
 export function NodePalette() {
   const {
@@ -47,6 +77,24 @@ export function NodePalette() {
     return () => window.removeEventListener("keydown", handler);
   }, [open, activeCategory, closeNodePalette]);
 
+  // Resolve the slot being filled when opening palette from a sub-connection.
+  const slotPort = useMemo<HandlePort | null>(() => {
+    if (!addNodeContext?.isSubConnection) return null;
+    const sourceNode = nodes.find((n) => n.id === addNodeContext.sourceNodeId);
+    if (!sourceNode) return null;
+    const entry = getNodeEntry((sourceNode.data as { nodeType?: string }).nodeType ?? "");
+    if (!entry) return null;
+    return (
+      entry.definition.handles.inputs.find(
+        (p) => p.id === addNodeContext.sourceHandleId,
+      ) ?? null
+    );
+  }, [addNodeContext, nodes]);
+
+  const slotLabel = slotPort
+    ? slotPort.label ?? SLOT_LABELS[slotPort.type] ?? slotPort.type
+    : null;
+
   const handleAddNode = useCallback(
     (type: string) => {
       const entry = getNodeEntry(type);
@@ -71,29 +119,32 @@ export function NodePalette() {
         data: { nodeType: type, label: "", config: defaultData },
       });
 
-      if (addNodeContext) {
-        const targetEntry = getNodeEntry(type);
-        if (addNodeContext.isSubConnection) {
+      if (addNodeContext && entry) {
+        if (addNodeContext.isSubConnection && slotPort) {
           // Sub-connection: new node is the SOURCE feeding into existing node's
-          // target slot (e.g. a Chat Model node feeds into an Agent's "model" slot)
-          const firstOutput = targetEntry?.definition.handles.outputs[0];
-          if (firstOutput) {
+          // target slot. Pick the output matching the slot type.
+          const matchingOutput = entry.definition.handles.outputs.find(
+            (p) => p.type === slotPort.type,
+          );
+          if (matchingOutput) {
             onConnect({
               source: newNodeId,
               target: addNodeContext.sourceNodeId,
-              sourceHandle: firstOutput.id,
+              sourceHandle: matchingOutput.id,
               targetHandle: addNodeContext.sourceHandleId,
             });
           }
         } else {
-          // Normal: existing node's source flows into new node's input
-          const firstInput = targetEntry?.definition.handles.inputs[0];
-          if (firstInput) {
+          // Normal: existing node's source flows into new node's main input.
+          const mainInput = entry.definition.handles.inputs.find(
+            (p) => p.type === NodeConnectionTypes.Main,
+          );
+          if (mainInput) {
             onConnect({
               source: addNodeContext.sourceNodeId,
               target: newNodeId,
               sourceHandle: addNodeContext.sourceHandleId,
-              targetHandle: firstInput.id,
+              targetHandle: mainInput.id,
             });
           }
         }
@@ -101,24 +152,39 @@ export function NodePalette() {
 
       closeNodePalette();
     },
-    [nodes, addNodeContext, addNode, onConnect, closeNodePalette]
+    [nodes, addNodeContext, slotPort, addNode, onConnect, closeNodePalette]
   );
 
-  // Search: filter all nodes across categories
-  const allDefs = getAllDefinitions();
+  // Restrict to compatible providers when filling a sub-connection slot.
+  const allDefs = useMemo(() => {
+    const all = getAllDefinitions();
+    if (!slotPort) return all;
+    return all.filter((def) => canProvide(def, slotPort.type, slotPort.filter));
+  }, [slotPort]);
+
   const searchResults = search
     ? allDefs.filter(
         (def) =>
           def.label.toLowerCase().includes(search.toLowerCase()) ||
-          def.description.toLowerCase().includes(search.toLowerCase())
+          def.description.toLowerCase().includes(search.toLowerCase()),
       )
     : [];
 
-  // Category nodes
-  const categoryNodes = activeCategory ? getDefinitionsByCategory(activeCategory) : [];
+  const categoryNodes = activeCategory
+    ? allDefs.filter((def) => def.category === activeCategory)
+    : [];
   const activeCategoryMeta = activeCategory
     ? NODE_CATEGORIES.find((c) => c.key === activeCategory)
     : null;
+
+  // When filling a slot, skip category drill-down and show the flat compatible list.
+  const showFlatList = !!slotPort;
+
+  const headerTitle = slotLabel
+    ? `Select ${slotLabel}`
+    : addNodeContext
+      ? "What happens next?"
+      : "Add Node";
 
   return (
     <>
@@ -133,7 +199,7 @@ export function NodePalette() {
       >
         {/* Header */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          {activeCategory && !search ? (
+          {activeCategory && !search && !showFlatList ? (
             <button
               onClick={() => setActiveCategory(null)}
               className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -143,7 +209,7 @@ export function NodePalette() {
           ) : null}
 
           <div className="flex-1 min-w-0">
-            {activeCategory && !search && activeCategoryMeta ? (
+            {activeCategory && !search && activeCategoryMeta && !showFlatList ? (
               <div className="flex items-center gap-2">
                 <activeCategoryMeta.icon className="h-4 w-4 text-muted-foreground" />
                 <p className="text-sm font-semibold text-foreground">
@@ -151,9 +217,7 @@ export function NodePalette() {
                 </p>
               </div>
             ) : (
-              <p className="text-sm font-semibold text-foreground">
-                {addNodeContext ? "What happens next?" : "Add Node"}
-              </p>
+              <p className="text-sm font-semibold text-foreground">{headerTitle}</p>
             )}
           </div>
 
@@ -182,15 +246,20 @@ export function NodePalette() {
         {/* Content */}
         <div className="flex-1 overflow-auto">
           {search ? (
-            // Search results — flat node list
             <NodeList
               nodes={searchResults}
               onSelect={handleAddNode}
               onClose={closeNodePalette}
-              emptyMessage="No nodes found"
+              emptyMessage={slotLabel ? `No compatible ${slotLabel} nodes` : "No nodes found"}
+            />
+          ) : showFlatList ? (
+            <NodeList
+              nodes={allDefs}
+              onSelect={handleAddNode}
+              onClose={closeNodePalette}
+              emptyMessage={`No compatible ${slotLabel ?? "provider"} nodes`}
             />
           ) : activeCategory ? (
-            // Category drill-down — node list for selected category
             <NodeList
               nodes={categoryNodes}
               onSelect={handleAddNode}

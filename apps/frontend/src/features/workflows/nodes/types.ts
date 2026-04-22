@@ -9,7 +9,10 @@ import {
   Zap,
 } from "lucide-react";
 
-// --- Node categories for palette grouping ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Node categories — for palette grouping only. Separate from NodeConnectionType
+// which controls edge compatibility.
+// ─────────────────────────────────────────────────────────────────────────────
 export type NodeCategory = "trigger" | "flow" | "ai" | "data" | "logic" | "integration";
 
 export interface CategoryMeta {
@@ -58,24 +61,68 @@ export const NODE_CATEGORIES: CategoryMeta[] = [
   },
 ];
 
-// --- Handle / Port definitions ---
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeConnectionType — n8n-style enum of typed connection points.
+// `main` = regular data flow. `ai_*` = specialised AI sub-connections.
+// ─────────────────────────────────────────────────────────────────────────────
+export const NodeConnectionTypes = {
+  Main: "main",
+  AiAgent: "ai_agent",
+  AiEmbedding: "ai_embedding",
+  AiLanguageModel: "ai_languageModel",
+  AiMemory: "ai_memory",
+  AiOutputParser: "ai_outputParser",
+  AiRetriever: "ai_retriever",
+  AiReranker: "ai_reranker",
+  AiTextSplitter: "ai_textSplitter",
+  AiTool: "ai_tool",
+  AiVectorStore: "ai_vectorStore",
+} as const;
+
+export type NodeConnectionType =
+  (typeof NodeConnectionTypes)[keyof typeof NodeConnectionTypes];
+
+export const AI_CONNECTION_TYPES: NodeConnectionType[] = [
+  NodeConnectionTypes.AiAgent,
+  NodeConnectionTypes.AiEmbedding,
+  NodeConnectionTypes.AiLanguageModel,
+  NodeConnectionTypes.AiMemory,
+  NodeConnectionTypes.AiOutputParser,
+  NodeConnectionTypes.AiRetriever,
+  NodeConnectionTypes.AiReranker,
+  NodeConnectionTypes.AiTextSplitter,
+  NodeConnectionTypes.AiTool,
+  NodeConnectionTypes.AiVectorStore,
+];
+
+export function isAiConnectionType(type: NodeConnectionType): boolean {
+  return AI_CONNECTION_TYPES.includes(type);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeFilter — limits which node types can plug into a port. Mirrors n8n's
+// INodeFilter. `undefined` = no constraint. `nodes = []` = allow none.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface NodeFilter {
+  nodes?: string[];          // allow list — only these node types
+  excludedNodes?: string[];  // deny list
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HandlePort — one connection point on a node.
+// ─────────────────────────────────────────────────────────────────────────────
 export interface HandlePort {
   id: string;
-  type: "main" | "conditional" | "sub";
+  type: NodeConnectionType;
   label?: string;
   maxConnections?: number;
   required?: boolean;
+  filter?: NodeFilter;
 }
 
-// Sub-connection definition for AI nodes (model, memory, tools)
-export interface SubConnection {
-  id: string;
-  label: string;
-  required?: boolean;
-  maxConnections?: number;
-}
-
-// --- Config field (temporary — removed in Phase 3 with per-node panels) ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Config field (will be removed when all nodes have custom panels)
+// ─────────────────────────────────────────────────────────────────────────────
 export interface ConfigField {
   key: string;
   label: string;
@@ -85,7 +132,9 @@ export interface ConfigField {
   defaultValue?: unknown;
 }
 
-// --- Node type definition ---
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeTypeDefinition
+// ─────────────────────────────────────────────────────────────────────────────
 export interface NodeTypeDefinition {
   type: string;
   label: string;
@@ -100,13 +149,15 @@ export interface NodeTypeDefinition {
   canDelete?: boolean;
   defaultData?: () => Record<string, unknown>;
   canConnect?: (targetType: string) => boolean;
-  /** Sub-connections rendered at the bottom (model, memory, tool slots) */
-  subConnections?: SubConnection[];
+  /** Tailwind rounding classes. Default: "rounded-xl". Use for pill shapes etc. */
+  shape?: string;
   /** @deprecated Will be removed — use per-node panel.tsx instead */
   configFields?: ConfigField[];
 }
 
-// --- Props passed to per-node components ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Props
+// ─────────────────────────────────────────────────────────────────────────────
 export interface NodeContentProps {
   id: string;
   data: NodeData;
@@ -124,7 +175,6 @@ export interface NodeData {
   _customHandles?: boolean;
 }
 
-// --- Registry entry ---
 export interface NodeRegistryEntry {
   definition: NodeTypeDefinition;
   node: ComponentType<NodeContentProps>;

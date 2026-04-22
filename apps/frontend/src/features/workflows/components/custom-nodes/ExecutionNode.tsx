@@ -6,12 +6,13 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNodeEntry } from "../../nodes/registry";
 import type { NodeData } from "../../nodes/types";
+import { NodeConnectionTypes } from "../../nodes/types";
 
 /**
  * Read-only node for execution view.
  * Shows execution status overlay (green/red border, check/x icon).
  */
-function ExecutionNodeComponent({ id, data, selected }: NodeProps) {
+function ExecutionNodeComponent({ id, data, selected: _selected }: NodeProps) {
   const nodeData = data as unknown as NodeData & {
     _executionStatus?: string;
     _executionError?: string | null;
@@ -28,10 +29,20 @@ function ExecutionNodeComponent({ id, data, selected }: NodeProps) {
   const isSuccess = execStatus === "completed";
   const isFailed = execStatus === "failed" || execStatus === "error";
 
+  const mainInputs = def.handles.inputs.filter(
+    (p) => p.type === NodeConnectionTypes.Main,
+  );
+  const subInputs = def.handles.inputs.filter(
+    (p) => p.type !== NodeConnectionTypes.Main,
+  );
+  const mainOutputs = def.handles.outputs.filter(
+    (p) => p.type === NodeConnectionTypes.Main,
+  );
+
   return (
     <>
-      {/* Input handles */}
-      {def.handles.inputs.map((port) => (
+      {/* Main input handles — left */}
+      {mainInputs.map((port) => (
         <Handle
           key={port.id}
           type="target"
@@ -79,8 +90,8 @@ function ExecutionNodeComponent({ id, data, selected }: NodeProps) {
         {createElement(entry.node, { id, data: nodeData })}
       </div>
 
-      {/* Output handles */}
-      {def.handles.outputs.map((port) => (
+      {/* Main output handles — right */}
+      {mainOutputs.map((port) => (
         <Handle
           key={port.id}
           type="source"
@@ -89,6 +100,31 @@ function ExecutionNodeComponent({ id, data, selected }: NodeProps) {
           className="w-2.5! h-2.5! bg-muted-foreground/40! border-2! border-background!"
         />
       ))}
+
+      {/* Sub input handles (ai_*) — bottom diamonds (read-only, no + button) */}
+      {subInputs.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 flex items-start justify-center gap-4">
+          {subInputs.map((port) => (
+            <div
+              key={port.id}
+              className="relative flex flex-col items-center gap-1"
+            >
+              <div className="h-3 w-3 rotate-45 border-2 border-background bg-muted-foreground/40" />
+              <Handle
+                type="target"
+                position={Position.Top}
+                id={port.id}
+                className="absolute! top-0! left-1/2! h-4! w-4! -translate-x-1/2! -translate-y-1/2! transform! rounded-none! border-0! bg-transparent! opacity-0!"
+              />
+              {port.label && (
+                <span className="text-[10px] leading-none text-muted-foreground whitespace-nowrap">
+                  {port.label}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

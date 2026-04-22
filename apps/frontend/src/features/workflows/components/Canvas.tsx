@@ -7,18 +7,22 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  ControlButton,
   MiniMap,
   MarkerType,
   type NodeTypes,
   type EdgeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
+import { Sparkles } from "lucide-react";
+import { useAutoLayout } from "../hooks/useAutoLayout";
 import "@xyflow/react/dist/style.css";
 import { CustomNode } from "./custom-nodes/CustomNode";
 import { CustomEdge } from "./edges/CustomEdge";
 import { SubEdge } from "./edges/SubEdge";
 import { ConnectionLine } from "./edges/ConnectionLine";
 import { getNodeEntry } from "../nodes/registry";
+import { isValidConnection as validateConnection } from "../lib/connection-validator";
 import { useWorkflowEditorStore } from "../stores/workflowEditorStore";
 
 const nodeTypes: NodeTypes = {
@@ -39,6 +43,7 @@ const defaultEdgeOptions = {
 };
 
 export function Canvas() {
+  const autoLayout = useAutoLayout();
   const {
     nodes,
     edges,
@@ -124,6 +129,7 @@ export function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={(connection) => validateConnection(connection, nodes, edges)}
         onInit={(instance) => {
           reactFlowRef.current = instance;
         }}
@@ -153,7 +159,11 @@ export function Canvas() {
         <Controls
           showInteractive={false}
           className="rounded-lg! border! border-border! bg-background! shadow-sm! [&>button]:border-border! [&>button]:bg-background! [&>button]:text-foreground! [&>button]:hover:bg-accent!"
-        />
+        >
+          <ControlButton onClick={() => autoLayout()} title="Auto arrange layout">
+            <Sparkles />
+          </ControlButton>
+        </Controls>
         <MiniMap
           nodeColor={(node) => {
             const entry = getNodeEntry(node.data?.nodeType as string);

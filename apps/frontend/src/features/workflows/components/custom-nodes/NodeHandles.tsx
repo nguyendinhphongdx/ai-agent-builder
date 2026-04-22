@@ -2,6 +2,7 @@
 
 import { SourceHandle, TargetHandle, SubHandle } from "../handles";
 import type { NodeTypeDefinition } from "../../nodes/types";
+import { NodeConnectionTypes } from "../../nodes/types";
 
 interface NodeHandlesProps {
   nodeId: string;
@@ -11,21 +12,30 @@ interface NodeHandlesProps {
 }
 
 /**
- * Handle layout for a node: inputs on left, outputs on right, sub-connections on bottom.
- * Handles are rendered as children of the node shell (React Flow wraps the whole node in its
- * own positioning wrapper; Handle components use absolute positioning internally).
+ * Handle layout for a node:
+ * - `main` inputs  → TargetHandle on left
+ * - `main` outputs → SourceHandle on right (unless customOutputs is true)
+ * - non-main inputs (ai_*) → SubHandle diamonds at the bottom
  */
 export function NodeHandles({ nodeId, definition, customOutputs }: NodeHandlesProps) {
-  const hasSubs = definition.subConnections && definition.subConnections.length > 0;
+  const mainInputs = definition.handles.inputs.filter(
+    (p) => p.type === NodeConnectionTypes.Main,
+  );
+  const subInputs = definition.handles.inputs.filter(
+    (p) => p.type !== NodeConnectionTypes.Main,
+  );
+  const mainOutputs = definition.handles.outputs.filter(
+    (p) => p.type === NodeConnectionTypes.Main,
+  );
 
   return (
     <>
-      {definition.handles.inputs.map((port) => (
+      {mainInputs.map((port) => (
         <TargetHandle key={port.id} handleId={port.id} label={port.label} />
       ))}
 
       {!customOutputs &&
-        definition.handles.outputs.map((port) => (
+        mainOutputs.map((port) => (
           <SourceHandle
             key={port.id}
             handleId={port.id}
@@ -34,15 +44,15 @@ export function NodeHandles({ nodeId, definition, customOutputs }: NodeHandlesPr
           />
         ))}
 
-      {hasSubs && (
+      {subInputs.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 flex items-start justify-center gap-4">
-          {definition.subConnections!.map((sub) => (
+          {subInputs.map((port) => (
             <SubHandle
-              key={sub.id}
-              handleId={`sub_${sub.id}`}
+              key={port.id}
+              handleId={port.id}
               nodeId={nodeId}
-              label={sub.label}
-              required={sub.required}
+              label={port.label ?? port.id}
+              required={port.required}
             />
           ))}
         </div>

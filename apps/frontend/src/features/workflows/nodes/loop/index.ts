@@ -1,5 +1,6 @@
 import { Repeat } from "lucide-react";
 import type { NodeTypeDefinition, NodeContentProps } from "../types";
+import { NodeConnectionTypes } from "../types";
 import LoopPanelComponent from "./panel";
 
 export const definition: NodeTypeDefinition = {
@@ -10,10 +11,10 @@ export const definition: NodeTypeDefinition = {
   color: "#a855f7",
   category: "logic",
   handles: {
-    inputs: [{ id: "default", type: "main" }],
+    inputs: [{ id: "default", type: NodeConnectionTypes.Main }],
     outputs: [
-      { id: "loop_body", type: "conditional", label: "Loop body" },
-      { id: "done", type: "conditional", label: "Done" },
+      { id: "loop_body", type: NodeConnectionTypes.Main, label: "Loop body" },
+      { id: "done", type: NodeConnectionTypes.Main, label: "Done" },
     ],
   },
   defaultData: () => ({ batch_size: 1, max_iterations: 100 }),

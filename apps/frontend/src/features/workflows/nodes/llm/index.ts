@@ -1,5 +1,6 @@
 import { Brain } from "lucide-react";
 import type { NodeTypeDefinition, NodeContentProps } from "../types";
+import { NodeConnectionTypes } from "../types";
 import LLMPanelComponent from "./panel";
 
 export const definition: NodeTypeDefinition = {
@@ -10,14 +11,13 @@ export const definition: NodeTypeDefinition = {
   color: "#8b5cf6",
   category: "ai",
   handles: {
-    inputs: [{ id: "default", type: "main" }],
-    outputs: [{ id: "default", type: "main" }],
+    inputs: [{ id: "main", type: NodeConnectionTypes.Main }],
+    outputs: [
+      { id: "default", type: NodeConnectionTypes.Main },
+      // ★ Exposes this node as a Chat Model provider for Agent nodes.
+      { id: "model", type: NodeConnectionTypes.AiLanguageModel },
+    ],
   },
-  subConnections: [
-    { id: "model", label: "Chat Model", required: true, maxConnections: 1 },
-    { id: "memory", label: "Memory", maxConnections: 1 },
-    { id: "tool", label: "Tool" },
-  ],
   defaultData: () => ({
     llm_provider: "openai",
     llm_model: "gpt-4o",

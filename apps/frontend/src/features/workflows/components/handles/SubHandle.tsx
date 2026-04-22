@@ -20,22 +20,26 @@ export function SubHandle({ handleId, nodeId, label, required }: SubHandleProps)
   );
 
   return (
-    <div className="relative flex flex-col items-center gap-1">
-      {/* Diamond handle */}
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id={handleId}
-        className="w-3! h-3! rounded-none! rotate-45! bg-muted-foreground/40! border-2! border-background!"
-      />
+    <div className="group relative flex flex-col items-center gap-1.5">
+      {/* Diamond slot — Handle overlays this box so the connection point
+          lines up visually with the drawn diamond. */}
+      <div className="relative flex h-4 w-4 items-center justify-center">
+        <div className="h-3 w-3 rotate-45 border-2 border-background bg-muted-foreground/40 transition-colors group-hover:bg-primary" />
+        <Handle
+          type="target"
+          position={Position.Top}
+          id={handleId}
+          className="absolute! top-1/2! left-1/2! h-4! w-4! -translate-x-1/2! -translate-y-1/2! transform! rounded-none! border-0! bg-transparent! opacity-0!"
+        />
+      </div>
 
       {/* Label */}
-      <span className="text-[9px] text-muted-foreground whitespace-nowrap mt-2">
+      <span className="text-[10px] leading-none text-muted-foreground whitespace-nowrap">
         {label}
-        {required && <span className="text-destructive">*</span>}
+        {required && <span className="ml-0.5 text-destructive">*</span>}
       </span>
 
-      {/* Plus button when not connected */}
+      {/* Plus button — shows on hover when not connected */}
       {!isConnected && (
         <button
           onClick={(e) => {
@@ -46,9 +50,9 @@ export function SubHandle({ handleId, nodeId, label, required }: SubHandleProps)
               isSubConnection: true,
             });
           }}
-          className="flex h-4 w-4 items-center justify-center rounded border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground hover:border-primary"
+          className="flex h-5 w-5 items-center justify-center rounded-md border border-dashed border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-all hover:border-primary hover:bg-accent hover:text-foreground group-hover:opacity-100"
         >
-          <Plus className="h-2.5 w-2.5" />
+          <Plus className="h-3 w-3" />
         </button>
       )}
     </div>
