@@ -54,7 +54,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [workerIds, setWorkerIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("general");
-  const [isApiKeyReady, setIsApiKeyReady] = useState(false);
+  const [isCredentialReady, setIsCredentialReady] = useState(false);
 
   const form = useForm<AgentEditorFormValues>({
     resolver: zodResolver(agentEditorSchema),
@@ -62,8 +62,8 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
       name: "",
       description: "",
       system_prompt: "You are a helpful AI assistant.",
-      llm_provider: "openai",
-      llm_model: "gpt-4o",
+      model_id: "openai/gpt-4o",
+      credential_id: null,
       welcome_message: "",
       temperature: 0.7,
       max_tokens: 4096,
@@ -78,8 +78,8 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
         name: agent.name,
         description: agent.description ?? "",
         system_prompt: agent.system_prompt,
-        llm_provider: agent.llm_provider,
-        llm_model: agent.llm_model,
+        model_id: agent.model_id,
+        credential_id: agent.credential_id,
         welcome_message: agent.welcome_message ?? "",
         temperature: (agent.llm_config?.temperature as number) ?? 0.7,
         max_tokens: (agent.llm_config?.max_tokens as number) ?? 4096,
@@ -94,8 +94,8 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
       name: data.name,
       description: data.description,
       system_prompt: data.system_prompt,
-      llm_provider: data.llm_provider,
-      llm_model: data.llm_model,
+      model_id: data.model_id,
+      credential_id: data.credential_id,
       welcome_message: data.welcome_message,
       max_turns: data.max_turns,
       is_published: data.is_published,
@@ -132,8 +132,8 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
     }
   };
 
-  const handleApiKeyReady = useCallback((ready: boolean) => {
-    setIsApiKeyReady(ready);
+  const handleCredentialReady = useCallback((ready: boolean) => {
+    setIsCredentialReady(ready);
   }, []);
 
   const isPending = createAgent.isPending || updateAgent.isPending;
@@ -232,7 +232,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
 
               {/* ── Tab: Model ─────────────────────────────────── */}
               <TabsContent value="model" className="mt-0 p-5">
-                <ModelTabContent form={form} onApiKeyReady={handleApiKeyReady} />
+                <ModelTabContent form={form} onCredentialReady={handleCredentialReady} />
               </TabsContent>
 
               {/* ── Tab: Công cụ ────────────────────────────────── */}
@@ -278,7 +278,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
           agentId={agentId}
           agentName={watchName || "Untitled Agent"}
           welcomeMessage={watchWelcome}
-          apiKey={isApiKeyReady ? "saved" : ""}
+          credentialReady={isCredentialReady}
         />
       </div>
     </div>

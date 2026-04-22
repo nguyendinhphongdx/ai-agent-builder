@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X, Bot, Crown, ArrowRightLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAgents } from "../hooks/useAgents";
+import { modelDisplayName } from "@/lib/models/catalog";
 import { cn } from "@/lib/utils";
 
 type CollabMode = "none" | "supervisor" | "peer";
@@ -114,7 +115,7 @@ export function MultiAgentSection({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{agent.name}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {agent.llm_model}
+                      {modelDisplayName(agent.model_id)}
                     </p>
                   </div>
                   <button
@@ -149,7 +150,7 @@ export function MultiAgentSection({
                   </div>
                   <span className="text-xs">{agent.name}</span>
                   <span className="ml-auto text-[10px] text-muted-foreground">
-                    {agent.llm_model}
+                    {modelDisplayName(agent.model_id)}
                   </span>
                 </button>
               ))}

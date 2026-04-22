@@ -47,7 +47,7 @@ if "%TARGET%"=="all" (
 
 if "%TARGET%"=="services" (
     echo [32mStarting services...[0m
-    docker compose -f docker-compose.yml up -d postgres redis rabbitmq socket code-sandbox
+    docker compose -f docker-compose.yml up -d postgres redis rabbitmq socket code-sandbox mail dispatcher
     echo [32m+ Services started[0m
     goto :eof
 )
@@ -83,7 +83,7 @@ if "%TARGET%"=="all" (
 )
 
 if "%TARGET%"=="services" (
-    docker compose -f docker-compose.yml stop postgres redis rabbitmq socket code-sandbox
+    docker compose -f docker-compose.yml stop postgres redis rabbitmq socket code-sandbox mail dispatcher
     echo [32m+ Services stopped[0m
     goto :eof
 )
@@ -154,7 +154,19 @@ if "%TARGET%"=="docs" (
     npx tsx src/index.ts
     goto :eof
 )
-echo [31mSpecify target: forge dev backend^|frontend^|docs[0m
+if "%TARGET%"=="mail" (
+    echo [32mStarting mail service dev...[0m
+    cd services\mail
+    pnpm dev
+    goto :eof
+)
+if "%TARGET%"=="dispatcher" (
+    echo [32mStarting dispatcher service dev...[0m
+    cd services\dispatcher
+    pnpm dev
+    goto :eof
+)
+echo [31mSpecify target: forge dev backend^|frontend^|socket^|mail^|dispatcher^|docs[0m
 goto :eof
 
 :: ==========================================
@@ -188,7 +200,7 @@ goto :eof
 echo [34m=== Service Status ===[0m
 echo.
 echo Services:
-for %%s in (postgres redis rabbitmq socket code-sandbox) do (
+for %%s in (postgres redis rabbitmq socket code-sandbox mail dispatcher) do (
     docker compose -f docker-compose.yml ps --status running 2>nul | findstr /i "%%s" >nul 2>nul && (
         echo   [32m+[0m %%s
     ) || (
@@ -285,6 +297,9 @@ goto :eof
 echo [34m=== Health Check ===[0m
 curl -sf http://localhost:8000/api/health >nul 2>nul && (echo   [32m+[0m Backend API) || (echo   [31mx[0m Backend API)
 curl -sf http://localhost:3000 >nul 2>nul && (echo   [32m+[0m Frontend) || (echo   [31mx[0m Frontend)
+curl -sf http://localhost:3011/health >nul 2>nul && (echo   [32m+[0m Mail) || (echo   [31mx[0m Mail)
+curl -sf http://localhost:3010/health >nul 2>nul && (echo   [32m+[0m Dispatcher) || (echo   [31mx[0m Dispatcher)
+curl -sf http://localhost:4000/health >nul 2>nul && (echo   [32m+[0m Socket) || (echo   [31mx[0m Socket)
 goto :eof
 
 :: ==========================================
@@ -296,6 +311,9 @@ echo [33mServices running at:[0m
 echo   Frontend:     http://localhost:3000
 echo   Backend API:  http://localhost:8000/api
 echo   API Docs:     http://localhost:8000/api/docs
+echo   Socket:       http://localhost:4000 (health: /health)
+echo   Mail:         http://localhost:3011 (health: /health)
+echo   Dispatcher:   http://localhost:3010 (health: /health)
 echo   PostgreSQL:   localhost:5432
 echo   Redis:        localhost:6379
 echo   RabbitMQ:     localhost:5672 (UI: http://localhost:15672)
@@ -331,9 +349,9 @@ echo     migrate            Run DB migrations
 echo.
 echo   [32mTargets:[0m
 echo     all                Everything
-echo     services           postgres + redis + rabbitmq + socket + code-sandbox
+echo     services           postgres + redis + rabbitmq + socket + code-sandbox + mail + dispatcher
 echo     apps               backend + frontend
-echo     ^<name^>             postgres ^| redis ^| rabbitmq ^| socket ^| code-sandbox ^| backend ^| frontend
+echo     ^<name^>             postgres ^| redis ^| rabbitmq ^| socket ^| code-sandbox ^| mail ^| dispatcher ^| backend ^| frontend
 echo.
 echo   [32mExamples:[0m
 echo     forge start services

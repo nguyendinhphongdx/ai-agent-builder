@@ -23,13 +23,29 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REMEMBER_ME_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
+
+    # Auth token TTLs.
+    # Short for the verification code (brute-forceable 6 digits); long for the
+    # password-reset magic link which is cryptographically strong.
+    EMAIL_VERIFICATION_TTL_MINUTES: int = 15
+    PASSWORD_RESET_TTL_MINUTES: int = 30
+
+    # Public URLs used inside emails + OAuth callbacks
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    # OAuth providers (leave empty to disable that provider)
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     # API key cho các nhà cung cấp LLM
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 
-    # Fernet encryption key cho api_keys table
+    # Fernet encryption key cho ai_credentials table
     # Generate một lần: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     ENCRYPTION_KEY: str = ""
 
@@ -46,10 +62,13 @@ class Settings(BaseSettings):
     S3_ENDPOINT_URL: str = ""  # For MinIO: http://localhost:9000
     GCS_BUCKET: str = ""
 
-    # Socket notification service
-    SOCKET_SERVICE_URL: str = "http://localhost:4000"  # Internal (Docker: http://socket:4000)
-    SOCKET_PUBLIC_URL: str = "http://localhost:4000"    # What frontend connects to
-    SOCKET_API_SECRET: str = "dev-socket-api-secret"
+    # Socket (frontend connection URL; backend emits go through dispatcher)
+    SOCKET_PUBLIC_URL: str = "http://localhost:4000"
+
+    # Dispatcher — internal API gateway for all service-to-service calls
+    # (mail, socket, code-sandbox, ...). Empty DISPATCHER_SECRET disables guard in dev.
+    DISPATCHER_URL: str = "http://localhost:3010"  # Docker: http://dispatcher:3010
+    DISPATCHER_SECRET: str = ""
 
     # Embedding mặc định cho Knowledge Base
     EMBEDDING_PROVIDER: str = "ollama"  # "openai" | "ollama"

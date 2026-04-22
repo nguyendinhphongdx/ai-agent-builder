@@ -1,7 +1,7 @@
 """Fire-and-forget socket event emitter for workflow execution tracking.
 
-Sends events to the NestJS socket service via HTTP POST.
-Non-blocking: failures are silently ignored so workflow execution is never affected.
+Sends events via dispatcher → socket service. Non-blocking: failures are silently
+ignored so workflow execution is never affected.
 """
 
 from __future__ import annotations
@@ -9,9 +9,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import httpx
-
-from app.config import settings
+from app.dispatcher_client import dispatcher
 
 # Serialize emits so events arrive at the socket server in the order they were
 # queued. Fire-and-forget tasks running concurrently can otherwise complete out
@@ -22,15 +20,15 @@ _emit_lock = asyncio.Lock()
 
 
 async def _emit(room: str, event: str, payload: dict[str, Any]) -> None:
-    """Internal: POST to socket service. Swallows all errors."""
+    """Internal: emit event via dispatcher. Swallows all errors."""
     async with _emit_lock:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                await client.post(
-                    f"{settings.SOCKET_SERVICE_URL}/emit/room",
-                    json={"room": room, "event": event, "payload": payload},
-                    headers={"x-api-secret": settings.SOCKET_API_SECRET},
-                )
+            await dispatcher.sync(
+                "socket",
+                "/emit/room",
+                body={"room": room, "event": event, "payload": payload},
+                timeout=5.0,
+            )
         except Exception:
             pass  # Non-critical — never break workflow execution
 
@@ -39,8 +37,8 @@ def emit_to_room(room: str, event: str, payload: dict[str, Any]) -> None:
     """Fire-and-forget: emit event to a socket room.
 
     Creates a background task — does NOT block the caller. A module-level lock
-    inside ``_emit`` serializes the actual HTTP POSTs so delivery order matches
-    enqueue order.
+    inside ``_emit`` serializes the actual dispatcher calls so delivery order
+    matches enqueue order.
     """
     try:
         loop = asyncio.get_running_loop()

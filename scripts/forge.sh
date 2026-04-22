@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # ── Config ──
-SERVICES=(postgres redis rabbitmq socket code-sandbox)
+SERVICES=(postgres redis rabbitmq socket code-sandbox mail dispatcher)
 APPS=(backend frontend)
 
 # ── Colors ──
@@ -135,8 +135,16 @@ do_dev() {
             info "Starting MCP docs server..."
             cd mcp-docs && npx tsx src/index.ts
             ;;
+        mail)
+            info "Starting mail service dev..."
+            cd services/mail && pnpm dev
+            ;;
+        dispatcher)
+            info "Starting dispatcher service dev..."
+            cd services/dispatcher && pnpm dev
+            ;;
         "")
-            err "Specify target: ./forge.sh dev backend|frontend|socket|docs"; exit 1
+            err "Specify target: ./forge.sh dev backend|frontend|socket|mail|dispatcher|docs"; exit 1
             ;;
         *)
             err "Unknown dev target: $target"; exit 1
@@ -185,6 +193,9 @@ do_health() {
     head "Health Check"
     curl -sf http://localhost:8000/api/health > /dev/null 2>&1 && ok "Backend API" || err "Backend API"
     curl -sf http://localhost:3000 > /dev/null 2>&1 && ok "Frontend" || err "Frontend"
+    curl -sf http://localhost:3011/health > /dev/null 2>&1 && ok "Mail" || err "Mail"
+    curl -sf http://localhost:3010/health > /dev/null 2>&1 && ok "Dispatcher" || err "Dispatcher"
+    curl -sf http://localhost:4000/health > /dev/null 2>&1 && ok "Socket" || err "Socket"
     docker exec "$(svc_compose postgres ps -q postgres 2>/dev/null)" pg_isready > /dev/null 2>&1 && ok "PostgreSQL" || err "PostgreSQL"
     docker exec "$(svc_compose redis ps -q redis 2>/dev/null)" redis-cli ping > /dev/null 2>&1 && ok "Redis" || err "Redis"
 }
@@ -241,6 +252,8 @@ show_urls() {
     echo "  Backend API:  http://localhost:8000/api"
     echo "  API Docs:     http://localhost:8000/api/docs"
     echo "  Socket:       http://localhost:4000 (health: /health)"
+    echo "  Mail:         http://localhost:3011 (health: /health)"
+    echo "  Dispatcher:   http://localhost:3010 (health: /health)"
     echo "  PostgreSQL:   localhost:5432"
     echo "  Redis:        localhost:6379"
     echo "  RabbitMQ:     localhost:5672 (UI: http://localhost:15672)"
@@ -274,9 +287,9 @@ show_help() {
     echo ""
     echo -e "  ${GREEN}Targets:${NC}"
     echo "    all                Everything"
-    echo "    services           postgres + redis + rabbitmq + socket + code-sandbox"
+    echo "    services           postgres + redis + rabbitmq + socket + code-sandbox + mail + dispatcher"
     echo "    apps               backend + frontend"
-    echo "    <name>             postgres | redis | rabbitmq | socket | code-sandbox | backend | frontend"
+    echo "    <name>             postgres | redis | rabbitmq | socket | code-sandbox | mail | dispatcher | backend | frontend"
     echo ""
     echo -e "  ${GREEN}Examples:${NC}"
     echo "    ./forge.sh start services"

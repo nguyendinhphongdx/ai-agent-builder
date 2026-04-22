@@ -50,8 +50,11 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
     avatar_url: Mapped[str | None] = mapped_column(String(512))
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)  # Prompt hệ thống định nghĩa hành vi agent
-    llm_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="openai")  # "openai" hoặc "anthropic"
-    llm_model: Mapped[str] = mapped_column(String(100), nullable=False, default="gpt-4o")
+    # Model identifier theo format "provider/model" — VD "openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"
+    model_id: Mapped[str] = mapped_column(String(150), nullable=False, default="openai/gpt-4o")
+    credential_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_credentials.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     llm_config: Mapped[dict] = mapped_column(JSONB, default=dict)  # Cấu hình LLM: temperature, max_tokens, ...
     welcome_message: Mapped[str | None] = mapped_column(Text)  # Tin nhắn chào mừng khi bắt đầu hội thoại
     max_turns: Mapped[int] = mapped_column(Integer, default=50)  # Giới hạn số lượt trao đổi tối đa
@@ -61,6 +64,7 @@ class Agent(Base, UUIDMixin, TimestampMixin):
 
     # Quan hệ
     user: Mapped["User"] = relationship(back_populates="agents")
+    credential: Mapped["AICredential | None"] = relationship(lazy="joined")
     tools: Mapped[list["Tool"]] = relationship(secondary="agent_tools", lazy="selectin")
     knowledge_bases: Mapped[list["KnowledgeBase"]] = relationship(
         secondary="agent_knowledge_bases", lazy="selectin"

@@ -1,6 +1,8 @@
 "use client";
 
-import { Bot, Workflow, Database, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bot, Workflow, Database, Sparkles, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function AgentIllustration() {
   return (
@@ -187,17 +189,59 @@ function AgentIllustration() {
 }
 
 const features = [
-  { icon: Workflow, label: "Visual Workflows", color: "#eab308" },
-  { icon: Database, label: "Knowledge Base", color: "#8b5cf6" },
-  { icon: Sparkles, label: "Multi-Agent", color: "#6366f1" },
+  {
+    icon: Workflow,
+    label: "Visual Workflows",
+    color: "#eab308",
+    tagline: "Drag, drop, and wire your agents together.",
+  },
+  {
+    icon: Database,
+    label: "Knowledge Base",
+    color: "#8b5cf6",
+    tagline: "Ground responses in your own documents.",
+  },
+  {
+    icon: Sparkles,
+    label: "Multi-Agent",
+    color: "#6366f1",
+    tagline: "Let specialised agents collaborate on tasks.",
+  },
 ];
 
+/** Rotates `features` — index advances every `intervalMs`. */
+function useFeatureRotation(intervalMs = 3500): number {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % features.length);
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return index;
+}
+
 export function BrandPanel() {
+  const activeIndex = useFeatureRotation();
+  const active = features[activeIndex];
+
   return (
     <div className="hidden lg:flex flex-col justify-between h-full bg-muted/30 border-r border-border p-10 relative overflow-hidden">
-      {/* Dot grid */}
+      {/* Gradient mesh background */}
       <div
-        className="absolute inset-0 opacity-[0.02]"
+        aria-hidden
+        className="absolute inset-0 opacity-70"
+        style={{
+          background:
+            "radial-gradient(60% 40% at 15% 20%, rgba(99,102,241,0.10), transparent 60%), " +
+            "radial-gradient(50% 35% at 85% 75%, rgba(236,72,153,0.08), transparent 60%), " +
+            "radial-gradient(40% 30% at 50% 50%, rgba(16,185,129,0.06), transparent 70%)",
+        }}
+      />
+
+      {/* Dot grid overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.025]"
         style={{
           backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 0.8px, transparent 0)`,
           backgroundSize: "28px 28px",
@@ -207,7 +251,10 @@ export function BrandPanel() {
       {/* Top: Logo + tagline */}
       <div className="relative z-10 animate-fade-up">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: "#6366f1" }}>
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
+            style={{ background: "#6366f1" }}
+          >
             <Bot className="h-5 w-5" />
           </div>
           <span className="text-xl font-semibold tracking-tight">AgentForge</span>
@@ -217,19 +264,61 @@ export function BrandPanel() {
         </p>
       </div>
 
-      {/* Center: Illustration */}
-      <div className="relative z-10 flex-1 flex items-center justify-center py-4">
+      {/* Center: Illustration + rotating tagline */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-4">
         <AgentIllustration />
+        {/* Rotating tagline below illustration — fades on change */}
+        <p
+          key={active.label}
+          className="mt-6 max-w-[320px] text-center text-sm text-muted-foreground animate-fade-in"
+        >
+          <span className="font-medium" style={{ color: active.color }}>
+            {active.label}.
+          </span>{" "}
+          {active.tagline}
+        </p>
       </div>
 
-      {/* Bottom: Feature highlights */}
-      <div className="relative z-10 flex gap-6 animate-fade-up delay-400">
-        {features.map(({ icon: Icon, label, color }) => (
-          <div key={label} className="flex items-center gap-2 text-muted-foreground">
-            <Icon className="h-4 w-4" style={{ color }} />
-            <span className="text-xs font-medium">{label}</span>
-          </div>
-        ))}
+      {/* Bottom: Feature pills + social proof */}
+      <div className="relative z-10 space-y-5 animate-fade-up delay-400">
+        {/* Feature pills — active one highlighted, others dim */}
+        <div className="flex flex-wrap gap-2">
+          {features.map(({ icon: Icon, label, color }, i) => {
+            const isActive = i === activeIndex;
+            return (
+              <div
+                key={label}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-300",
+                  isActive
+                    ? "border-border bg-background shadow-sm"
+                    : "border-transparent bg-transparent text-muted-foreground/70",
+                )}
+                style={isActive ? { color } : undefined}
+              >
+                <Icon className="h-3 w-3" style={{ color }} />
+                <span>{label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Social proof */}
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+          <a
+            href="https://github.com/nguyendinhphongdx/ai-agent-builder"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2 py-1 transition-colors hover:bg-background"
+          >
+            <Star className="h-3 w-3" />
+            <span>Star on GitHub</span>
+          </a>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Open source · MIT
+          </span>
+        </div>
       </div>
     </div>
   );

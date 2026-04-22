@@ -29,6 +29,8 @@ dependencies = [
     "docx2txt>=0.8",
     "pydantic[email]>=2.0",
     "simpleeval>=1.0",
+    "authlib>=1.3",
+    "itsdangerous>=2.2",
 ]
 
 [project.optional-dependencies]

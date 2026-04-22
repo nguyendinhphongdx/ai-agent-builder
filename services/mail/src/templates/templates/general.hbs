@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <title>{{title}}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table, td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #0f0f14;
+      background-color: #f5f5f7;
+    }
+    a { color: #6366f1; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .logo-mark {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      text-align: center;
+      line-height: 28px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+    .logo-mark-sm {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      text-align: center;
+      line-height: 18px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    @media only screen and (max-width: 620px) {
+      .email-container { width: 100% !important; }
+      .padding-mobile { padding-left: 20px !important; padding-right: 20px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f7;">
+  <!-- Preview Text -->
+  <div style="display: none; max-height: 0px; overflow: hidden;">{{previewText}}</div>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f7;">
+    <tr>
+      <td style="padding: 24px 16px;">
+
+        <!-- Email Container -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" align="center" class="email-container" style="margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #ececef;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 20px 32px; border-bottom: 1px solid #ececef;" class="padding-mobile">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="vertical-align: middle; padding-right: 10px;">
+                    <span class="logo-mark">A</span>
+                  </td>
+                  <td style="vertical-align: middle;">
+                    <span style="font-size: 16px; font-weight: 700; color: #0f0f14; letter-spacing: -0.3px;">AgentForge</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 32px 32px 24px 32px;" class="padding-mobile">
+              {{#if greeting}}
+              <p style="font-size: 15px; color: #0f0f14; margin: 0 0 16px 0; font-weight: 600;">{{greeting}}</p>
+              {{/if}}
+              <div style="font-size: 15px; line-height: 1.6; color: #3f3f46;">
+                {{{content}}}
+              </div>
+              {{#if buttonUrl}}
+              <div style="margin-top: 28px;">
+                <a href="{{buttonUrl}}" class="btn-primary">{{buttonText}}</a>
+              </div>
+              {{/if}}
+            </td>
+          </tr>
+
+          <!-- Help Text -->
+          <tr>
+            <td style="padding: 0 32px 24px 32px;" class="padding-mobile">
+              <p style="font-size: 13px; color: #71717a; margin: 0; padding-top: 16px; border-top: 1px solid #ececef;">
+                Cần hỗ trợ? Liên hệ <a href="mailto:support@agentforge.com" style="color: #6366f1;">support@agentforge.com</a> hoặc xem <a href="https://github.com/agentforge/agentforge" style="color: #6366f1;">tài liệu trên GitHub</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Email Container -->
+
+        <!-- Footer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" align="center" class="email-container" style="margin: auto;">
+          <tr>
+            <td style="padding: 24px 32px;" class="padding-mobile">
+              <!-- Logo + tagline -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="vertical-align: middle; padding-right: 6px;">
+                          <span class="logo-mark-sm">A</span>
+                        </td>
+                        <td style="vertical-align: middle;">
+                          <span style="font-size: 13px; font-weight: 600; color: #71717a;">AgentForge</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align: middle; text-align: right;">
+                    <span style="font-size: 12px; color: #a1a1aa; font-style: italic;">Open-source AI Agent Builder</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Links -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 16px;">
+                <tr>
+                  <td>
+                    <p style="font-size: 12px; color: #a1a1aa; margin: 0;">
+                      <a href="https://github.com/agentforge/agentforge" style="color: #a1a1aa; text-decoration: underline;">GitHub</a>
+                      <span style="padding: 0 4px;">|</span>
+                      <a href="https://agentforge.com/docs" style="color: #a1a1aa; text-decoration: underline;">Tài liệu</a>
+                      <span style="padding: 0 4px;">|</span>
+                      <a href="https://agentforge.com/privacy" style="color: #a1a1aa; text-decoration: underline;">Chính sách</a>
+                      {{#if unsubscribeUrl}}
+                      <span style="padding: 0 4px;">|</span>
+                      <a href="{{unsubscribeUrl}}" style="color: #a1a1aa; text-decoration: underline;">Hủy đăng ký</a>
+                      {{/if}}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Company info -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 12px;">
+                <tr>
+                  <td>
+                    <p style="font-size: 11px; color: #a1a1aa; margin: 0; line-height: 1.5;">
+                      &copy;{{currentYear}} AgentForge. Open-source AI Agent Builder platform.<br>
+                      Email này được gửi tự động, vui lòng không reply trực tiếp.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

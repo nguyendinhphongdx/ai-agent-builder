@@ -1,6 +1,10 @@
 "use client";
 
-import { Bot } from "lucide-react";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bot, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useAuth } from "../hooks/useAuth";
 import { BrandPanel } from "./BrandPanel";
 
 interface AuthLayoutProps {
@@ -9,9 +13,45 @@ interface AuthLayoutProps {
   subtitle?: string;
 }
 
-export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
+const VERIFY_PENDING_PATH = "/verify-email/pending";
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
   return (
-    <div className="flex min-h-screen">
+    <button
+      type="button"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/60 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-accent hover:text-foreground"
+      aria-label="Toggle theme"
+    >
+      <Sun className="h-4 w-4 scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90" />
+      <Moon className="absolute h-4 w-4 scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0" />
+    </button>
+  );
+}
+
+export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Auth pages shouldn't be visible to already-signed-in users.
+  // - Verified → send to /home (which forwards to the real app)
+  // - Unverified → keep them on the verify-email page, redirect others
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) return;
+    if (user.is_verified) {
+      router.replace("/home");
+    } else if (pathname !== VERIFY_PENDING_PATH) {
+      router.replace(VERIFY_PENDING_PATH);
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router]);
+
+  return (
+    <div className="relative flex min-h-screen">
+      {/* Theme toggle — top right of the whole page */}
+      <ThemeToggle />
+
       {/* Left: Branding — hidden on mobile */}
       <div className="hidden lg:block lg:w-1/2">
         <div className="sticky top-0 h-screen">

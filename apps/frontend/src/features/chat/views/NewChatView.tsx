@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Bot, MessageCircle, Sparkles, Wand2 } from "lucide-react";
 import { useAgents } from "@/features/agents/hooks/useAgents";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getProvider, modelDisplayName, providerOfModel } from "@/lib/models/catalog";
 import { cn } from "@/lib/utils";
 
 export function NewChatView() {
@@ -85,7 +86,8 @@ export function NewChatView() {
                     {selected && <Sparkles className="h-4 w-4 text-sky-600 dark:text-sky-300" />}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {agent.llm_provider} • {agent.llm_model}
+                    {getProvider(providerOfModel(agent.model_id))?.label ?? providerOfModel(agent.model_id)} •{" "}
+                    {modelDisplayName(agent.model_id)}
                   </p>
                   {agent.description && (
                     <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{agent.description}</p>

@@ -19,16 +19,16 @@ interface AgentPreviewChatProps {
   agentId?: string;
   agentName?: string;
   welcomeMessage?: string;
-  apiKey?: string;
+  credentialReady?: boolean;
 }
 
 export function AgentPreviewChat({
   agentId,
   agentName,
   welcomeMessage,
-  apiKey,
+  credentialReady,
 }: AgentPreviewChatProps) {
-  const isReady = !!agentId && !!apiKey;
+  const isReady = !!agentId && !!credentialReady;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -46,7 +46,7 @@ export function AgentPreviewChat({
     }
   }, [messages, streamContent]);
 
-  // Create conversation when agentId + apiKey are both available
+  // Create conversation when agentId + credential are both ready
   useEffect(() => {
     if (!isReady) return;
     let cancelled = false;
@@ -140,8 +140,8 @@ export function AgentPreviewChat({
             <p className="mt-1 text-xs text-muted-foreground">
               {!agentId
                 ? "Lưu agent trước để bật chat preview"
-                : !apiKey
-                ? "Nhập API key trong tab Model để bắt đầu"
+                : !credentialReady
+                ? "Kết nối credential trong tab Model để bắt đầu"
                 : "Gửi tin nhắn để bắt đầu cuộc trò chuyện"}
             </p>
           </div>
@@ -220,8 +220,8 @@ export function AgentPreviewChat({
             placeholder={
               !agentId
                 ? "Lưu agent để bật preview…"
-                : !apiKey
-                ? "Nhập API key trong tab Model…"
+                : !credentialReady
+                ? "Kết nối credential trong tab Model…"
                 : "Gửi tin nhắn…"
             }
             disabled={!isReady || isStreaming}

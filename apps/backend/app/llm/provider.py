@@ -1,7 +1,7 @@
-"""Unified LLM provider factory - tạo LLM instance từ provider name + config.
+"""Unified LLM provider factory - tạo LLM instance từ model_id + config.
 
-Hỗ trợ: OpenAI, Anthropic, Ollama (local).
-Tập trung logic tạo LLM ở một chỗ thay vì rải rác trong executor, workflow nodes, ...
+Model ID format: "provider/model-name" — VD "openai/gpt-4o", "anthropic/claude-sonnet-4-20250514".
+Hỗ trợ: OpenAI, Anthropic, Google, Ollama.
 """
 
 from __future__ import annotations
@@ -11,56 +11,38 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 
 
-# Danh sách model mặc định cho mỗi provider
-DEFAULT_MODELS = {
-    "openai": "gpt-4o",
-    "anthropic": "claude-sonnet-4-20250514",
-    "ollama": "llama3.1",
-}
+def split_model_id(model_id: str) -> tuple[str, str]:
+    """Parse "provider/model" thành (provider, model_name).
 
-# Danh sách model khả dụng cho frontend hiển thị
-AVAILABLE_MODELS = {
-    "openai": [
-        {"id": "gpt-4o", "name": "GPT-4o", "context_window": 128000},
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "context_window": 128000},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "context_window": 128000},
-        {"id": "o3-mini", "name": "o3-mini", "context_window": 200000},
-    ],
-    "anthropic": [
-        {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "context_window": 200000},
-        {"id": "claude-opus-4-20250514", "name": "Claude Opus 4", "context_window": 200000},
-        {"id": "claude-haiku-4-20250414", "name": "Claude Haiku 4", "context_window": 200000},
-    ],
-    "ollama": [
-        {"id": "llama3.1", "name": "Llama 3.1", "context_window": 128000},
-        {"id": "mistral", "name": "Mistral", "context_window": 32000},
-        {"id": "codellama", "name": "Code Llama", "context_window": 16000},
-        {"id": "gemma2", "name": "Gemma 2", "context_window": 8192},
-    ],
-}
+    Split tại dấu '/' đầu tiên để cho phép model name chứa '/' (VD "huggingface/meta-llama/Llama-3").
+    """
+    if "/" not in model_id:
+        raise ValueError(
+            f"Invalid model_id '{model_id}'. Expected format 'provider/model', e.g. 'openai/gpt-4o'"
+        )
+    provider, name = model_id.split("/", 1)
+    return provider, name
 
 
 def build_llm(
-    provider: str = "openai",
-    model: str | None = None,
+    model_id: str,
     temperature: float = 0.7,
     max_tokens: int = 4096,
     base_url: str | None = None,
     api_key: str | None = None,
     **kwargs: Any,
 ) -> BaseChatModel:
-    """Tạo LLM instance dựa trên provider.
+    """Tạo LLM instance từ model_id (format "provider/model").
 
     Args:
-        provider: "openai", "anthropic", "google", hoặc "ollama"
-        model: tên model (nếu None, dùng model mặc định của provider)
-        temperature: độ sáng tạo (0.0 - 1.0)
+        model_id: "openai/gpt-4o", "anthropic/claude-sonnet-4-20250514", ...
+        temperature: độ sáng tạo
         max_tokens: số token tối đa cho response
         base_url: URL tùy chỉnh (dùng cho Ollama hoặc API proxy)
         api_key: API key ghi đè (nếu None, dùng biến môi trường)
         **kwargs: tham số bổ sung truyền thẳng cho LLM constructor
     """
-    model = model or DEFAULT_MODELS.get(provider, "gpt-4o")
+    provider, model = split_model_id(model_id)
     common = {"temperature": temperature, "max_tokens": max_tokens, **kwargs}
     if api_key:
         common["api_key"] = api_key
@@ -82,20 +64,22 @@ def build_llm(
             num_predict=max_tokens,
         )
 
-    else:  # openai (default)
+    elif provider == "openai":
         from langchain_openai import ChatOpenAI
         extra = {}
         if base_url:
             extra["base_url"] = base_url
         return ChatOpenAI(model=model, **common, **extra)
 
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
+
 
 def build_llm_from_agent(agent, api_key: str | None = None) -> BaseChatModel:
     """Tạo LLM từ cấu hình Agent model (tiện dùng trong executor)."""
     config = agent.llm_config or {}
     return build_llm(
-        provider=agent.llm_provider,
-        model=agent.llm_model,
+        model_id=agent.model_id,
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens", 4096),
         base_url=config.get("base_url"),

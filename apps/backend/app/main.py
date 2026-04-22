@@ -20,8 +20,8 @@ logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 from app.agents.router import router as agents_router
-from app.api_keys.router import router as api_keys_router
 from app.auth.router import router as auth_router
+from app.auth.oauth_router import router as oauth_router
 from app.auth.service import decode_token
 from app.config import settings
 from app.conversations.router import router as conversations_router
@@ -30,6 +30,8 @@ from app.knowledge.router import router as knowledge_router
 from app.tools.router import router as tools_router
 from app.workflows.router import router as workflows_router
 from app.multi_agent.router import router as multi_agent_router
+from app.ai_credentials.router import router as ai_credentials_router
+from app.llm.router import router as llm_router
 from app.webhooks.router import router as webhooks_router
 
 
@@ -77,8 +79,10 @@ def create_app() -> FastAPI:
 
     # REST routers
     app.include_router(auth_router, prefix=settings.API_PREFIX)
+    app.include_router(oauth_router, prefix=settings.API_PREFIX)
     app.include_router(agents_router, prefix=settings.API_PREFIX)
-    app.include_router(api_keys_router, prefix=settings.API_PREFIX)
+    app.include_router(ai_credentials_router, prefix=settings.API_PREFIX)
+    app.include_router(llm_router, prefix=settings.API_PREFIX)
     app.include_router(tools_router, prefix=settings.API_PREFIX)
     app.include_router(knowledge_router, prefix=settings.API_PREFIX)
     app.include_router(conversations_router, prefix=settings.API_PREFIX)

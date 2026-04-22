@@ -4,8 +4,8 @@ export interface Agent {
   description: string | null;
   avatar_url: string | null;
   system_prompt: string;
-  llm_provider: string;
-  llm_model: string;
+  model_id: string;                 // "provider/model" — VD "openai/gpt-4o"
+  credential_id: string | null;
   llm_config: Record<string, unknown>;
   welcome_message: string | null;
   max_turns: number;
@@ -22,8 +22,8 @@ export interface AgentListItem {
   name: string;
   description: string | null;
   avatar_url: string | null;
-  llm_provider: string;
-  llm_model: string;
+  model_id: string;
+  credential_id: string | null;
   status: string;
   is_published: boolean;
   created_at: string;
@@ -47,8 +47,8 @@ export interface AgentCreateInput {
   name: string;
   description?: string;
   system_prompt: string;
-  llm_provider?: string;
-  llm_model?: string;
+  model_id?: string;
+  credential_id?: string | null;
   llm_config?: Record<string, unknown>;
   welcome_message?: string;
   max_turns?: number;

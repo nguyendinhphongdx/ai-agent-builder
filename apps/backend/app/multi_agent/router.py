@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.service import get_agent
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.llm.provider import AVAILABLE_MODELS
 from app.models.user import User
 from app.multi_agent.schemas import (
     MultiAgentResponse,
@@ -96,7 +95,3 @@ async def run_peer_endpoint(  # Chạy peer collaboration: các agent xử lý t
         pattern="peer",
     )
 
-
-@router.get("/providers")
-async def list_providers():  # Trả về danh sách LLM providers và models khả dụng
-    return AVAILABLE_MODELS

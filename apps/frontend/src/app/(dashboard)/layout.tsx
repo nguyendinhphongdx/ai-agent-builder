@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -14,19 +13,28 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const isAgentChatRoute = /^\/agents\/[^/]+\/chat$/.test(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Guard 1: must be authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading || !isAuthenticated) {
+  // Guard 2: must be verified — hard block, send to /verify-email/pending
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (!user.is_verified) {
+      router.replace("/verify-email/pending");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !isAuthenticated || (user && !user.is_verified)) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-background">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />

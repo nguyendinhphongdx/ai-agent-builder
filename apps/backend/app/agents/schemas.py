@@ -10,8 +10,8 @@ class AgentCreate(BaseModel):
     name: str
     description: str | None = None
     system_prompt: str
-    llm_provider: str = "openai"
-    llm_model: str = "gpt-4o"
+    model_id: str = "openai/gpt-4o"
+    credential_id: uuid.UUID | None = None
     llm_config: dict = {}
     welcome_message: str | None = None
     max_turns: int = 50
@@ -22,8 +22,8 @@ class AgentUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     system_prompt: str | None = None
-    llm_provider: str | None = None
-    llm_model: str | None = None
+    model_id: str | None = None
+    credential_id: uuid.UUID | None = None
     llm_config: dict | None = None
     welcome_message: str | None = None
     max_turns: int | None = None
@@ -55,8 +55,8 @@ class AgentResponse(AppBaseModel):
     description: str | None
     avatar_url: str | None
     system_prompt: str
-    llm_provider: str
-    llm_model: str
+    model_id: str
+    credential_id: uuid.UUID | None
     llm_config: dict
     welcome_message: str | None
     max_turns: int
@@ -76,8 +76,8 @@ class AgentListResponse(AppBaseModel):
     name: str
     description: str | None
     avatar_url: str | None
-    llm_provider: str
-    llm_model: str
+    model_id: str
+    credential_id: uuid.UUID | None
     status: str
     is_published: bool
     created_at: datetime

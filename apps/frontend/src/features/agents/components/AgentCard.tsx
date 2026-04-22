@@ -6,6 +6,7 @@ import { Bot, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { modelDisplayName } from "@/lib/models/catalog";
 import type { AgentListItem } from "../types";
 
 interface AgentCardProps {
@@ -38,7 +39,7 @@ export const AgentCard = memo(function AgentCard({ agent }: AgentCardProps) {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            {agent.llm_model}
+            {modelDisplayName(agent.model_id)}
           </span>
           <Link href={`/agents/${agent.id}/chat`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             <MessageSquare className="mr-1 h-3 w-3" />

@@ -12,8 +12,8 @@ from pydantic import BaseModel
 class NodeConfig(BaseModel):
     """Cấu hình linh hoạt cho từng loại node, truyền qua JSONB."""
     # LLM node
-    llm_provider: str | None = None
-    llm_model: str | None = None
+    model_id: str | None = None          # "provider/model"
+    credential_id: uuid.UUID | None = None
     system_prompt: str | None = None
     temperature: float | None = None
     max_tokens: int | None = None

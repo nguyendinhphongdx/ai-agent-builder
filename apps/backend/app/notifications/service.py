@@ -1,11 +1,14 @@
-"""Notification service - mint socket tokens + relay events to socket service."""
+"""Notification service — mint socket tokens + relay events via dispatcher.
+
+Socket emits go through the dispatcher `/dispatch/exchange` endpoint
+(target=socket). Failures are silently swallowed at the dispatcher-client
+layer so callers never need to worry about a flaky socket service.
+"""
 
 from datetime import timedelta
 
-import httpx
-
 from app.auth.service import create_token
-from app.config import settings
+from app.dispatcher_client import dispatcher
 
 
 def create_socket_token(user_id: str, rooms: list[str] | None = None) -> str:
@@ -18,38 +21,29 @@ def create_socket_token(user_id: str, rooms: list[str] | None = None) -> str:
 
 async def notify_user(user_id: str, event: str, payload: dict) -> None:
     """Send event to a specific user via socket service."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(
-                f"{settings.SOCKET_SERVICE_URL}/emit",
-                json={"userId": user_id, "event": event, "payload": payload},
-                headers={"x-api-secret": settings.SOCKET_API_SECRET},
-            )
-    except Exception:
-        pass  # Best-effort, don't crash caller
+    await dispatcher.sync(
+        "socket",
+        "/emit",
+        body={"userId": user_id, "event": event, "payload": payload},
+        timeout=5.0,
+    )
 
 
 async def notify_room(room: str, event: str, payload: dict) -> None:
     """Send event to a room via socket service."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(
-                f"{settings.SOCKET_SERVICE_URL}/emit/room",
-                json={"room": room, "event": event, "payload": payload},
-                headers={"x-api-secret": settings.SOCKET_API_SECRET},
-            )
-    except Exception:
-        pass
+    await dispatcher.sync(
+        "socket",
+        "/emit/room",
+        body={"room": room, "event": event, "payload": payload},
+        timeout=5.0,
+    )
 
 
 async def broadcast(event: str, payload: dict) -> None:
     """Send event to all connected users via socket service."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(
-                f"{settings.SOCKET_SERVICE_URL}/emit/broadcast",
-                json={"event": event, "payload": payload},
-                headers={"x-api-secret": settings.SOCKET_API_SECRET},
-            )
-    except Exception:
-        pass
+    await dispatcher.sync(
+        "socket",
+        "/emit/broadcast",
+        body={"event": event, "payload": payload},
+        timeout=5.0,
+    )

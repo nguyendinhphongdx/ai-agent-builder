@@ -6,7 +6,7 @@ from langgraph.prebuilt import create_react_agent
 from sqlalchemy import select
 
 from app.agents.executor import _auto_retrieve_context, _build_system_prompt, build_agent_tools
-from app.api_keys.service import get_plaintext_key_for_provider
+from app.ai_credentials.service import get_plaintext_key_by_id
 from app.llm.provider import build_llm_from_agent
 from app.models.agent import Agent as AgentModel
 from ..base import ExecutionContext, NodeExecutor, NodeResult
@@ -34,7 +34,7 @@ class AgentExecutor(NodeExecutor):
         if not agent:
             raise ValueError(f"Agent not found: {agent_id}")
 
-        api_key = await get_plaintext_key_for_provider(ctx.db, agent.user_id, agent.llm_provider)
+        api_key = await get_plaintext_key_by_id(ctx.db, agent.credential_id) if agent.credential_id else None
         llm = build_llm_from_agent(agent, api_key=api_key)
         tools = await build_agent_tools(agent, ctx.db)
 

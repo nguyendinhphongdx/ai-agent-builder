@@ -1,0 +1,24 @@
+{
+  "services": {
+    "api": {
+      "url": "http://api:3000",
+      "description": "Main API service"
+    },
+    "meeting-api": {
+      "url": "http://meeting-api:4001",
+      "description": "Meeting & AI agents service"
+    },
+    "ai": {
+      "url": "http://ai-service:3456",
+      "description": "AI Service (LLM completions, embeddings)"
+    },
+    "socket": {
+      "url": "http://socket:6789",
+      "description": "WebSocket service"
+    },
+    "mail": {
+      "url": "http://mail:3011",
+      "description": "Email service (SendGrid)"
+    }
+  }
+}

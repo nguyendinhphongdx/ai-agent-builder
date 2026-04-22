@@ -17,8 +17,11 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    """So sánh mật khẩu plain text với hash đã lưu."""
+def verify_password(plain: str, hashed: str | None) -> bool:
+    """So sánh mật khẩu plain text với hash đã lưu. OAuth-only users có
+    ``hashed_password = NULL`` — luôn trả False để login bằng password fail."""
+    if not hashed:
+        return False
     return pwd_context.verify(plain, hashed)
 
 
@@ -37,11 +40,31 @@ def create_access_token(user_id: str) -> str:
     )
 
 
-def create_refresh_token(user_id: str) -> str:
-    """Tạo refresh token dài hạn để làm mới access token."""
+def create_refresh_token(
+    user_id: str,
+    token_version: int = 0,
+    remember: bool = False,
+) -> str:
+    """Tạo refresh token.
+
+    - ``token_version`` phải khớp với ``User.token_version`` lúc refresh;
+      password reset bump version → tất cả refresh token cũ invalid.
+    - ``remember`` flag nhúng trong payload để /refresh biết re-issue với
+      TTL cũ (7d thường, 30d nếu user đã tick Remember me).
+    """
+    days = (
+        settings.REMEMBER_ME_EXPIRE_DAYS
+        if remember
+        else settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
     return create_token(
-        {"sub": user_id, "type": "refresh"},
-        timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        {
+            "sub": user_id,
+            "type": "refresh",
+            "ver": token_version,
+            "remember": remember,
+        },
+        timedelta(days=days),
     )
 
 
@@ -66,12 +89,21 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def create_user(db: AsyncSession, email: str, password: str, full_name: str | None) -> User:
-    """Tạo user mới với mật khẩu đã được mã hóa."""
+async def create_user(
+    db: AsyncSession,
+    email: str,
+    password: str | None,
+    full_name: str | None,
+    *,
+    is_verified: bool = False,
+) -> User:
+    """Tạo user mới. ``password`` có thể ``None`` cho OAuth-only accounts."""
     user = User(
         email=email,
-        hashed_password=hash_password(password),
+        hashed_password=hash_password(password) if password else None,
         full_name=full_name,
+        is_verified=is_verified,
+        verified_at=datetime.now(timezone.utc) if is_verified else None,
     )
     db.add(user)
     await db.flush()

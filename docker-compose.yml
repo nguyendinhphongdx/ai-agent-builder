@@ -10,6 +10,8 @@ include:
   - path: services/rabbitmq/docker-compose.yml
   - path: services/code-sandbox/docker-compose.yml
   - path: services/socket/docker-compose.yml
+  - path: services/mail/docker-compose.yml
+  - path: services/dispatcher/docker-compose.yml
 
 services:
   backend:

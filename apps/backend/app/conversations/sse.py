@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.executor import execute_agent_stream
 from app.agents.service import get_agent
-from app.api_keys.service import get_plaintext_key_for_provider
+from app.ai_credentials.service import get_plaintext_key_by_id
 from app.conversations.service import get_conversation, get_messages, save_message
 
 
@@ -30,7 +30,7 @@ async def chat_sse(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    api_key = await get_plaintext_key_for_provider(db, user_id, agent.llm_provider)
+    api_key = await get_plaintext_key_by_id(db, agent.credential_id) if agent.credential_id else None
 
     await save_message(db, conversation_id, role="user", content=content)
     await db.commit()
@@ -64,7 +64,7 @@ async def chat_sse(
                     _conv_id,
                     role="assistant",
                     content=full_response,
-                    llm_model=_agent.llm_model,
+                    llm_model=_agent.model_id,
                     latency_ms=latency_ms,
                 )
                 await db.commit()

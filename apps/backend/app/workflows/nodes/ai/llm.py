@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Any
+import uuid
 
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from app.ai_credentials.service import get_plaintext_key_by_id
 from app.llm.provider import build_llm
 from app.workflows.template_utils import render_template
 from ..base import ExecutionContext, NodeExecutor, NodeResult
@@ -17,13 +20,19 @@ class LLMExecutor(NodeExecutor):
     """Call a chat LLM for each incoming item and append the response."""
 
     async def execute(self, items: list[dict[str, Any]], config: dict[str, Any], ctx: ExecutionContext) -> NodeResult:
-        api_key = config.get("api_key")
+        model_id = config.get("model_id")
+        if not model_id:
+            raise ValueError("model_id is required in LLM node config")
+
+        credential_id = config.get("credential_id")
+        api_key: str | None = None
+        if credential_id:
+            api_key = await get_plaintext_key_by_id(ctx.db, uuid.UUID(str(credential_id)))
         if not api_key:
-            raise ValueError("api_key is required in LLM node config")
+            raise ValueError("credential_id is required and must point to a valid AI credential")
 
         llm = build_llm(
-            provider=config.get("llm_provider", "openai"),
-            model=config.get("llm_model"),
+            model_id=model_id,
             temperature=config.get("temperature", 0.7),
             max_tokens=config.get("max_tokens", 4096),
             base_url=config.get("base_url"),

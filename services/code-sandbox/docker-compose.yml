@@ -1,5 +1,6 @@
 services:
   code-sandbox:
+    image: agentforge-sandbox:latest
     build:
       context: .
       dockerfile: Dockerfile
