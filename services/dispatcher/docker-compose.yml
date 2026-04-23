@@ -22,7 +22,7 @@ services:
       - RETRY_BACKOFF_MS=${RETRY_BACKOFF_MS:-1000}
       - RETRY_BACKOFF_MULTIPLIER=${RETRY_BACKOFF_MULTIPLIER:-2}
       # Service URL overrides (empty → fall back to routes.json)
-      - BACKEND_URL=${BACKEND_URL:-}
+      - BACKEND_URL=http://host.docker.internal:8000
       - MAIL_URL=${MAIL_URL:-}
       - SOCKET_URL=${SOCKET_URL:-}
       - CODE_SANDBOX_URL=${CODE_SANDBOX_URL:-}

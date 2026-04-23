@@ -68,30 +68,34 @@ def _reset_content(reset_url: str, full_name: str | None) -> dict[str, str]:
 
 # ─── Public API ──────────────────────────────────────────────────────────
 
-def send_verification_email(to: str, full_name: str | None, code: str) -> None:
-    """Fire-and-forget: dispatch a verification-code email."""
-    dispatcher.sync_bg(
+async def send_verification_email(to: str, full_name: str | None, code: str) -> None:
+    """Queue a verification-code email — durable + retry via dispatcher."""
+    await dispatcher.enqueue(
         "mail",
         "/mail/send",
+        event="email.verify",
         body={
             "to": to,
             "subject": "Your AgentForge verification code",
             "template": "general",
             "data": _verify_content(code, full_name),
         },
+        retry={"maxAttempts": 5, "backoffMs": 5_000, "backoffMultiplier": 2},
     )
 
 
-def send_password_reset_email(to: str, full_name: str | None, token: str) -> None:
-    """Fire-and-forget: dispatch a password-reset email."""
+async def send_password_reset_email(to: str, full_name: str | None, token: str) -> None:
+    """Queue a password-reset email — durable + retry via dispatcher."""
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-    dispatcher.sync_bg(
+    await dispatcher.enqueue(
         "mail",
         "/mail/send",
+        event="email.password_reset",
         body={
             "to": to,
             "subject": "Reset your AgentForge password",
             "template": "general",
             "data": _reset_content(reset_url, full_name),
         },
+        retry={"maxAttempts": 5, "backoffMs": 5_000, "backoffMultiplier": 2},
     )

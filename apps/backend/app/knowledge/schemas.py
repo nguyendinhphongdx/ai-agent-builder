@@ -55,6 +55,8 @@ class DocumentResponse(AppBaseModel):
     file_size: int | None
     chunk_count: int
     status: str
+    processing_phase: str | None
+    processing_progress: int | None
     error_message: str | None
     created_at: datetime
 
@@ -86,6 +88,8 @@ class DocumentDetailResponse(AppBaseModel):
     chunk_count: int
     token_count: int | None
     status: str
+    processing_phase: str | None
+    processing_progress: int | None
     error_message: str | None
     processing_started_at: datetime | None
     processing_completed_at: datetime | None

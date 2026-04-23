@@ -58,6 +58,11 @@ export const knowledgeService = {
   deleteDocument: (kbId: string, docId: string) =>
     apiClient.delete(`/knowledge-bases/${kbId}/documents/${docId}`),
 
+  reprocessDocument: (kbId: string, docId: string) =>
+    apiClient
+      .post<KBDocument>(`/knowledge-bases/${kbId}/documents/${docId}/reprocess`)
+      .then((r) => r.data),
+
   query: (kbId: string, query: string, topK = 5) =>
     apiClient
       .post<RetrievedChunk[]>(`/knowledge-bases/${kbId}/query`, { query, top_k: topK })

@@ -9,20 +9,20 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   useKnowledgeBasesByAgent,
   useDetachKBFromAgent,
 } from "@/features/knowledge/hooks/useKnowledge";
-import { AttachKBDialog } from "./AttachKBDialog";
+import { KnowledgePickerDialog } from "./KnowledgePickerDialog";
 
 interface AgentKBSectionProps {
   agentId?: string;
 }
 
 export function AgentKBSection({ agentId }: AgentKBSectionProps) {
-  const [attachOpen, setAttachOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { data: kbs = [], isLoading } = useKnowledgeBasesByAgent(agentId ?? "");
   const detach = useDetachKBFromAgent(agentId ?? "");
 
@@ -51,28 +51,16 @@ export function AgentKBSection({ agentId }: AgentKBSectionProps) {
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             Gắn KB để agent tra cứu khi trả lời (RAG).
           </p>
-          <div className="mt-3 flex items-center justify-center gap-2">
+          <div className="mt-3 flex items-center justify-center">
             <Button
               type="button"
               size="sm"
-              variant="outline"
               className="gap-1.5 text-xs"
-              onClick={() => setAttachOpen(true)}
+              onClick={() => setPickerOpen(true)}
             >
               <Plus className="h-3 w-3" />
-              Attach existing
+              Pick or create knowledge
             </Button>
-            <Link
-              href="/knowledge/new"
-              className={buttonVariants({
-                size: "sm",
-                variant: "ghost",
-                className: "gap-1.5 text-xs",
-              })}
-            >
-              Create new
-              <ExternalLink className="h-3 w-3" />
-            </Link>
           </div>
         </div>
       ) : (
@@ -97,7 +85,10 @@ export function AgentKBSection({ agentId }: AgentKBSectionProps) {
                   {kb.total_documents} docs · {kb.total_chunks} chunks
                 </p>
               </div>
-              <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[9px] font-mono">
+              <Badge
+                variant="secondary"
+                className="shrink-0 px-1.5 py-0 text-[9px] font-mono"
+              >
                 {kb.embedding_provider}
               </Badge>
               <button
@@ -111,35 +102,24 @@ export function AgentKBSection({ agentId }: AgentKBSectionProps) {
             </div>
           ))}
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className="pt-1">
             <Button
               type="button"
               size="sm"
               variant="outline"
               className="gap-1.5 text-xs"
-              onClick={() => setAttachOpen(true)}
+              onClick={() => setPickerOpen(true)}
             >
               <Plus className="h-3 w-3" />
-              Attach more
+              Attach or create
             </Button>
-            <Link
-              href="/knowledge/new"
-              className={buttonVariants({
-                size: "sm",
-                variant: "ghost",
-                className: "gap-1.5 text-xs text-muted-foreground",
-              })}
-            >
-              Create new
-              <ExternalLink className="h-3 w-3" />
-            </Link>
           </div>
         </div>
       )}
 
-      <AttachKBDialog
-        open={attachOpen}
-        onOpenChange={setAttachOpen}
+      <KnowledgePickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
         agentId={agentId}
         attachedIds={attachedIds}
       />

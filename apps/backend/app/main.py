@@ -32,6 +32,7 @@ from app.workflows.router import router as workflows_router
 from app.multi_agent.router import router as multi_agent_router
 from app.ai_credentials.router import router as ai_credentials_router
 from app.llm.router import router as llm_router
+from app.internal.router import router as internal_router
 from app.webhooks.router import router as webhooks_router
 
 
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix=settings.API_PREFIX)
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
+    app.include_router(internal_router, prefix=settings.API_PREFIX)
 
     from app.uploads.router import router as upload_router
     app.include_router(upload_router, prefix=settings.API_PREFIX)

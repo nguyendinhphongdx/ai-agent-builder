@@ -109,7 +109,7 @@ async def register(
         purpose=PURPOSE_EMAIL_VERIFICATION,
         ttl=timedelta(minutes=settings.EMAIL_VERIFICATION_TTL_MINUTES),
     )
-    send_verification_email(user.email, user.full_name, code)
+    await send_verification_email(user.email, user.full_name, code)
 
     _set_auth_cookies(response, str(user.id), token_version=user.token_version)
     return AuthResponse(user=UserResponse.model_validate(user)).release()
@@ -236,7 +236,7 @@ async def verify_email_send(
         purpose=PURPOSE_EMAIL_VERIFICATION,
         ttl=timedelta(minutes=settings.EMAIL_VERIFICATION_TTL_MINUTES),
     )
-    send_verification_email(current_user.email, current_user.full_name, code)
+    await send_verification_email(current_user.email, current_user.full_name, code)
     return {"sent": True}
 
 
@@ -284,7 +284,7 @@ async def forgot_password(
             purpose=PURPOSE_PASSWORD_RESET,
             ttl=timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES),
         )
-        send_password_reset_email(user.email, user.full_name, token)
+        await send_password_reset_email(user.email, user.full_name, token)
     return {"sent": True}
 
 

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { useAgent } from "@/features/agents/hooks/useAgents";
+import { useAuth } from "@/features/auth";
 import { ChatWindow } from "../components/ChatWindow";
 
 interface ChatViewProps {
@@ -13,6 +14,7 @@ interface ChatViewProps {
 
 export function ChatView({ agentId }: ChatViewProps) {
   const { data: agent } = useAgent(agentId);
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const conversationId = searchParams.get("conversationId");
 
@@ -33,6 +35,10 @@ export function ChatView({ agentId }: ChatViewProps) {
         conversationId={conversationId}
         agentName={agent?.name}
         welcomeMessage={agent?.welcome_message ?? undefined}
+        meta={{
+          user: { name: user?.full_name, avatar: user?.avatar_url },
+          agent: { name: agent?.name, avatar: agent?.avatar_url },
+        }}
       />
     </div>
   );

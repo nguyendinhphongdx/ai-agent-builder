@@ -277,6 +277,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
         <AgentPreviewChat
           agentId={agentId}
           agentName={watchName || "Untitled Agent"}
+          agentAvatar={agent?.avatar_url}
           welcomeMessage={watchWelcome}
           credentialReady={isCredentialReady}
         />

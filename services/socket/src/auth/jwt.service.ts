@@ -1,6 +1,6 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { verify, JwtPayload } from 'jsonwebtoken';
+import { sign, verify, JwtPayload } from 'jsonwebtoken';
 
 export interface SocketTokenPayload extends JwtPayload {
   sub: string;
@@ -16,6 +16,21 @@ export class JwtService {
   constructor(private readonly config: ConfigService) {
     this.secretKey = this.config.get<string>('auth.secretKey', 'change-me');
     this.algorithm = this.config.get<string>('auth.algorithm', 'HS256');
+  }
+
+  /**
+   * Mint a short-lived socket handshake token. Default TTL 60s.
+   */
+  sign(sub: string, rooms: string[] = [], ttlSeconds: number = 60): string {
+    const payload: Omit<SocketTokenPayload, 'iat' | 'exp'> = {
+      sub,
+      type: 'socket',
+      rooms,
+    };
+    return sign(payload as object, this.secretKey, {
+      algorithm: this.algorithm as 'HS256',
+      expiresIn: ttlSeconds,
+    });
   }
 
   verify(token: string): SocketTokenPayload {

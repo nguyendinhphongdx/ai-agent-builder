@@ -31,8 +31,12 @@ class Document(Base, UUIDMixin):
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     token_count: Mapped[int | None] = mapped_column(Integer)
 
-    # Trạng thái xử lý: "pending" -> "processing" -> "completed" / "failed"
+    # Trạng thái xử lý: "pending" -> "processing" -> "ready" / "failed"
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    # Phase rõ hơn cho progress UI: "queued" -> "parsing" -> "chunking" -> "embedding" -> "ready"/"failed"
+    processing_phase: Mapped[str | None] = mapped_column(String(20))
+    # 0–100, chỉ meaningful trong phase embedding (số batch đã xong / tổng)
+    processing_progress: Mapped[int | None] = mapped_column(Integer)
     error_message: Mapped[str | None] = mapped_column(Text)
     data: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
     processing_started_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))

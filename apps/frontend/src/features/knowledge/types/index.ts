@@ -17,6 +17,15 @@ export interface KnowledgeBase {
   updated_at: string;
 }
 
+export type DocumentPhase =
+  | "queued"
+  | "parsing"
+  | "chunking"
+  | "embedding"
+  | "ready"
+  | "failed"
+  | null;
+
 export interface KBDocument {
   id: string;
   knowledge_base_id: string;
@@ -25,8 +34,20 @@ export interface KBDocument {
   file_size: number | null;
   chunk_count: number;
   status: "pending" | "processing" | "ready" | "failed";
+  processing_phase: DocumentPhase;
+  processing_progress: number | null;
   error_message: string | null;
   created_at: string;
+}
+
+export interface DocumentProgressEvent {
+  kb_id: string;
+  doc_id: string;
+  status: "pending" | "processing" | "ready" | "failed";
+  phase: DocumentPhase;
+  progress: number | null;
+  chunk_count: number;
+  error_message: string | null;
 }
 
 export interface KBDocumentDetail extends KBDocument {

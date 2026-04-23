@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 
@@ -5,9 +6,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.config import settings
 from app.db.session import get_db
-from app.knowledge.ingestion import ingest_document
+from app.dispatcher_client import dispatcher
 from app.knowledge.retriever import KnowledgeRetriever
+
+logger = logging.getLogger("agentforge")
 from app.knowledge.schemas import (
     ChunkListResponse,
     ChunkResponse,
@@ -29,6 +33,7 @@ from app.knowledge.service import (
     list_chunks,
     list_documents,
     list_knowledge_bases,
+    reset_document_for_reprocess,
     update_knowledge_base,
 )
 from app.models.document import Document
@@ -127,7 +132,7 @@ async def upload_document_endpoint(
     await storage.upload(storage_key, content, file.content_type or "application/octet-stream")
     content_hash = hashlib.sha256(content).hexdigest()
 
-    # Create document record
+    # Create document record — pending, no phase set yet.
     doc = Document(
         knowledge_base_id=kb_id,
         filename=file.filename or "unknown",
@@ -137,13 +142,27 @@ async def upload_document_endpoint(
         mime_type=file.content_type,
         content_hash=content_hash,
         status="pending",
+        processing_phase="queued",
+        processing_progress=0,
     )
     db.add(doc)
     await db.flush()
     await db.refresh(doc)
+    await db.commit()  # persist before background task picks it up
 
-    # Run ingestion (synchronous for now, could be background task later)
-    doc = await ingest_document(db, kb, doc)
+    # Enqueue ingestion via dispatcher — persistent + retry + DLQ.
+    # Dispatcher consumer will POST to /api/internal/knowledge/ingest.
+    # Progress is surfaced via `document:progress` socket events.
+    await dispatcher.enqueue(
+        "backend",
+        f"{settings.API_PREFIX}/internal/knowledge/ingest",
+        event="document.ingest",
+        body={"kb_id": str(kb_id), "doc_id": str(doc.id)},
+        priority="normal",
+        retry={"maxAttempts": 3, "backoffMs": 3_000, "backoffMultiplier": 2},
+        correlation_id=str(doc.id),
+        timeout_ms=600_000,  # ingestion can be long (large PDF + embed)
+    )
 
     return DocumentResponse.model_validate(doc).release()
 
@@ -193,6 +212,8 @@ async def get_document_detail_endpoint(
             "chunk_count": doc.chunk_count,
             "token_count": doc.token_count,
             "status": doc.status,
+            "processing_phase": doc.processing_phase,
+            "processing_progress": doc.processing_progress,
             "error_message": doc.error_message,
             "processing_started_at": doc.processing_started_at,
             "processing_completed_at": doc.processing_completed_at,
@@ -233,6 +254,45 @@ async def list_chunks_endpoint(
         items=[ChunkResponse.model_validate(c) for c in chunks],
         total=total,
     )
+
+
+@router.post("/{kb_id}/documents/{doc_id}/reprocess", response_model=DocumentResponse)
+async def reprocess_document_endpoint(
+    kb_id: uuid.UUID,
+    doc_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retry ingestion for a document — resets its state and re-enqueues.
+
+    Safe to call regardless of current phase: clears prior chunks, rolls back
+    KB counters, resets status to pending, then hands off to the dispatcher
+    queue like a fresh upload. Progress is surfaced via `document:progress`
+    socket events like normal ingestion.
+    """
+    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    doc = await get_document(db, doc_id)
+    if not doc or doc.knowledge_base_id != kb_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc = await reset_document_for_reprocess(db, doc)
+    await db.commit()
+
+    await dispatcher.enqueue(
+        "backend",
+        f"{settings.API_PREFIX}/internal/knowledge/ingest",
+        event="document.reprocess",
+        body={"kb_id": str(kb_id), "doc_id": str(doc.id)},
+        priority="normal",
+        retry={"maxAttempts": 3, "backoffMs": 3_000, "backoffMultiplier": 2},
+        correlation_id=str(doc.id),
+        timeout_ms=600_000,
+    )
+
+    return DocumentResponse.model_validate(doc).release()
 
 
 @router.delete("/{kb_id}/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

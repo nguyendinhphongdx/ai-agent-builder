@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import { useDocumentProgress } from "@/features/knowledge/hooks/useDocumentProgress";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -18,6 +19,9 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const isAgentChatRoute = /^\/agents\/[^/]+\/chat$/.test(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Bridge ingestion socket events → TanStack cache (realtime progress UI)
+  useDocumentProgress();
 
   // Guard 1: must be authenticated
   useEffect(() => {

@@ -9,22 +9,43 @@ from langchain_core.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.attachments import build_content_parts
 from app.knowledge.retriever import KnowledgeRetriever
 from app.llm.provider import build_llm_from_agent
 from app.models.agent import Agent
+from app.models.file import File as FileModel
 from app.tools.registry import tool_registry
 
 
-def _build_history(messages: list) -> list:
+async def _build_history(
+    messages: list,
+    current_attachments: list["FileModel"] | None = None,
+) -> list:
     """Convert DB messages to LangChain message objects.
 
     System prompt is NOT included here — it is passed via state_modifier.
-    """
-    lc_messages = []
 
-    for msg in messages:
+    ``current_attachments`` (if any) are attached to the LATEST user message —
+    doc text is inlined, images get base64 ``image_url`` blocks. Past
+    user-turn attachments are NOT re-hydrated: they already had extracted text
+    persisted into their ``content`` at save time, and re-uploading images on
+    every turn would blow up tokens.
+    """
+    lc_messages: list = []
+
+    # Index of the last user message — only that one gets attachment blocks.
+    last_user_idx = -1
+    for i, msg in enumerate(messages):
         if msg.role == "user":
-            lc_messages.append(HumanMessage(content=msg.content))
+            last_user_idx = i
+
+    for i, msg in enumerate(messages):
+        if msg.role == "user":
+            if i == last_user_idx and current_attachments:
+                content = await build_content_parts(msg.content, current_attachments)
+            else:
+                content = msg.content
+            lc_messages.append(HumanMessage(content=content))
         elif msg.role == "assistant":
             lc_messages.append(AIMessage(content=msg.content))
         elif msg.role == "tool":
@@ -135,11 +156,12 @@ async def execute_agent_stream(
     messages: list,
     db: AsyncSession,
     api_key: str | None = None,
+    current_attachments: list[FileModel] | None = None,
 ) -> AsyncGenerator[AgentStreamEvent, None]:
     """Execute agent with LangGraph and yield streaming events."""
     llm = build_llm_from_agent(agent, api_key=api_key)
     tools = await build_agent_tools(agent, db)
-    lc_messages = _build_history(messages)
+    lc_messages = await _build_history(messages, current_attachments)
 
     # Build system prompt (with auto KB context if mode=auto)
     kb_context = None

@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { EmitModule } from './emit/emit.module';
+import { SessionModule } from './session/session.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { HealthModule } from './health/health.module';
     ConnectionsModule,
     GatewayModule,
     EmitModule,
+    SessionModule,
     HealthModule,
   ],
 })

@@ -62,7 +62,7 @@ async def chat_stream_endpoint(  # Gửi tin nhắn và stream phản hồi agen
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await chat_sse(conv_id, current_user.id, body.content, db)
+    return await chat_sse(conv_id, current_user.id, body.content, db, body.attachment_ids)
 
 
 @router.get("/{conv_id}/messages", response_model=list[MessageResponse])

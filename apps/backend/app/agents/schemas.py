@@ -44,7 +44,10 @@ class KnowledgeBaseBrief(AppBaseModel):
     id: uuid.UUID
     name: str
     description: str | None
+    embedding_provider: str
+    embedding_model: str
     total_documents: int
+    total_chunks: int
 
 
 class AgentResponse(AppBaseModel):

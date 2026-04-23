@@ -2,17 +2,58 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 import uuid
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.executor import execute_agent_stream
 from app.agents.service import get_agent
 from app.ai_credentials.service import get_plaintext_key_by_id
 from app.conversations.service import get_conversation, get_messages, save_message
+from app.models.file import File as FileModel
+
+logger = logging.getLogger("agentforge")
+
+
+async def _load_user_attachments(
+    db: AsyncSession,
+    attachment_ids: list[uuid.UUID],
+    user_id: uuid.UUID,
+) -> list[FileModel]:
+    """Load ``File`` rows the caller attached, in the requested order.
+
+    Silently drops IDs not owned by ``user_id`` — stale/invalid IDs from the
+    FE shouldn't kill the whole chat turn.
+    """
+    if not attachment_ids:
+        return []
+
+    result = await db.execute(
+        select(FileModel).where(
+            FileModel.id.in_(attachment_ids),
+            FileModel.owner_id == user_id,
+        )
+    )
+    by_id = {f.id: f for f in result.scalars()}
+    return [by_id[aid] for aid in attachment_ids if aid in by_id]
+
+
+def _attachment_meta(files: list[FileModel]) -> list[dict]:
+    """Persist just the fields the FE needs to render a history thumbnail."""
+    return [
+        {
+            "id": str(f.id),
+            "file_name": f.original_name,
+            "mime_type": f.mime_type,
+            "size": f.size,
+        }
+        for f in files
+    ]
 
 
 async def chat_sse(
@@ -20,6 +61,7 @@ async def chat_sse(
     user_id: uuid.UUID,
     content: str,
     db: AsyncSession,
+    attachment_ids: list[uuid.UUID] | None = None,
 ) -> StreamingResponse:
     """Stream agent response as Server-Sent Events."""
     conv = await get_conversation(db, conversation_id, user_id)
@@ -30,10 +72,13 @@ async def chat_sse(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    api_key = await get_plaintext_key_by_id(db, agent.credential_id) if agent.credential_id else None
+    api_key = (
+        await get_plaintext_key_by_id(db, agent.credential_id)
+        if agent.credential_id
+        else None
+    )
 
-    import logging
-    logging.getLogger("agentforge").info(
+    logger.info(
         f"chat_sse agent={agent.id} model={agent.model_id} "
         f"credential_id={agent.credential_id} api_key={'<set>' if api_key else '<MISSING>'}"
     )
@@ -46,13 +91,24 @@ async def chat_sse(
             ),
         )
 
-    await save_message(db, conversation_id, role="user", content=content)
+    attachments = await _load_user_attachments(db, attachment_ids or [], user_id)
+
+    # Persist user turn with attachment metadata — history UI reads this to
+    # render thumbnails on refresh.
+    await save_message(
+        db,
+        conversation_id,
+        role="user",
+        content=content,
+        attachments=_attachment_meta(attachments),
+    )
     await db.commit()
 
     # Capture for use inside the generator
     _agent = agent
     _api_key = api_key
     _conv_id = conversation_id
+    _attachments = attachments
 
     async def event_generator():
         start_time = time.time()
@@ -61,7 +117,13 @@ async def chat_sse(
         try:
             history = await get_messages(db, _conv_id, limit=50)
 
-            async for event in execute_agent_stream(_agent, history, db, api_key=_api_key):
+            async for event in execute_agent_stream(
+                _agent,
+                history,
+                db,
+                api_key=_api_key,
+                current_attachments=_attachments,
+            ):
                 event_dict = event.to_dict()
 
                 if event.type == "token":
@@ -86,6 +148,7 @@ async def chat_sse(
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except Exception as e:
+            logger.exception("chat_sse stream crashed")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(

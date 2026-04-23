@@ -40,7 +40,10 @@ export interface KnowledgeBaseBrief {
   id: string;
   name: string;
   description: string | null;
+  embedding_provider: string;
+  embedding_model: string;
   total_documents: number;
+  total_chunks: number;
 }
 
 export interface AgentCreateInput {

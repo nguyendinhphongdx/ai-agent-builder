@@ -116,6 +116,22 @@ export function useDeleteDocument(kbId: string) {
   });
 }
 
+export function useReprocessDocument(kbId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (docId: string) => knowledgeService.reprocessDocument(kbId, docId),
+    onSuccess: (doc) => {
+      // Optimistic cache patch so the row instantly shows "queued" while the
+      // server picks it up. Socket events will fill in subsequent phases.
+      queryClient.setQueryData<typeof doc[] | undefined>(
+        kbKeys.documents(kbId),
+        (old) => old?.map((d) => (d.id === doc.id ? doc : d)),
+      );
+      queryClient.invalidateQueries({ queryKey: kbKeys.detail(kbId) });
+    },
+  });
+}
+
 export function useQueryKnowledgeBase(kbId: string) {
   return useMutation({
     mutationFn: ({ query, topK }: { query: string; topK?: number }) =>

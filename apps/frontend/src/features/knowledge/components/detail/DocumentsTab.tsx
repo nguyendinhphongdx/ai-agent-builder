@@ -9,6 +9,7 @@ import {
   Loader2,
   MoreHorizontal,
   Trash2,
+  RotateCcw,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import {
   useKBDocuments,
   useUploadDocument,
   useDeleteDocument,
+  useReprocessDocument,
 } from "../../hooks/useKnowledge";
 import type { KBDocument } from "../../types";
 
@@ -116,17 +118,27 @@ export function DocumentsTab({ kbId }: DocumentsTabProps) {
             </p>
           </div>
         ) : (
-          <table className="w-full text-xs">
+          <table className="w-full table-fixed text-xs">
+            <colgroup>
+              <col className="w-12" />                          {/* # */}
+              <col />                                           {/* Name — fills */}
+              <col className="w-24" />                          {/* Chunking */}
+              <col className="w-20" />                          {/* Chunks */}
+              <col className="w-20" />                          {/* Size */}
+              <col className="w-40" />                          {/* Upload Time */}
+              <col className="w-44" />                          {/* Status — reserved for phase+progress */}
+              <col className="w-14" />                          {/* Action */}
+            </colgroup>
             <thead className="sticky top-0 bg-background shadow-[inset_0_-1px_0_0] shadow-border">
               <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                <th className="w-10 px-6 py-2.5 text-left font-semibold">#</th>
+                <th className="px-6 py-2.5 text-left font-semibold">#</th>
                 <th className="px-3 py-2.5 text-left font-semibold">Name</th>
                 <th className="px-3 py-2.5 text-left font-semibold">Chunking</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Chunks</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Size</th>
                 <th className="px-3 py-2.5 text-left font-semibold">Upload Time</th>
                 <th className="px-3 py-2.5 text-left font-semibold">Status</th>
-                <th className="w-12 px-3 py-2.5 text-right font-semibold">Action</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -153,6 +165,8 @@ function DocumentRow({
   index: number;
 }) {
   const deleteDoc = useDeleteDocument(kbId);
+  const reprocessDoc = useReprocessDocument(kbId);
+  const isProcessing = doc.status === "pending" || doc.status === "processing";
 
   return (
     <tr className="border-b border-border/60 transition-colors hover:bg-muted/30">
@@ -177,7 +191,7 @@ function DocumentRow({
       </td>
       <td className="px-3 py-2.5 text-muted-foreground">{formatDate(doc.created_at)}</td>
       <td className="px-3 py-2.5">
-        <StatusBadge status={doc.status} error={doc.error_message} />
+        <StatusBadge doc={doc} />
       </td>
       <td className="px-3 py-2.5 text-right">
         <DropdownMenu>
@@ -186,7 +200,15 @@ function DocumentRow({
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32">
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem
+              disabled={isProcessing || reprocessDoc.isPending}
+              onClick={() => reprocessDoc.mutate(doc.id)}
+              className="gap-2 text-xs"
+            >
+              <RotateCcw className="h-3 w-3" />
+              {doc.status === "failed" ? "Retry" : "Re-process"}
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => deleteDoc.mutate(doc.id)}
               className="gap-2 text-xs text-destructive focus:text-destructive"
@@ -201,7 +223,18 @@ function DocumentRow({
   );
 }
 
-function StatusBadge({ status, error }: { status: KBDocument["status"]; error: string | null }) {
+const PHASE_LABELS: Record<string, string> = {
+  queued: "Queued",
+  parsing: "Parsing",
+  chunking: "Chunking",
+  embedding: "Embedding",
+  ready: "Available",
+  failed: "Failed",
+};
+
+function StatusBadge({ doc }: { doc: KBDocument }) {
+  const { status, processing_phase, processing_progress, error_message } = doc;
+
   if (status === "ready") {
     return (
       <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
@@ -210,33 +243,51 @@ function StatusBadge({ status, error }: { status: KBDocument["status"]; error: s
       </span>
     );
   }
-  if (status === "processing") {
+
+  if (status === "failed") {
     return (
+      <span
+        title={error_message ?? ""}
+        className={cn(
+          "inline-flex items-center gap-1 text-[11px] text-destructive",
+          error_message && "cursor-help",
+        )}
+      >
+        <AlertCircle className="h-3 w-3" />
+        Failed
+      </span>
+    );
+  }
+
+  // Processing / pending: show phase + optional progress bar
+  const phaseLabel = processing_phase
+    ? PHASE_LABELS[processing_phase] ?? processing_phase
+    : "Pending";
+  const showProgress =
+    processing_phase === "embedding" &&
+    typeof processing_progress === "number" &&
+    processing_progress > 0;
+
+  return (
+    <div className="flex min-w-[140px] flex-col gap-1">
       <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
         <Loader2 className="h-3 w-3 animate-spin" />
-        Processing
+        {phaseLabel}
+        {showProgress && (
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {processing_progress}%
+          </span>
+        )}
       </span>
-    );
-  }
-  if (status === "pending") {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Pending
-      </span>
-    );
-  }
-  return (
-    <span
-      title={error ?? ""}
-      className={cn(
-        "inline-flex items-center gap-1 text-[11px] text-destructive",
-        error && "cursor-help",
+      {showProgress && (
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-amber-500 transition-all"
+            style={{ width: `${processing_progress}%` }}
+          />
+        </div>
       )}
-    >
-      <AlertCircle className="h-3 w-3" />
-      Failed
-    </span>
+    </div>
   );
 }
 

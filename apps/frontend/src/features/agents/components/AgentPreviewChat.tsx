@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Bot, Send, User, Sparkles, Loader2, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bot, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { StreamMarkdown } from "@/features/chat/components/StreamMarkdown";
-import { createChatSSE } from "@/lib/ws/client";
+import { ChatMessageList } from "@/features/chat/components/ChatMessageList";
+import { useChatStream } from "@/features/chat/hooks/useChatStream";
 import { chatService } from "@/features/chat/services/chatService";
-import { cn } from "@/lib/utils";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
 
 interface AgentPreviewChatProps {
   agentId?: string;
   agentName?: string;
+  agentAvatar?: string | null;
   welcomeMessage?: string;
   credentialReady?: boolean;
 }
@@ -25,81 +19,37 @@ interface AgentPreviewChatProps {
 export function AgentPreviewChat({
   agentId,
   agentName,
+  agentAvatar,
   welcomeMessage,
   credentialReady,
 }: AgentPreviewChatProps) {
   const isReady = !!agentId && !!credentialReady;
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamContent, setStreamContent] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const sseRef = useRef<ReturnType<typeof createChatSSE> | null>(null);
-    const streamRef = useRef(""); // tracks accumulated stream content outside React state
+  const [input, setInput] = useState("");
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, streamContent]);
+  const { messages, isStreaming, streamingContent, activeTool, sendMessage, abort, clearMessages } =
+    useChatStream({ conversationId, persist: false });
 
-  // Create conversation when agentId + credential are both ready
+  // Create conversation eagerly when agent + credential are ready
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || !agentId) return;
     let cancelled = false;
     chatService.createConversation(agentId).then((conv) => {
       if (!cancelled) setConversationId(conv.id);
     });
     return () => {
       cancelled = true;
-      sseRef.current?.close();
     };
   }, [agentId, isReady]);
+
+  const hasMessages = messages.length > 0 || isStreaming;
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming || !conversationId || !isReady) return;
-
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", content: trimmed },
-    ]);
+    sendMessage(trimmed);
     setInput("");
-    setIsStreaming(true);
-
-    const sse = createChatSSE({
-      conversationId,
-      onToken: (content) => {
-        streamRef.current += content;
-        setStreamContent((prev) => prev + content);
-      },
-      onToolStart: (name) => setActiveTool(name),
-      onToolEnd: () => setActiveTool(null),
-      onDone: () => {
-        const finalContent = streamRef.current;
-        streamRef.current = "";
-        setStreamContent("");
-        if (finalContent) {
-          setMessages((msgs) => [
-            ...msgs,
-            { id: crypto.randomUUID(), role: "assistant", content: finalContent },
-          ]);
-        }
-        setIsStreaming(false);
-        setActiveTool(null);
-      },
-      onError: (msg) => {
-        console.error("Chat error:", msg);
-        setIsStreaming(false);
-      },
-    });
-
-    sseRef.current = sse;
-    sse.send(trimmed);
-  }, [input, isStreaming, conversationId, isReady]);
+  }, [input, isStreaming, conversationId, isReady, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -110,23 +60,32 @@ export function AgentPreviewChat({
 
   const handleNewSession = useCallback(() => {
     if (!isReady || !agentId) return;
-    // Abort any in-flight stream and reset local UI state
-    sseRef.current?.close();
-    sseRef.current = null;
-    streamRef.current = "";
-    setMessages([]);
-    setStreamContent("");
-    setIsStreaming(false);
-    setActiveTool(null);
+    abort();
+    clearMessages();
     setInput("");
-    // Kick a new conversation on the backend
     setConversationId(null);
     chatService.createConversation(agentId).then((conv) => {
       setConversationId(conv.id);
     });
-  }, [isReady, agentId]);
+  }, [isReady, agentId, abort, clearMessages]);
 
-  const hasMessages = messages.length > 0 || isStreaming;
+  const emptyState = (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 shadow-sm">
+        <Sparkles className="h-5 w-5 text-primary" />
+      </div>
+      <p className="text-sm font-medium text-foreground/90">
+        {welcomeMessage || "Test your agent here"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {!agentId
+          ? "Lưu agent trước để bật chat preview"
+          : !credentialReady
+            ? "Kết nối credential trong tab Model để bắt đầu"
+            : "Gửi tin nhắn để bắt đầu cuộc trò chuyện"}
+      </p>
+    </div>
+  );
 
   return (
     <div className="flex h-full flex-col border-l border-border bg-gradient-to-b from-background via-background to-muted/35">
@@ -156,87 +115,18 @@ export function AgentPreviewChat({
       </div>
 
       {/* Messages area */}
-      <div ref={scrollRef} className="scrollbar-thin flex-1 overflow-auto">
-        {!hasMessages ? (
-          /* Welcome state */
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 shadow-sm">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-sm font-medium text-foreground/90">
-              {welcomeMessage || "Test your agent here"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {!agentId
-                ? "Lưu agent trước để bật chat preview"
-                : !credentialReady
-                ? "Kết nối credential trong tab Model để bắt đầu"
-                : "Gửi tin nhắn để bắt đầu cuộc trò chuyện"}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4 p-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex gap-2.5", msg.role === "user" && "justify-end")}
-              >
-                {msg.role === "assistant" && (
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10">
-                    <Bot className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                )}
-
-                <div
-                  className={cn(
-                    "min-w-0 max-w-[85%] rounded-2xl border px-3 py-2 shadow-sm",
-                    msg.role === "user"
-                      ? "border-primary/40 bg-primary text-primary-foreground"
-                      : "border-border bg-card text-card-foreground"
-                  )}
-                >
-                  {msg.role === "user" ? (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
-                  ) : (
-                    <StreamMarkdown content={msg.content} />
-                  )}
-                </div>
-
-                {msg.role === "user" && (
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/70">
-                    <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Streaming message */}
-            {isStreaming && (
-              <div className="flex gap-3">
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10">
-                  <Bot className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="min-w-0 max-w-[85%] rounded-2xl border border-border bg-card px-3 py-2 pt-2 text-card-foreground shadow-sm">
-                  {activeTool && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Using {activeTool}...
-                    </div>
-                  )}
-                  {streamContent ? (
-                    <StreamMarkdown content={streamContent} />
-                  ) : !activeTool ? (
-                    <div className="flex items-center gap-1 py-1">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/45 [animation-delay:0ms]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/45 [animation-delay:150ms]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/45 [animation-delay:300ms]" />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+      <div className="scrollbar-thin flex-1 overflow-auto">
+        <ChatMessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          streamingContent={streamingContent}
+          activeTool={activeTool}
+          variant="compact"
+          thinkingStyle="dots"
+          emptyState={emptyState}
+          className="space-y-4 p-4"
+          meta={{ agent: { name: agentName, avatar: agentAvatar } }}
+        />
       </div>
 
       {/* Input */}
@@ -250,8 +140,8 @@ export function AgentPreviewChat({
               !agentId
                 ? "Lưu agent để bật preview…"
                 : !credentialReady
-                ? "Kết nối credential trong tab Model…"
-                : "Gửi tin nhắn…"
+                  ? "Kết nối credential trong tab Model…"
+                  : "Gửi tin nhắn…"
             }
             disabled={!isReady || isStreaming}
             className="min-h-[38px] max-h-[110px] resize-none border-border bg-muted/60 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/30"

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useAgents } from "@/features/agents/hooks/useAgents";
 import { chatService } from "@/features/chat/services/chatService";
-import { chatKeys } from "@/features/chat/hooks/useChat";
+import { chatKeys } from "@/features/chat/hooks/useChatStream";
 
 const AVATAR_COLORS = [
   "bg-orange-500",

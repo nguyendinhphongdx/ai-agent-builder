@@ -17,7 +17,7 @@ interface ChatSSEOptions {
 export function createChatSSE(options: ChatSSEOptions) {
   let abortController: AbortController | null = null;
 
-  const send = async (content: string) => {
+  const send = async (content: string, attachmentIds: string[] = []) => {
     abortController = new AbortController();
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -29,7 +29,7 @@ export function createChatSSE(options: ChatSSEOptions) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content, attachment_ids: attachmentIds }),
           signal: abortController.signal,
         }
       );

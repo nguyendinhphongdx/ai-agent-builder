@@ -3,6 +3,9 @@ import { registerAs } from '@nestjs/config';
 export const appConfig = registerAs('app', () => ({
   port: parseInt(process.env.PORT ?? '4000', 10),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+  // Public URL clients connect to for the WebSocket handshake. Returned by
+  // POST /session so backend callers never need to hardcode it.
+  publicUrl: process.env.PUBLIC_URL ?? 'http://localhost:4000',
 }));
 
 export const authConfig = registerAs('auth', () => ({

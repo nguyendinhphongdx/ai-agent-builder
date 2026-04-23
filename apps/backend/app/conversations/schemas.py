@@ -33,6 +33,18 @@ class MessageCreate(BaseModel):
 class ChatRequest(BaseModel):
     """Schema gửi tin nhắn tới agent qua SSE."""
     content: str
+    #: Storage ``file.id`` đã upload trước đó. BE sẽ:
+    #: - Doc types → extract text, inject vào prompt (current turn).
+    #: - Image types → fetch bytes, build base64 image block (current turn).
+    attachment_ids: list[uuid.UUID] = []
+
+
+class MessageAttachment(BaseModel):
+    """Metadata lưu trong ``messages.attachments`` (JSONB) + trả về cho FE."""
+    id: uuid.UUID
+    file_name: str
+    mime_type: str | None = None
+    size: int | None = None
 
 
 class MessageResponse(BaseModel):
@@ -44,6 +56,7 @@ class MessageResponse(BaseModel):
     content_type: str  # "text", "image", ...
     tool_calls: dict | None = None
     tool_name: str | None = None
+    attachments: list[MessageAttachment] = []
     token_usage: dict | None = None  # {"prompt_tokens": ..., "completion_tokens": ..., "total_tokens": ...}
     latency_ms: int | None = None  # Thời gian phản hồi từ LLM (ms)
     llm_model: str | None = None
