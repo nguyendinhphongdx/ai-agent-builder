@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: agentforge-sandbox
     ports:
       - "8100:8000"
     networks:

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, X, Bot, Crown, ArrowRightLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAgents } from "../hooks/useAgents";
-import { modelDisplayName } from "@/lib/models/catalog";
+import { useModelCatalog, modelDisplayName } from "@/lib/models/catalog";
 import { cn } from "@/lib/utils";
 
 type CollabMode = "none" | "supervisor" | "peer";
@@ -25,6 +25,7 @@ export function MultiAgentSection({
   onWorkersChange,
 }: MultiAgentSectionProps) {
   const { data: allAgents } = useAgents();
+  const { data: catalog } = useModelCatalog();
   const [showPicker, setShowPicker] = useState(false);
 
   const availableAgents = (allAgents ?? []).filter(
@@ -115,7 +116,7 @@ export function MultiAgentSection({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{agent.name}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {modelDisplayName(agent.model_id)}
+                      {modelDisplayName(catalog?.models, agent.model_id)}
                     </p>
                   </div>
                   <button
@@ -150,7 +151,7 @@ export function MultiAgentSection({
                   </div>
                   <span className="text-xs">{agent.name}</span>
                   <span className="ml-auto text-[10px] text-muted-foreground">
-                    {modelDisplayName(agent.model_id)}
+                    {modelDisplayName(catalog?.models, agent.model_id)}
                   </span>
                 </button>
               ))}

@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAgents, useDeleteAgent } from "../hooks/useAgents";
-import { getProvider, modelDisplayName, providerOfModel } from "@/lib/models/catalog";
+import { useModelCatalog, findProvider, modelDisplayName, providerOfModel } from "@/lib/models/catalog";
 import type { AgentListItem } from "../types";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "../components/AgentAvatar";
@@ -247,6 +247,7 @@ function AgentActionsMenu({ agent }: { agent: AgentListItem }) {
 /* ─── Grid Card ──────────────────────────────────────────────── */
 
 function AgentGridCard({ agent }: { agent: AgentListItem }) {
+  const { data: catalog } = useModelCatalog();
   return (
     <Link
       href={`/agents/${agent.id}/chat`}
@@ -280,10 +281,10 @@ function AgentGridCard({ agent }: { agent: AgentListItem }) {
 
       <div className="mt-4 flex flex-wrap gap-2 mb-2">
         <Badge variant="secondary" className="h-5 px-2 py-0 text-[10px]">
-          {getProvider(providerOfModel(agent.model_id))?.label ?? providerOfModel(agent.model_id)}
+          {findProvider(catalog?.providers, providerOfModel(agent.model_id))?.label ?? providerOfModel(agent.model_id)}
         </Badge>
         <Badge variant="secondary" className="h-5 px-2 py-0 font-mono text-[10px]">
-          {modelDisplayName(agent.model_id)}
+          {modelDisplayName(catalog?.models, agent.model_id)}
         </Badge>
       </div>
 
@@ -305,6 +306,7 @@ function AgentGridCard({ agent }: { agent: AgentListItem }) {
 /* ─── List Row ───────────────────────────────────────────────── */
 
 function AgentListRow({ agent }: { agent: AgentListItem }) {
+  const { data: catalog } = useModelCatalog();
   return (
     <Link
       href={`/agents/${agent.id}/chat`}
@@ -320,9 +322,9 @@ function AgentListRow({ agent }: { agent: AgentListItem }) {
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
           <span className="rounded bg-muted px-1.5 py-0.5">
-            {getProvider(providerOfModel(agent.model_id))?.label ?? providerOfModel(agent.model_id)}
+            {findProvider(catalog?.providers, providerOfModel(agent.model_id))?.label ?? providerOfModel(agent.model_id)}
           </span>
-          <span className="font-mono">{modelDisplayName(agent.model_id)}</span>
+          <span className="font-mono">{modelDisplayName(catalog?.models, agent.model_id)}</span>
           <span className="inline-flex items-center gap-1">
             <CalendarDays className="h-3 w-3" />
             {formatDate(agent.created_at)}

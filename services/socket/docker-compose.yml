@@ -1,6 +1,8 @@
 services:
   socket:
     build: .
+    image: agentforge-socket:latest
+    container_name: agentforge-socket
     ports:
       - "4000:4000"
     environment:

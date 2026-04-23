@@ -3,6 +3,9 @@ import type { NodeTypeDefinition, NodeContentProps } from "../types";
 import { NodeConnectionTypes } from "../types";
 import LLMPanelComponent from "./panel";
 
+// Catalog-driven fields live in `panel.tsx` (uses useModelCatalog hook). The
+// definition here only declares the shape — `PanelComponent` renders the
+// actual inputs with live catalog data.
 export const definition: NodeTypeDefinition = {
   type: "llm",
   label: "LLM Call",
@@ -19,13 +22,12 @@ export const definition: NodeTypeDefinition = {
     ],
   },
   defaultData: () => ({
-    llm_provider: "openai",
-    llm_model: "gpt-4o",
+    model_id: "openai/gpt-4o",
+    credential_id: null,
   }),
   configFields: [
-    { key: "llm_provider", label: "Provider", type: "select" as const, options: [{ label: "OpenAI", value: "openai" }, { label: "Anthropic", value: "anthropic" }, { label: "Ollama", value: "ollama" }], defaultValue: "openai" },
-    { key: "api_key", label: "API Key", type: "text" as const, placeholder: "sk-..." },
-    { key: "llm_model", label: "Model", type: "select" as const, options: [{ label: "GPT-4o", value: "gpt-4o" }, { label: "GPT-4o Mini", value: "gpt-4o-mini" }, { label: "Claude Sonnet 4", value: "claude-sonnet-4-20250514" }], defaultValue: "gpt-4o" },
+    { key: "model_id", label: "Model", type: "text" as const, defaultValue: "openai/gpt-4o" },
+    { key: "credential_id", label: "Credential ID", type: "text" as const },
     { key: "system_prompt", label: "System Prompt", type: "textarea" as const, placeholder: "You are a helpful assistant..." },
     { key: "user_prompt_template", label: "Prompt Template", type: "textarea" as const, placeholder: "Process this: {input}" },
     { key: "output_variable", label: "Output Variable", type: "text" as const, placeholder: "llm_output" },

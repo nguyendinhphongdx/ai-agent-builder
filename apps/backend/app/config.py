@@ -41,10 +41,6 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
-    # API key cho các nhà cung cấp LLM
-    OPENAI_API_KEY: str = ""
-    ANTHROPIC_API_KEY: str = ""
-
     # Fernet encryption key cho ai_credentials table
     # Generate một lần: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     ENCRYPTION_KEY: str = ""
@@ -61,6 +57,12 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = ""
     S3_ENDPOINT_URL: str = ""  # For MinIO: http://localhost:9000
     GCS_BUCKET: str = ""
+    # Service account credential — thứ tự resolution:
+    #   1) GCS_SA_JSON: inline JSON (tiện cho env-only deploy như Fly/Railway)
+    #   2) GCS_SA_FILE: path tới file SA JSON (đã mount vào container)
+    #   3) ADC fallback — ~/.config/gcloud/... hoặc metadata server (GCE/Cloud Run/GKE)
+    GCS_SA_JSON: str = ""
+    GCS_SA_FILE: str = ""
 
     # Socket (frontend connection URL; backend emits go through dispatcher)
     SOCKET_PUBLIC_URL: str = "http://localhost:4000"

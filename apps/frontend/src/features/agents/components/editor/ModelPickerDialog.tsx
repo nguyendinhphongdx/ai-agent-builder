@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Check,
@@ -193,8 +193,8 @@ function PickerBody({
     (providers.length - activeProviders.size) + enabledCaps.size + (search ? 1 : 0);
 
   const handleSelect = () => {
-    if (!selectedModel || !selectedCredentialId) return;
-    onSelect(selectedModel.id, selectedCredentialId);
+    if (!selectedModel || !effectiveCredentialId) return;
+    onSelect(selectedModel.id, effectiveCredentialId);
     onOpenChange(false);
   };
 
@@ -398,7 +398,7 @@ function PickerBody({
                     </p>
                     {selectedModelHasCredential ? (
                       <Select
-                        value={selectedCredentialId ?? undefined}
+                        value={effectiveCredentialId ?? undefined}
                         onValueChange={setSelectedCredentialId}
                       >
                         <SelectTrigger className="h-9 w-full text-xs">
@@ -450,7 +450,7 @@ function PickerBody({
             </Button>
             <Button
               size="sm"
-              disabled={!selectedModel || !selectedCredentialId}
+              disabled={!selectedModel || !effectiveCredentialId}
               onClick={handleSelect}
             >
               Select Model
@@ -459,23 +459,21 @@ function PickerBody({
       </DialogContent>
 
       {/* Sub-dialog for creating a credential */}
-      {connectProvider && (
-        <ConnectCredentialDialog
-          open={!!connectProvider}
-          onOpenChange={(v) => {
-            if (!v) setConnectProvider(null);
-          }}
-          provider={connectProvider}
-          onCreated={(cred) => {
-            onCredentialCreated(cred);
-            // Auto-select the new credential if it matches current model's provider
-            if (selectedModel && cred.provider === selectedModel.provider) {
-              setSelectedCredentialId(cred.id);
-            }
-            setConnectProvider(null);
-          }}
-        />
-      )}
+      <ConnectCredentialDialog
+        open={connectProvider !== null}
+        onOpenChange={(v) => {
+          if (!v) setConnectProvider(null);
+        }}
+        provider={connectProvider ?? ""}
+        onCreated={(cred) => {
+          onCredentialCreated(cred);
+          // Auto-select the new credential if it matches current model's provider
+          if (selectedModel && cred.provider === selectedModel.provider) {
+            setSelectedCredentialId(cred.id);
+          }
+          setConnectProvider(null);
+        }}
+      />
     </>
   );
 }

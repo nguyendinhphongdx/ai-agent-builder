@@ -20,8 +20,9 @@ import {
   type AICredentialResponse,
 } from "@/lib/api/aiCredentialService";
 import {
-  getModelById,
-  getProvider,
+  useModelCatalog,
+  findModel,
+  findProvider,
   providerOfModel,
 } from "@/lib/models/catalog";
 import { ModelPickerDialog } from "./ModelPickerDialog";
@@ -59,8 +60,10 @@ export function ModelTabContent({ form, onCredentialReady }: ModelTabContentProp
     onCredentialReady?.(!!credentialId);
   }, [credentialId, onCredentialReady]);
 
-  const selectedModel = getModelById(modelId);
+  const { data: catalog } = useModelCatalog();
+  const selectedModel = findModel(catalog?.models, modelId);
   const provider = providerOfModel(modelId);
+  const providerEntry = findProvider(catalog?.providers, provider);
   const selectedCredential = credentials.find((c) => c.id === credentialId) ?? null;
 
   const handleSelect = (newModelId: string, newCredentialId: string) => {
@@ -113,7 +116,7 @@ export function ModelTabContent({ form, onCredentialReady }: ModelTabContentProp
               {selectedModel?.name ?? modelId}
             </p>
             <p className="truncate text-[11px] text-muted-foreground">
-              {getProvider(provider)?.label ?? provider}
+              {providerEntry?.label ?? provider}
               {selectedCredential && (
                 <>
                   {" • "}
@@ -135,7 +138,7 @@ export function ModelTabContent({ form, onCredentialReady }: ModelTabContentProp
               </p>
               <p className="text-[11px] text-muted-foreground">
                 Agent sẽ không chạy được cho đến khi bạn kết nối credential cho{" "}
-                {getProvider(provider)?.label ?? provider}.
+                {providerEntry?.label ?? provider}.
               </p>
             </div>
             <Button

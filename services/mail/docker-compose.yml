@@ -9,7 +9,7 @@ services:
     environment:
       - PORT=3011
       - NODE_ENV=production
-      - MAIL_DRIVER=${MAIL_DRIVER:-sendgrid}
+      - MAIL_DRIVER=${MAIL_DRIVER:-console}
       - MAIL_FROM=${MAIL_FROM:-noreply@agentforge.com}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-AgentForge}
       # SendGrid

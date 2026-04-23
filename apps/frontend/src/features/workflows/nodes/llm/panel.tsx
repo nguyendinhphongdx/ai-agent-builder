@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { TextField, TextareaField, SelectField } from "../../components/node-inspector/fields";
 import { useNodeConfig } from "../../hooks/useNodeConfig";
 import {
@@ -6,19 +6,15 @@ import {
   type AICredentialResponse,
 } from "@/lib/api/aiCredentialService";
 import {
-  MODEL_CATALOG,
-  getProvider,
+  useModelCatalog,
+  findProvider,
   providerOfModel,
 } from "@/lib/models/catalog";
 import type { PanelProps } from "../types";
 
-const MODEL_OPTIONS = MODEL_CATALOG.map((m) => ({
-  label: `${m.name} (${getProvider(m.provider)?.label ?? m.provider})`,
-  value: m.id,
-}));
-
 export default function LLMPanel({ id }: PanelProps) {
   const { config, updateConfig } = useNodeConfig(id);
+  const { data: catalog } = useModelCatalog();
   const modelId = (config.model_id as string) || "openai/gpt-4o";
   const credentialId = (config.credential_id as string) || "";
 
@@ -37,7 +33,17 @@ export default function LLMPanel({ id }: PanelProps) {
     load();
   }, [load]);
 
+  const modelOptions = useMemo(
+    () =>
+      (catalog?.models ?? []).map((m) => ({
+        label: `${m.name} (${findProvider(catalog?.providers, m.provider)?.label ?? m.provider})`,
+        value: m.id,
+      })),
+    [catalog],
+  );
+
   const provider = providerOfModel(modelId);
+  const providerEntry = findProvider(catalog?.providers, provider);
   const credentialsForProvider = credentials.filter((c) => c.provider === provider);
   const credentialOptions = [
     { label: "— Select credential —", value: "" },
@@ -52,7 +58,7 @@ export default function LLMPanel({ id }: PanelProps) {
       <SelectField
         label="Model"
         value={modelId}
-        options={MODEL_OPTIONS}
+        options={modelOptions}
         onChange={(v) => updateConfig("model_id", v)}
       />
       <SelectField
@@ -63,7 +69,7 @@ export default function LLMPanel({ id }: PanelProps) {
       />
       {credentialsForProvider.length === 0 && (
         <p className="text-[11px] text-muted-foreground">
-          Chưa có credential cho {getProvider(provider)?.label ?? provider}. Tạo trong
+          Chưa có credential cho {providerEntry?.label ?? provider}. Tạo trong
           trang Agent editor hoặc Settings.
         </p>
       )}

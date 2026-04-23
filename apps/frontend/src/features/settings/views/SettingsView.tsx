@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Key, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PROVIDERS, getProvider } from "@/lib/models/catalog";
+import { useModelCatalog } from "@/lib/models/catalog";
 import {
   aiCredentialService,
   type AICredentialResponse,
@@ -12,6 +12,9 @@ import {
 import { ConnectCredentialDialog } from "@/features/agents/components/editor/ConnectCredentialDialog";
 
 export function SettingsView() {
+  const { data: catalog } = useModelCatalog();
+  const providers = catalog?.providers ?? [];
+
   const [credentials, setCredentials] = useState<AICredentialResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectProvider, setConnectProvider] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export function SettingsView() {
               </div>
             ) : (
               <div className="space-y-3">
-                {PROVIDERS.map((provider) => {
+                {providers.map((provider) => {
                   const providerCreds = credentials.filter(
                     (c) => c.provider === provider.id,
                   );
