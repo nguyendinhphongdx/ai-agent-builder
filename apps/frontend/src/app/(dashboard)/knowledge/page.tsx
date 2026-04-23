@@ -1,16 +1,10 @@
 import { Metadata } from "next";
+import { KnowledgeListView } from "@/features/knowledge/views/KnowledgeListView";
 
 export const metadata: Metadata = {
-  title: "Knowledge Bases | AI Agent Builder",
+  title: "Knowledge | AgentForge",
 };
 
 export default function KnowledgePage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Knowledge Bases</h1>
-      <p className="text-muted-foreground">
-        RAG knowledge bases will be available in Phase 2.
-      </p>
-    </div>
-  );
+  return <KnowledgeListView />;
 }

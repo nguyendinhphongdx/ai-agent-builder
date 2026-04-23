@@ -9,6 +9,9 @@ from app.db.session import get_db
 from app.knowledge.ingestion import ingest_document
 from app.knowledge.retriever import KnowledgeRetriever
 from app.knowledge.schemas import (
+    ChunkListResponse,
+    ChunkResponse,
+    DocumentDetailResponse,
     DocumentResponse,
     KnowledgeBaseCreate,
     KnowledgeBaseResponse,
@@ -17,11 +20,13 @@ from app.knowledge.schemas import (
     RetrievedChunkResponse,
 )
 from app.knowledge.service import (
+    count_agents_using_kb,
     create_knowledge_base,
     delete_document,
     delete_knowledge_base,
     get_document,
     get_knowledge_base,
+    list_chunks,
     list_documents,
     list_knowledge_bases,
     update_knowledge_base,
@@ -154,6 +159,80 @@ async def list_documents_endpoint(
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     docs = await list_documents(db, kb_id)
     return [DocumentResponse.model_validate(d).release() for d in docs]
+
+
+@router.get("/{kb_id}/documents/{doc_id}", response_model=DocumentDetailResponse)
+async def get_document_detail_endpoint(
+    kb_id: uuid.UUID,
+    doc_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detail endpoint for a document — includes snapshot of KB settings for the right-panel."""
+    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    doc = await get_document(db, doc_id)
+    if not doc or doc.knowledge_base_id != kb_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    linked_apps = await count_agents_using_kb(db, kb_id)
+
+    return DocumentDetailResponse.model_validate(
+        {
+            # Document fields
+            "id": doc.id,
+            "knowledge_base_id": doc.knowledge_base_id,
+            "filename": doc.filename,
+            "file_path": doc.file_path,
+            "file_type": doc.file_type,
+            "file_size": doc.file_size,
+            "mime_type": doc.mime_type,
+            "content_hash": doc.content_hash,
+            "chunk_count": doc.chunk_count,
+            "token_count": doc.token_count,
+            "status": doc.status,
+            "error_message": doc.error_message,
+            "processing_started_at": doc.processing_started_at,
+            "processing_completed_at": doc.processing_completed_at,
+            "created_at": doc.created_at,
+            # KB snapshot
+            "chunk_size": kb.chunk_size,
+            "chunk_overlap": kb.chunk_overlap,
+            "chunk_strategy": kb.chunk_strategy,
+            "embedding_provider": kb.embedding_provider,
+            "embedding_model": kb.embedding_model,
+            "embedding_dimensions": kb.embedding_dimensions,
+            # Aggregates
+            "linked_apps": linked_apps,
+        }
+    ).release()
+
+
+@router.get("/{kb_id}/documents/{doc_id}/chunks", response_model=ChunkListResponse)
+async def list_chunks_endpoint(
+    kb_id: uuid.UUID,
+    doc_id: uuid.UUID,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List chunks for a document (paginated)."""
+    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    doc = await get_document(db, doc_id)
+    if not doc or doc.knowledge_base_id != kb_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chunks, total = await list_chunks(db, doc_id, limit=limit, offset=offset)
+    return ChunkListResponse(
+        items=[ChunkResponse.model_validate(c) for c in chunks],
+        total=total,
+    )
 
 
 @router.delete("/{kb_id}/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

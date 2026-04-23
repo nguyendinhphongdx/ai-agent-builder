@@ -8,6 +8,7 @@ import {
   Bot,
   Wrench,
   Library,
+  BookOpen,
   GitBranch,
   Settings,
   MessageSquare,
@@ -29,6 +30,7 @@ const AVATAR_COLORS = [
 
 const navItems = [
   { href: "/libraries", label: "Libraries", icon: Library },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/workflows", label: "Workflows", icon: GitBranch },
 ];

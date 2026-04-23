@@ -1,11 +1,14 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.knowledge_base import KnowledgeBase
+from app.config import settings
+from app.models.agent import AgentKnowledgeBase
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
+from app.models.knowledge_base import KnowledgeBase
 
 
 async def list_knowledge_bases(db: AsyncSession, user_id: uuid.UUID) -> list[KnowledgeBase]:
@@ -29,7 +32,15 @@ async def get_knowledge_base(
 
 
 async def create_knowledge_base(db: AsyncSession, user_id: uuid.UUID, **kwargs) -> KnowledgeBase:
-    kb = KnowledgeBase(user_id=user_id, **kwargs)
+    # Snapshot embedding config from platform env at create time. Stored on the
+    # KB so ingestion + retrieval always agree, even after admin changes defaults.
+    kb = KnowledgeBase(
+        user_id=user_id,
+        embedding_provider=settings.EMBEDDING_PROVIDER,
+        embedding_model=settings.EMBEDDING_MODEL,
+        embedding_dimensions=settings.EMBEDDING_DIMENSIONS,
+        **kwargs,
+    )
     db.add(kb)
     await db.flush()
     await db.refresh(kb)
@@ -62,6 +73,33 @@ async def list_documents(db: AsyncSession, kb_id: uuid.UUID) -> list[Document]:
 async def get_document(db: AsyncSession, doc_id: uuid.UUID) -> Document | None:
     result = await db.execute(select(Document).where(Document.id == doc_id))
     return result.scalar_one_or_none()
+
+
+async def list_chunks(
+    db: AsyncSession, doc_id: uuid.UUID, limit: int = 50, offset: int = 0
+) -> tuple[list[DocumentChunk], int]:
+    """Return page of chunks + total count for a document."""
+    total = await db.scalar(
+        select(func.count(DocumentChunk.id)).where(DocumentChunk.document_id == doc_id)
+    ) or 0
+    result = await db.execute(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == doc_id)
+        .order_by(DocumentChunk.chunk_index)
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(result.scalars().all()), int(total)
+
+
+async def count_agents_using_kb(db: AsyncSession, kb_id: uuid.UUID) -> int:
+    """Count agents linked to a knowledge base (via agent_knowledge_bases)."""
+    total = await db.scalar(
+        select(func.count(AgentKnowledgeBase.agent_id)).where(
+            AgentKnowledgeBase.knowledge_base_id == kb_id
+        )
+    )
+    return int(total or 0)
 
 
 async def delete_document(db: AsyncSession, doc: Document) -> None:

@@ -11,8 +11,10 @@ services:
       - NODE_ENV=production
       # Auth
       - DISPATCHER_SECRET=${DISPATCHER_SECRET:-}
-      # RabbitMQ
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://agentforge:agentforge@agentforge-rabbitmq:5672}
+      # RabbitMQ — hardcoded hostname (rabbitmq = service name in agentforge network).
+      # NOT using ${RABBITMQ_URL:-...} because .env has the localhost variant for
+      # local dev and would override this in docker context.
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       # HTTP client
       - HTTP_TIMEOUT=${HTTP_TIMEOUT:-30000}
       # Retry defaults

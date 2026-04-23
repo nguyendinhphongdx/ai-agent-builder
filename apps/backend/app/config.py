@@ -72,11 +72,11 @@ class Settings(BaseSettings):
     DISPATCHER_URL: str = "http://localhost:3010"  # Docker: http://dispatcher:3010
     DISPATCHER_SECRET: str = ""
 
-    # Embedding mặc định cho Knowledge Base
-    EMBEDDING_PROVIDER: str = "ollama"  # "openai" | "ollama"
+    # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
+    # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).
+    EMBEDDING_PROVIDER: str = "ollama"     # "ollama" | "openai" | ...
     EMBEDDING_MODEL: str = "nomic-embed-text"
     EMBEDDING_DIMENSIONS: int = 768
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     # Danh sách origin được phép truy cập API (CORS)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]

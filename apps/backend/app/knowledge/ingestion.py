@@ -79,7 +79,7 @@ class DocumentParser:
                 return f.read()
 
 
-from app.knowledge.embeddings import build_embeddings
+from app.knowledge.embedding import build_for_kb
 
 async def ingest_document(
     db: AsyncSession,
@@ -109,8 +109,8 @@ async def ingest_document(
             await db.flush()
             return document
 
-        # 3. Embed
-        embeddings = build_embeddings()
+        # 3. Embed using KB's snapshotted provider/model/dim
+        embeddings = build_for_kb(kb)
         vectors = await embeddings.aembed_documents(chunks)
 
         # 4. Store chunks with embeddings

@@ -21,7 +21,7 @@ import { BasicInfoCard } from "../components/editor/BasicInfoCard";
 import { BehaviorCard } from "../components/editor/BehaviorCard";
 import { ModelTabContent } from "../components/editor/ModelTabContent";
 import { AdvancedTabContent } from "../components/editor/AdvancedTabContent";
-import { KnowledgeUploadSection } from "../components/KnowledgeUploadSection";
+import { AgentKBSection } from "../components/editor/AgentKBSection";
 import { ToolsSelector } from "../components/ToolsSelector";
 import { AgentPreviewChat } from "../components/AgentPreviewChat";
 import { useAgent, useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
@@ -225,7 +225,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
                         </p>
                       </div>
                     </div>
-                    <KnowledgeUploadSection agentId={agentId} />
+                    <AgentKBSection agentId={agentId} />
                   </div>
                 </div>
               </TabsContent>

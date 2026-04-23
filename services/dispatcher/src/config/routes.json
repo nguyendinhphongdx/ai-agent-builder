@@ -1,24 +1,20 @@
 {
   "services": {
-    "api": {
-      "url": "http://api:3000",
-      "description": "Main API service"
-    },
-    "meeting-api": {
-      "url": "http://meeting-api:4001",
-      "description": "Meeting & AI agents service"
-    },
-    "ai": {
-      "url": "http://ai-service:3456",
-      "description": "AI Service (LLM completions, embeddings)"
-    },
-    "socket": {
-      "url": "http://socket:6789",
-      "description": "WebSocket service"
+    "backend": {
+      "url": "http://backend:8000",
+      "description": "AgentForge FastAPI backend (auth, agents, conversations, workflows)"
     },
     "mail": {
       "url": "http://mail:3011",
-      "description": "Email service (SendGrid)"
+      "description": "Mail service (SendGrid / SMTP / Console)"
+    },
+    "socket": {
+      "url": "http://socket:4000",
+      "description": "WebSocket service (real-time chat, notifications)"
+    },
+    "code-sandbox": {
+      "url": "http://code-sandbox:8000",
+      "description": "Code execution sandbox service"
     }
   }
 }

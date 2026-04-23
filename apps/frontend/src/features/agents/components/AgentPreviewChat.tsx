@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bot, Send, User, Sparkles, Loader2 } from "lucide-react";
+import { Bot, Send, User, Sparkles, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StreamMarkdown } from "@/features/chat/components/StreamMarkdown";
@@ -108,6 +108,24 @@ export function AgentPreviewChat({
     }
   };
 
+  const handleNewSession = useCallback(() => {
+    if (!isReady || !agentId) return;
+    // Abort any in-flight stream and reset local UI state
+    sseRef.current?.close();
+    sseRef.current = null;
+    streamRef.current = "";
+    setMessages([]);
+    setStreamContent("");
+    setIsStreaming(false);
+    setActiveTool(null);
+    setInput("");
+    // Kick a new conversation on the backend
+    setConversationId(null);
+    chatService.createConversation(agentId).then((conv) => {
+      setConversationId(conv.id);
+    });
+  }, [isReady, agentId]);
+
   const hasMessages = messages.length > 0 || isStreaming;
 
   return (
@@ -124,6 +142,17 @@ export function AgentPreviewChat({
             <span className="text-xs text-muted-foreground">{agentName}</span>
           </>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleNewSession}
+          disabled={!isReady || (!hasMessages && !conversationId)}
+          className="ml-auto h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+          title="Bắt đầu cuộc hội thoại mới"
+        >
+          <RotateCcw className="h-3 w-3" />
+          New session
+        </Button>
       </div>
 
       {/* Messages area */}

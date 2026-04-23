@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge.embeddings import build_embeddings
+from app.knowledge.embedding import build_for_kb
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 
@@ -50,12 +50,8 @@ class KnowledgeRetriever:
         effective_top_k = top_k or kb.retrieval_top_k or 5
         effective_threshold = score_threshold if score_threshold is not None else kb.retrieval_score_threshold
 
-        # Build embeddings from KB config
-        embeddings = build_embeddings(
-            provider=kb.embedding_provider,
-            model=kb.embedding_model,
-            dimensions=kb.embedding_dimensions,
-        )
+        # Build embeddings from KB's snapshotted config
+        embeddings = build_for_kb(kb)
 
         # Embed the query
         query_embedding = await embeddings.aembed_query(query)

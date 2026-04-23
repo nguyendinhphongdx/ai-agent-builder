@@ -32,6 +32,20 @@ async def chat_sse(
 
     api_key = await get_plaintext_key_by_id(db, agent.credential_id) if agent.credential_id else None
 
+    import logging
+    logging.getLogger("agentforge").info(
+        f"chat_sse agent={agent.id} model={agent.model_id} "
+        f"credential_id={agent.credential_id} api_key={'<set>' if api_key else '<MISSING>'}"
+    )
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Agent chưa có credential cho provider này. "
+                "Mở agent editor → tab Model → Connect / chọn credential rồi Save."
+            ),
+        )
+
     await save_message(db, conversation_id, role="user", content=content)
     await db.commit()
 
