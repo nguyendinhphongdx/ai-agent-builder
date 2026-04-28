@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     DISPATCHER_URL: str = "http://localhost:3010"  # Docker: http://dispatcher:3010
     DISPATCHER_SECRET: str = ""
 
+    # Redis — used for rate limiting (and future: caching, session store).
+    # Empty disables rate limit (dev mode without Redis).
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Per-token rate limit on /api/external/* (req/min). 0 disables.
+    EXTERNAL_RATE_LIMIT_PER_MIN: int = 60
+
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).
     EMBEDDING_PROVIDER: str = "ollama"     # "ollama" | "openai" | ...

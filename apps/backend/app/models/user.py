@@ -36,3 +36,6 @@ class User(Base, UUIDMixin, TimestampMixin):
     ai_credentials: Mapped[list["AICredential"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    personal_access_tokens: Mapped[list["PersonalAccessToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )

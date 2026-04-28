@@ -10,6 +10,7 @@ import {
   type AICredentialResponse,
 } from "@/lib/api/aiCredentialService";
 import { ConnectCredentialDialog } from "@/features/agents/components/editor/ConnectCredentialDialog";
+import { ApiTokensSection } from "../components/ApiTokensSection";
 
 export function SettingsView() {
   const { data: catalog } = useModelCatalog();
@@ -53,7 +54,7 @@ export function SettingsView() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-2xl space-y-8">
+        <div className="max-w-3xl space-y-10">
           {/* AI Credentials */}
           <section>
             <div className="mb-4">
@@ -150,6 +151,9 @@ export function SettingsView() {
               </div>
             )}
           </section>
+
+          {/* API Tokens — for external clients calling /api/external/* */}
+          <ApiTokensSection />
         </div>
       </div>
 

@@ -14,6 +14,7 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.ai_credential import AICredential
 from app.models.file import File
+from app.models.personal_access_token import PersonalAccessToken
 
 __all__ = [
     "User",
@@ -34,4 +35,5 @@ __all__ = [
     "Message",
     "AICredential",
     "File",
+    "PersonalAccessToken",
 ]

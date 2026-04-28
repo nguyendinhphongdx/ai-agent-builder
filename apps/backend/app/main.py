@@ -33,6 +33,8 @@ from app.multi_agent.router import router as multi_agent_router
 from app.ai_credentials.router import router as ai_credentials_router
 from app.llm.router import router as llm_router
 from app.internal.router import router as internal_router
+from app.external.router import router as external_router
+from app.personal_tokens.router import router as personal_tokens_router
 from app.webhooks.router import router as webhooks_router
 
 
@@ -62,7 +64,36 @@ def create_app() -> FastAPI:
 
     app.add_middleware(LoggingMiddleware)
 
-    # Cấu hình CORS cho phép frontend gọi API
+    # CORS — split by route family:
+    #   /api/external/*  → open to any origin (public API, no cookies)
+    #   everything else  → restricted to the configured frontend origins (cookies)
+    # Starlette's CORSMiddleware doesn't natively scope by path, so we mount it
+    # twice via a tiny dispatcher that picks the right policy per request.
+    class ScopedCORSMiddleware(BaseHTTPMiddleware):
+        """Apply CORS-* response headers based on whether the path is public."""
+
+        EXTERNAL_PREFIX = f"{settings.API_PREFIX}/external/"
+
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            origin = request.headers.get("origin")
+            if not origin:
+                return response
+
+            is_external = request.url.path.startswith(self.EXTERNAL_PREFIX)
+            if is_external:
+                # Public API — bearer-auth, no cookies; allow any origin.
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                response.headers["Access-Control-Allow-Methods"] = "*"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+            elif origin in settings.CORS_ORIGINS:
+                # Browser app — cookie-auth, must echo origin and allow creds.
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Vary"] = "Origin"
+            return response
+
+    # Built-in CORS for the cookie-auth app routes (handles preflight properly).
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -70,6 +101,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(ScopedCORSMiddleware)
 
     # Serve uploaded files (avatars, documents)
     import os
@@ -91,6 +123,8 @@ def create_app() -> FastAPI:
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
+    app.include_router(external_router, prefix=settings.API_PREFIX)
+    app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
 
     from app.uploads.router import router as upload_router
     app.include_router(upload_router, prefix=settings.API_PREFIX)
