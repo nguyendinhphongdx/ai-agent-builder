@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/aiCredentialService";
 import { ConnectCredentialDialog } from "@/features/agents/components/editor/ConnectCredentialDialog";
 import { ApiTokensSection } from "../components/ApiTokensSection";
+import { IntegrationsLinkSection } from "../components/IntegrationsLinkSection";
 
 export function SettingsView() {
   const { data: catalog } = useModelCatalog();
@@ -154,6 +155,9 @@ export function SettingsView() {
 
           {/* API Tokens — for external clients calling /api/external/* */}
           <ApiTokensSection />
+
+          {/* Integrations — channels that consume the API */}
+          <IntegrationsLinkSection />
         </div>
       </div>
 
