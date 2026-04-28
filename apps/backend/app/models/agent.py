@@ -62,6 +62,16 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(20), default="draft", index=True)  # "draft" hoặc "active"
     kb_retrieval_mode: Mapped[str] = mapped_column(String(20), default="tool")  # "auto" hoặc "tool"
 
+    # Share / embed channel — when share_token is set, /api/share/{token}/* is
+    # publicly callable (no auth) and the embed widget can render this agent.
+    # Rotate by overwriting; revoke by setting to NULL.
+    share_token: Mapped[str | None] = mapped_column(
+        String(64), unique=True, index=True, nullable=True
+    )
+    # UI/widget customisation (theme color, position, greeting, …). Free-form
+    # JSON so the widget can evolve without DB migrations.
+    share_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+
     # Quan hệ
     user: Mapped["User"] = relationship(back_populates="agents")
     credential: Mapped["AICredential | None"] = relationship(lazy="joined")

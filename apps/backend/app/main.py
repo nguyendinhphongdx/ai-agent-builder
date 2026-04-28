@@ -34,7 +34,9 @@ from app.ai_credentials.router import router as ai_credentials_router
 from app.llm.router import router as llm_router
 from app.internal.router import router as internal_router
 from app.external.router import router as external_router
+from app.integrations.router import router as integrations_router
 from app.personal_tokens.router import router as personal_tokens_router
+from app.share.router import router as share_router
 from app.webhooks.router import router as webhooks_router
 
 
@@ -72,7 +74,13 @@ def create_app() -> FastAPI:
     class ScopedCORSMiddleware(BaseHTTPMiddleware):
         """Apply CORS-* response headers based on whether the path is public."""
 
-        EXTERNAL_PREFIX = f"{settings.API_PREFIX}/external/"
+        # Both families are origin-less by design: external uses Bearer tokens,
+        # share uses opaque path tokens. Neither relies on cookies, so wildcard
+        # CORS is safe — the embed widget lives on third-party sites.
+        PUBLIC_PREFIXES = (
+            f"{settings.API_PREFIX}/external/",
+            f"{settings.API_PREFIX}/share/",
+        )
 
         async def dispatch(self, request: Request, call_next):
             response = await call_next(request)
@@ -80,9 +88,9 @@ def create_app() -> FastAPI:
             if not origin:
                 return response
 
-            is_external = request.url.path.startswith(self.EXTERNAL_PREFIX)
-            if is_external:
-                # Public API — bearer-auth, no cookies; allow any origin.
+            is_public = request.url.path.startswith(self.PUBLIC_PREFIXES)
+            if is_public:
+                # Public API — bearer/path-token auth, no cookies; any origin.
                 response.headers["Access-Control-Allow-Origin"] = "*"
                 response.headers["Access-Control-Allow-Methods"] = "*"
                 response.headers["Access-Control-Allow-Headers"] = "*"
@@ -124,7 +132,9 @@ def create_app() -> FastAPI:
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
+    app.include_router(integrations_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
+    app.include_router(share_router, prefix=settings.API_PREFIX)
 
     from app.uploads.router import router as upload_router
     app.include_router(upload_router, prefix=settings.API_PREFIX)

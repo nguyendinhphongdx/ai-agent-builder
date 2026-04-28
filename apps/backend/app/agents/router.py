@@ -23,6 +23,8 @@ from app.agents.service import (
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.share.schemas import ShareConfigResponse, ShareSettingsUpdate
+from app.share.service import disable_share, enable_share, update_share_settings
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -134,3 +136,59 @@ async def detach_kb_endpoint(  # Gỡ knowledge base khỏi agent
     db: AsyncSession = Depends(get_db),
 ):
     await detach_knowledge_base(db, agent_id, kb_id)
+
+
+# ─── Share / embed channel ───────────────────────────────────────────────
+# Single endpoint covers all owner ops: enable, disable, rotate, settings.
+# Frontend only needs one call per UI interaction.
+
+
+def _share_config(agent) -> ShareConfigResponse:
+    return ShareConfigResponse(
+        enabled=agent.share_token is not None,
+        share_token=agent.share_token,
+        settings=agent.share_settings or {},
+    )
+
+
+@router.get("/{agent_id}/share", response_model=ShareConfigResponse)
+async def get_share_config(
+    agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Read current share state — used by the embed integration page."""
+    agent = await get_agent(db, agent_id, current_user.id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return _share_config(agent)
+
+
+@router.patch("/{agent_id}/share", response_model=ShareConfigResponse)
+async def update_share_config(
+    agent_id: uuid.UUID,
+    body: ShareSettingsUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle / rotate / customise the agent's share channel.
+
+    - ``enabled=true``: mint a token if missing (idempotent unless ``rotate``)
+    - ``enabled=false``: clear the token (revoke); existing settings kept
+    - ``rotate=true``: force a new token even if one exists (also implies enable)
+    - ``settings={...}``: replace ``share_settings`` payload
+    """
+    agent = await get_agent(db, agent_id, current_user.id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Settings update first — independent of enable state.
+    if body.settings is not None:
+        agent = await update_share_settings(db, agent, body.settings)
+
+    if body.rotate or body.enabled is True:
+        agent = await enable_share(db, agent, rotate=body.rotate)
+    elif body.enabled is False:
+        agent = await disable_share(db, agent)
+
+    return _share_config(agent)

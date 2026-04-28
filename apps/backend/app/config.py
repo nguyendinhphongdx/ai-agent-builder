@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     # Per-token rate limit on /api/external/* (req/min). 0 disables.
     EXTERNAL_RATE_LIMIT_PER_MIN: int = 60
 
+    # Per-IP rate limit on /api/share/* (req/min) — embed widget channel,
+    # callers are anonymous browsers so we key on client IP. 0 disables.
+    SHARE_RATE_LIMIT_PER_MIN: int = 30
+
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).
     EMBEDDING_PROVIDER: str = "ollama"     # "ollama" | "openai" | ...

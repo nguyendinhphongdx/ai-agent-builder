@@ -50,7 +50,8 @@ const INTEGRATIONS: Integration[] = [
     description: "Nhúng chat widget vào website chỉ với 1 thẻ <script>.",
     icon: Globe,
     iconColor: "text-sky-500",
-    status: "coming-soon",
+    status: "available",
+    href: "/settings/integrations/embed",
   },
   {
     slug: "slack",
