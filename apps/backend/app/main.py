@@ -16,6 +16,12 @@ logger = logging.getLogger("agentforge")
 logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
+# Init Sentry before app construction so its integrations can hook the
+# Starlette ASGI app + asyncio event loop. No-op when SENTRY_DSN is unset.
+from app.observability import init_sentry  # noqa: E402
+
+init_sentry()
+
 from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
 from app.ai_credentials.router import router as ai_credentials_router

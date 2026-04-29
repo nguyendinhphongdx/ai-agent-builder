@@ -36,6 +36,7 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "redis[hiredis]>=5.0",
     "stripe>=11.0",
+    "sentry-sdk[fastapi]>=2.0",
 ]
 
 [project.optional-dependencies]

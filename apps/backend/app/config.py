@@ -112,5 +112,18 @@ class Settings(BaseSettings):
     # Danh sách origin được phép truy cập API (CORS)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    # ── Observability ──────────────────────────────────────────────────
+    # Empty SENTRY_DSN disables the SDK entirely — local dev, tests, CI
+    # never touch the Sentry network.
+    SENTRY_DSN: str = ""
+    # Tag every event so dashboards can split prod/staging/dev.
+    ENVIRONMENT: str = "development"
+    # Release tag — let CI/CD inject the git SHA so source maps + issue
+    # grouping line up. Empty falls back to Sentry's auto-release.
+    RELEASE: str = ""
+    # Sample rate for performance traces (0..1). Errors are always sent.
+    # Default 0 (off) so we don't burn quota until perf monitoring is wanted.
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+
 
 settings = Settings()
