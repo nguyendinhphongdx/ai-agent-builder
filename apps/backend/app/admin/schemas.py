@@ -70,7 +70,7 @@ class AdminPurchaseRow(BaseModel):
     price_paid_cents: int
     currency: str
     status: str
-    stripe_payment_intent_id: str | None
+    provider_transaction_id: str | None
     purchased_at: datetime
     refunded_at: datetime | None
 

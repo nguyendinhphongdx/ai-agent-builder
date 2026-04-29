@@ -197,7 +197,7 @@ async def list_purchases_endpoint(
             price_paid_cents=p.price_paid_cents,
             currency=p.currency,
             status=p.status,
-            stripe_payment_intent_id=p.stripe_payment_intent_id,
+            provider_transaction_id=p.provider_transaction_id,
             purchased_at=p.purchased_at,
             refunded_at=p.refunded_at,
         )
@@ -234,7 +234,7 @@ async def refund_endpoint(
         price_paid_cents=purchase.price_paid_cents,
         currency=purchase.currency,
         status=purchase.status,
-        stripe_payment_intent_id=purchase.stripe_payment_intent_id,
+        provider_transaction_id=purchase.provider_transaction_id,
         purchased_at=purchase.purchased_at,
         refunded_at=purchase.refunded_at,
     )

@@ -12,11 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.hub.payment import (
-    create_checkout_session,
-    get_purchase_status,
-    is_stripe_configured,
-)
 from app.hub.reviews import (
     delete_review,
     list_reviews,
@@ -45,6 +40,12 @@ from app.hub.service import (
     publish_agent,
     publish_new_version,
     update_template,
+)
+from app.models.agent_template import AgentTemplate
+from app.payments.service import (
+    create_checkout_for_template,
+    get_provider_for_template,
+    get_purchase_status,
 )
 
 # Public router — browse + detail. No auth dep at router level.
@@ -173,7 +174,7 @@ async def publish_version_endpoint(
     return TemplateVersionResponse.model_validate(version)
 
 
-# ─── Authenticated: paid purchase via Stripe Checkout ────────────────
+# ─── Authenticated: paid purchase (provider picked by template currency) ────
 
 
 @auth_router.post("/{template_id}/purchase")
@@ -181,28 +182,38 @@ async def purchase_endpoint(
     template_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a Stripe Checkout Session for a paid template.
+    """Create a checkout session for a paid template.
 
-    Returns ``{checkout_url}`` — caller redirects the browser to it. The
-    session id is stored on the Purchase row so the webhook can find it
-    when payment completes.
+    Provider is resolved from the template's currency by
+    ``payments.service.get_provider_for_template``:
+      - VND → MoMo
+      - everything else (USD, EUR, ...) → Stripe
 
-    503 when Stripe isn't configured (lets the FE show a clear message
-    instead of a confusing 500).
+    Returns ``{checkout_url, provider, purchase_id}``. 503 when the
+    resolved provider isn't configured on this deployment.
     """
-    if not is_stripe_configured():
+    template = await db.get(AgentTemplate, template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    provider = get_provider_for_template(template)
+    if not provider.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="Paid templates are not available on this deployment",
+            detail=f"Paid templates via {provider.name} are not available on this deployment",
         )
     try:
-        url, purchase = await create_checkout_session(db, template_id)
+        url, purchase, _ = await create_checkout_for_template(db, template_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     await db.commit()
-    return {"checkout_url": url, "purchase_id": str(purchase.id)}
+    return {
+        "checkout_url": url,
+        "provider": provider.name,
+        "purchase_id": str(purchase.id),
+    }
 
 
 @auth_router.get("/purchases/{session_id}/status")
@@ -210,10 +221,10 @@ async def purchase_status_endpoint(
     session_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Poll endpoint for the FE return-from-Stripe page.
+    """Poll endpoint for the FE return-from-checkout page.
 
-    Returns ``{status: 'pending'|'paid'|'refunded'|'failed', agent_id?: uuid}``
-    once the agent is forked. 404 when the session doesn't belong to the caller.
+    Returns ``{status, provider, agent_id?}``. 404 when the id doesn't
+    match any of the caller's Purchases.
     """
     result = await get_purchase_status(db, session_id)
     if result is None:

@@ -193,9 +193,38 @@ Source maps are deleted from the client bundle after upload
 
 ---
 
-## 5. Stripe — Hub V2 paid templates
+## 5. Buyer-side checkout — multi-provider
 
-### 5.1 Buyer-side (Checkout)
+`app.payments` is a Strategy + Registry abstraction:
+
+```
+app/payments/
+  base.py                     ← `PaymentProvider` ABC
+  service.py                  ← dispatcher: pick by template.currency
+  providers/
+    __init__.py               ← registry: {"stripe": StripeProvider, "momo": MoMoProvider}
+    stripe.py                 ← StripeProvider + Connect destination charges
+    momo.py                   ← MoMoProvider + HMAC IPN verification
+  webhooks/
+    stripe.py                 ← /api/webhooks/stripe
+    momo.py                   ← /api/webhooks/momo
+```
+
+The Hub router calls `service.create_checkout_for_template(db, id)` and
+gets back `(redirect_url, purchase_row, provider)`. Currency-based
+dispatch:
+
+| Template.currency | Provider |
+|---|---|
+| `VND` | MoMo |
+| `USD`, `EUR`, `GBP`, … | Stripe |
+
+Adding a new gateway: write a class that subclasses `PaymentProvider`,
+register it in `providers/__init__.py`, extend
+`service.get_provider_for_template`. Nothing else above the abstraction
+changes.
+
+### 5.1 Stripe — Checkout (buyer side)
 
 ```env
 STRIPE_SECRET_KEY=sk_live_…
@@ -264,8 +293,38 @@ To run without Stripe (local dev, free-only deploy):
 
 - Leave `STRIPE_SECRET_KEY` empty.
 - Hub publishing still works for free templates.
-- `POST /purchase` → 503; `POST /me/payouts/onboarding-link` → 503.
-- The webhook endpoint returns 404 (looks genuinely absent).
+- `POST /purchase` on USD templates → 503; `POST /me/payouts/onboarding-link` → 503.
+- `/api/webhooks/stripe` returns 404 (looks genuinely absent).
+
+### 5.6 MoMo — VND payments (Vietnam)
+
+VND-priced templates route through MoMo. The flow mirrors Stripe Checkout:
+
+```env
+MOMO_PARTNER_CODE=        # from MoMo merchant portal
+MOMO_ACCESS_KEY=
+MOMO_SECRET_KEY=
+MOMO_ENDPOINT=https://test-payment.momo.vn   # sandbox
+MOMO_RETURN_URL=https://app.example.com/hub/purchase-complete
+MOMO_NOTIFY_URL=https://app.example.com/api/webhooks/momo
+```
+
+Differences from Stripe:
+
+- **VND only.** `template.currency = "VND"` is required; other currencies
+  raise a 400 from `MoMoProvider.create_checkout`. `price_cents` is reused
+  as whole-VND amount (column name is a misnomer for VND but the storage
+  is identical — a positive integer).
+- **No author payouts in V1.** MoMo has no Connect equivalent. Platform
+  collects all funds and settles with authors out-of-band. The
+  `can_receive_payouts` gate that StripeProvider applies is bypassed for
+  VND templates.
+- **Signature scheme.** HMAC-SHA256 over a fixed param-order string.
+  We sign on outbound `create` requests and verify on inbound IPN.
+  Mismatched signatures → 400.
+
+Empty `MOMO_PARTNER_CODE` disables VND checkout (POST /purchase on a
+VND template returns 503; `/api/webhooks/momo` returns 404).
 
 ---
 

@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.context import current_user_id
-from app.hub.payment import _stripe, is_stripe_configured
 from app.models.user import User
+from app.payments.providers.stripe import _stripe, is_stripe_configured
 
 logger = logging.getLogger("agentforge")
 

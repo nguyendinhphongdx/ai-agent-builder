@@ -112,6 +112,24 @@ class Settings(BaseSettings):
     STRIPE_CONNECT_RETURN_URL: str = ""  # e.g. https://app.example.com/settings/payouts?ok=1
     STRIPE_CONNECT_REFRESH_URL: str = "" # e.g. https://app.example.com/settings/payouts?refresh=1
 
+    # ── MoMo (VND payments — Vietnam) ─────────────────────────────────
+    # Vietnamese e-wallet. Currency-locked to VND. Empty MOMO_PARTNER_CODE
+    # disables VND checkout entirely (POST /purchase on a VND template
+    # returns 503). Authors don't onboard a Connect-equivalent — V1 is
+    # platform-collects with manual settlement.
+    MOMO_PARTNER_CODE: str = ""
+    MOMO_ACCESS_KEY: str = ""
+    MOMO_SECRET_KEY: str = ""
+    # Production: https://payment.momo.vn  ·  Sandbox: https://test-payment.momo.vn
+    MOMO_ENDPOINT: str = "https://test-payment.momo.vn"
+    # Where MoMo redirects the buyer's browser after payment. {orderId}
+    # is appended by the gateway. Set to your /hub/purchase-complete page.
+    MOMO_RETURN_URL: str = ""
+    # Public HTTPS URL MoMo POSTs IPN events to (must match the host
+    # serving /api/webhooks/momo). Leave empty in dev — IPN won't fire,
+    # tests rely on the redirect query string instead.
+    MOMO_NOTIFY_URL: str = ""
+
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).
     EMBEDDING_PROVIDER: str = "ollama"     # "ollama" | "openai" | ...

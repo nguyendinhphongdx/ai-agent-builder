@@ -38,12 +38,13 @@ from app.conversations.router import router as conversations_router
 from app.external.router import router as external_router
 from app.hub.router import auth_router as hub_auth_router
 from app.hub.router import public_router as hub_public_router
-from app.hub.webhook_router import router as stripe_webhook_router
 from app.integrations.router import router as integrations_router
 from app.internal.router import router as internal_router
 from app.knowledge.router import router as knowledge_router
 from app.llm.router import router as llm_router
 from app.multi_agent.router import router as multi_agent_router
+from app.payments.webhooks import momo_router as momo_webhook_router
+from app.payments.webhooks import stripe_router as stripe_webhook_router
 from app.payouts.router import router as payouts_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.share.router import router as share_router
@@ -216,6 +217,7 @@ def create_app() -> FastAPI:
     # /api/webhooks/stripe (separate from /api/webhooks/{wf}/... which is
     # the workflow-trigger webhook with its own URL token scheme).
     app.include_router(stripe_webhook_router, prefix=settings.API_PREFIX)
+    app.include_router(momo_webhook_router, prefix=settings.API_PREFIX)
     # Platform admin — gated by user.role hierarchy (moderator/support/admin).
     app.include_router(admin_router, prefix=settings.API_PREFIX)
     # Author payouts — Stripe Connect onboarding + status.

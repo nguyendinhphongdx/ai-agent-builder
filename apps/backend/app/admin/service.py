@@ -221,7 +221,7 @@ async def refund_purchase(
     if purchase.status != "paid":
         raise ValueError(f"Purchase status is {purchase.status}, not paid")
 
-    if purchase.price_paid_cents > 0 and purchase.stripe_payment_intent_id:
+    if purchase.price_paid_cents > 0 and purchase.provider_transaction_id:
         # Real refund via Stripe.
         from app.config import settings
 
@@ -233,7 +233,7 @@ async def refund_purchase(
         stripe.api_key = settings.STRIPE_SECRET_KEY
         try:
             stripe.Refund.create(
-                payment_intent=purchase.stripe_payment_intent_id,
+                payment_intent=purchase.provider_transaction_id,
                 reason="requested_by_customer",
                 metadata={"reason": reason or "", "purchase_id": str(purchase_id)},
             )

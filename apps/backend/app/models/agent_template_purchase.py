@@ -42,7 +42,16 @@ class AgentTemplatePurchase(Base):
     price_paid_cents: Mapped[int] = mapped_column(Integer, default=0)
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     status: Mapped[str] = mapped_column(String(20), default="paid")  # pending|paid|refunded|failed
-    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    # 'stripe' for USD/EUR/etc., 'momo' for VND. Free forks default to 'stripe'
+    # for historical reasons (column has a server default) — they don't actually
+    # exercise either provider.
+    provider: Mapped[str] = mapped_column(
+        String(20), default="stripe", server_default="stripe", nullable=False
+    )
+    # Provider-issued id used by the webhook handler to find this row.
+    # Stripe: Checkout Session id (until checkout.session.completed swaps it
+    # for the PaymentIntent id). MoMo: `requestId` we send at create time.
+    provider_transaction_id: Mapped[str | None] = mapped_column(String(255))
 
     purchased_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default="now()"
