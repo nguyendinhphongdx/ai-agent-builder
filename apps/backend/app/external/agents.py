@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,6 +124,7 @@ async def chat_sync(
 async def chat_stream(
     agent_id: uuid.UUID,
     body: ChatRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Streaming chat — Server-Sent Events. Same auth + payload as ``/chat``.
@@ -149,4 +150,4 @@ async def chat_stream(
             raise HTTPException(404, "Conversation not found")
         conv_id = conv.id
 
-    return await chat_sse(conv_id, current_user_id(), body.message, db)
+    return await chat_sse(conv_id, current_user_id(), body.message, db, request=request)

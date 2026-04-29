@@ -6,7 +6,7 @@ import logging
 import time
 import uuid
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +62,7 @@ async def chat_sse(
     content: str,
     db: AsyncSession,
     attachment_ids: list[uuid.UUID] | None = None,
+    request: "Request | None" = None,
 ) -> StreamingResponse:
     """Stream agent response as Server-Sent Events."""
     # `get_conversation` reads the user from request context — caller still
@@ -116,6 +117,7 @@ async def chat_sse(
     async def event_generator():
         start_time = time.time()
         full_response = ""
+        client_gone = False
 
         try:
             history = await get_messages(db, _conv_id, limit=50)
@@ -127,6 +129,17 @@ async def chat_sse(
                 api_key=_api_key,
                 current_attachments=_attachments,
             ):
+                # Cancel-on-disconnect: stop pulling tokens from the LLM
+                # the moment the browser tab closed. Without this we'd
+                # burn the owner's credit on a response no one will see.
+                if request is not None and await request.is_disconnected():
+                    client_gone = True
+                    logger.info(
+                        f"chat_sse client disconnected — aborting stream "
+                        f"conv={_conv_id} after {len(full_response)} chars"
+                    )
+                    break
+
                 event_dict = event.to_dict()
 
                 if event.type == "token":
@@ -137,6 +150,9 @@ async def chat_sse(
 
             latency_ms = int((time.time() - start_time) * 1000)
 
+            # Always persist whatever we collected — even partial responses
+            # from a disconnected client are valuable history (and prevent
+            # an orphan user message in the conversation).
             if full_response:
                 await save_message(
                     db,
@@ -148,11 +164,13 @@ async def chat_sse(
                 )
                 await db.commit()
 
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            if not client_gone:
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except Exception as e:
             logger.exception("chat_sse stream crashed")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            if not client_gone:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(
         event_generator(),

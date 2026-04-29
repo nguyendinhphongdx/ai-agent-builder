@@ -137,3 +137,76 @@ async def enforce_share_rate_limit(request: Request) -> None:
                 "X-RateLimit-Remaining": "0",
             },
         )
+
+
+# ─── Generic per-route limit (auth + chat + workflow execute, etc.) ──────
+
+
+async def _bump_counter(key: str, limit: int) -> int | None:
+    """Returns the current count after INCR, or None if Redis is unreachable."""
+    redis = await get_redis()
+    if redis is None:
+        return None
+    try:
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, 65)
+        return count
+    except Exception as exc:  # noqa: BLE001 — fail-open
+        logger.warning("rate_limit redis incr failed: %s", exc)
+        return None
+
+
+def make_limit(scope: str, limit_per_min: int):
+    """Factory: build a FastAPI dependency that limits ``scope`` to ``N/min``.
+
+    Keys per-user when authenticated (request.state.api_token *or* the
+    cookie-resolved user). Falls back to client IP when neither is present —
+    that's the case for ``/auth/login`` and ``/auth/register`` where there's
+    no user yet.
+
+    Use:
+        from app.rate_limit import make_limit
+        @router.post("/login", dependencies=[Depends(make_limit("auth", 20))])
+    """
+    async def _enforce(request: Request) -> None:
+        if limit_per_min <= 0:
+            return
+
+        # Prefer user_id (set by get_current_user). Fall back to api_token id,
+        # then client IP for unauthenticated routes.
+        from app.context import current_user_id_or_none
+
+        principal: str | None = None
+        user_id = current_user_id_or_none()
+        if user_id is not None:
+            principal = f"u:{user_id}"
+        else:
+            token = getattr(request.state, "api_token", None)
+            if token is not None:
+                principal = f"t:{token.id}"
+            else:
+                principal = f"ip:{_client_ip(request)}"
+
+        minute = int(time.time() // 60)
+        key = f"rl:{scope}:{principal}:{minute}"
+
+        count = await _bump_counter(key, limit_per_min)
+        if count is None:
+            return  # fail-open
+
+        request.state.rate_limit_remaining = max(0, limit_per_min - count)
+
+        if count > limit_per_min:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded ({limit_per_min}/min for {scope}). Retry next minute.",
+                headers={
+                    "Retry-After": "60",
+                    "X-RateLimit-Scope": scope,
+                    "X-RateLimit-Limit": str(limit_per_min),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+
+    return _enforce

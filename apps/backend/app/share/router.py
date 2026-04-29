@@ -12,7 +12,7 @@ import logging
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -141,6 +141,7 @@ async def share_chat_sync(
 async def share_chat_stream(
     share_token: str,
     body: ShareChatRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Stream agent response as Server-Sent Events.
@@ -174,6 +175,7 @@ async def share_chat_stream(
     async def event_generator():
         start = time.time()
         full = ""
+        client_gone = False
         try:
             # First event: hand the conversation_id back so the widget can
             # persist it for follow-up turns. Saves a round-trip.
@@ -183,6 +185,17 @@ async def share_chat_stream(
             async for event in execute_agent_stream(
                 _agent, history, db, api_key=_api_key
             ):
+                # Cancel-on-disconnect: stop drawing tokens from the LLM the
+                # moment the widget tab closes. Anonymous share traffic on a
+                # popular embed could otherwise rack up serious cost.
+                if await request.is_disconnected():
+                    client_gone = True
+                    logger.info(
+                        f"share stream client gone — agent={_agent.id} "
+                        f"after {len(full)} chars"
+                    )
+                    break
+
                 event_dict = event.to_dict()
                 if event.type == "token":
                     full += event_dict.get("content", "")
@@ -201,10 +214,12 @@ async def share_chat_stream(
                     latency_ms=latency_ms,
                 )
                 await db.commit()
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            if not client_gone:
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as exc:
             logger.exception("share stream crashed")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            if not client_gone:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 
     return StreamingResponse(
         event_generator(),

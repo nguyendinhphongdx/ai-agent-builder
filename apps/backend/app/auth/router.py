@@ -38,6 +38,14 @@ from app.config import settings
 from app.db.session import get_db
 from app.models.user import User
 
+from app.rate_limit import make_limit
+
+# Public auth endpoints are the most-attacked surface — keep per-IP limits
+# strict so a credential-stuffing attempt costs the attacker. Internal
+# (authenticated) endpoints get more headroom via per-user keys.
+_AUTH_PUBLIC_LIMIT = Depends(make_limit("auth-public", 30))   # login/register/refresh/forgot
+_AUTH_USER_LIMIT = Depends(make_limit("auth-user", 60))       # logout/verify/reset
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -69,7 +77,7 @@ def _set_auth_cookies(
         value=access_token,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=True,
+        secure=not settings.DEBUG,
         samesite="lax",
         path="/",
     )
@@ -78,15 +86,15 @@ def _set_auth_cookies(
         value=refresh_token,
         max_age=refresh_days * 86400,
         httponly=True,
-        secure=True,
+        secure=not settings.DEBUG,
         samesite="lax",
-        path="/api/auth/refresh",
+        path=f"{settings.API_PREFIX}/auth/refresh",
     )
 
 
 # ─── Register ──────────────────────────────────────────────────────
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED, dependencies=[_AUTH_PUBLIC_LIMIT])
 async def register(
     body: RegisterRequest,
     response: Response,
@@ -117,7 +125,7 @@ async def register(
 
 # ─── Login ─────────────────────────────────────────────────────────
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse, dependencies=[_AUTH_PUBLIC_LIMIT])
 async def login(
     body: LoginRequest,
     response: Response,
@@ -149,7 +157,7 @@ async def login(
 
 # ─── Refresh ───────────────────────────────────────────────────────
 
-@router.post("/refresh", response_model=AuthResponse)
+@router.post("/refresh", response_model=AuthResponse, dependencies=[_AUTH_PUBLIC_LIMIT])
 async def refresh(
     response: Response,
     refresh_token: str | None = Cookie(default=None),
@@ -206,7 +214,7 @@ async def refresh(
 async def logout(response: Response):
     """Đăng xuất bằng cách xóa cookie access_token và refresh_token."""
     response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/api/auth/refresh")
+    response.delete_cookie("refresh_token", path=f"{settings.API_PREFIX}/auth/refresh")
     return {"message": "Logged out"}
 
 
@@ -218,7 +226,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 # ─── Email verification ───────────────────────────────────────────
 
-@router.post("/verify-email/send")
+@router.post("/verify-email/send", dependencies=[_AUTH_USER_LIMIT])
 async def verify_email_send(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -240,7 +248,7 @@ async def verify_email_send(
     return {"sent": True}
 
 
-@router.post("/verify-email/confirm")
+@router.post("/verify-email/confirm", dependencies=[_AUTH_USER_LIMIT])
 async def verify_email_confirm(
     body: VerifyEmailConfirmRequest,
     db: AsyncSession = Depends(get_db),
@@ -270,7 +278,7 @@ async def verify_email_confirm(
 
 # ─── Forgot / Reset password ──────────────────────────────────────
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", dependencies=[_AUTH_PUBLIC_LIMIT])
 async def forgot_password(
     body: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -288,7 +296,7 @@ async def forgot_password(
     return {"sent": True}
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", dependencies=[_AUTH_PUBLIC_LIMIT])
 async def reset_password(
     body: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),

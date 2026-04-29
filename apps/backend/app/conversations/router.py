@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.context import current_user_id
+from app.rate_limit import make_limit
 from app.conversations.schemas import (
     ChatRequest,
     ConversationCreate,
@@ -59,16 +60,20 @@ async def get_conversation_endpoint(  # Lấy chi tiết cuộc hội thoại th
     return ConversationResponse.model_validate(conv)
 
 
-@router.post("/{conv_id}/chat")
+@router.post("/{conv_id}/chat", dependencies=[Depends(make_limit("chat", 60))])
 async def chat_stream_endpoint(  # Gửi tin nhắn và stream phản hồi agent qua SSE
     conv_id: uuid.UUID,
     body: ChatRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     # SSE is long-running and may outlive the calling task — pass user_id
     # explicitly so the stream doesn't depend on contextvars during streaming.
+    # Pass `request` so the generator can detect client disconnect and stop
+    # pulling tokens (otherwise we'd keep paying the LLM after browser closed).
     return await chat_sse(
         conv_id, current_user_id(), body.content, db, body.attachment_ids,
+        request=request,
     )
 
 

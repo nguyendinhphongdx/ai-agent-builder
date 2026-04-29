@@ -1,14 +1,46 @@
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
+import httpx
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, create_model
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.config import settings
 from app.models.tool import Tool
+from app.tools.url_guard import assert_safe_url
+
+
+def _render_template(template: str, kwargs: dict) -> str:
+    """Substitute `{name}` placeholders with stringified values."""
+    out = template
+    for key, val in kwargs.items():
+        out = out.replace(f"{{{key}}}", str(val))
+    return out
+
+
+def _render_json_body(template: str, kwargs: dict) -> Any:
+    """Render a JSON body template by substituting placeholders inside JSON values
+    (not string concatenation), so quotes/special chars don't break the JSON.
+    """
+    body = json.loads(template) if template else None
+    if body is None:
+        return None
+
+    def _walk(node):
+        if isinstance(node, dict):
+            return {k: _walk(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [_walk(v) for v in node]
+        if isinstance(node, str):
+            return _render_template(node, kwargs)
+        return node
+
+    return _walk(body)
 
 
 def json_schema_to_pydantic(schema: dict) -> type[BaseModel]:
@@ -52,22 +84,15 @@ class HTTPRequestToolBuilder(ToolBuilder):
         config = tool_def.config
 
         async def execute(**kwargs) -> str:
-            import httpx
-
-            url = config["url"]
-            for key, val in kwargs.items():
-                url = url.replace(f"{{{key}}}", str(val))
+            url = _render_template(config["url"], kwargs)
+            try:
+                assert_safe_url(url)
+            except ValueError as exc:
+                return f"Error: {exc}"
 
             headers = config.get("headers", {})
             method = config.get("method", "GET").upper()
-
-            body = None
-            if config.get("body_template"):
-                import json
-                body_str = config["body_template"]
-                for key, val in kwargs.items():
-                    body_str = body_str.replace(f"{{{key}}}", str(val))
-                body = json.loads(body_str)
+            body = _render_json_body(config.get("body_template"), kwargs)
 
             async with httpx.AsyncClient(timeout=tool_def.timeout_seconds) as client:
                 resp = await client.request(method, url, headers=headers, json=body)
@@ -87,29 +112,27 @@ class HTTPRequestToolBuilder(ToolBuilder):
 class CodeExecToolBuilder(ToolBuilder):
     """Builder cho tool code execution - gọi sandbox service qua HTTP."""
 
-    SANDBOX_URL = "http://code-sandbox:8000/execute"
-
     def build(self, tool_def: Tool) -> StructuredTool:
         config = tool_def.config
 
         async def execute(**kwargs) -> str:
-            import httpx
-
-            code = config.get("code_template", "")
-            for key, val in kwargs.items():
-                code = code.replace(f"{{{key}}}", str(val))
-
+            code = _render_template(config.get("code_template", ""), kwargs)
             language = config.get("language", "python")
+
+            headers = {}
+            if settings.SANDBOX_SECRET:
+                headers["x-internal-token"] = settings.SANDBOX_SECRET
 
             async with httpx.AsyncClient(timeout=tool_def.timeout_seconds + 5) as client:
                 try:
                     resp = await client.post(
-                        CodeExecToolBuilder.SANDBOX_URL,
+                        f"{settings.SANDBOX_URL}/execute",
                         json={
                             "code": code,
                             "language": language,
                             "timeout": tool_def.timeout_seconds,
                         },
+                        headers=headers,
                     )
                     resp.raise_for_status()
                     result = resp.json()
@@ -138,11 +161,11 @@ class WebScrapeToolBuilder(ToolBuilder):
         config = tool_def.config
 
         async def execute(**kwargs) -> str:
-            import httpx
-
-            url = config.get("url_template", "")
-            for key, val in kwargs.items():
-                url = url.replace(f"{{{key}}}", str(val))
+            url = _render_template(config.get("url_template", ""), kwargs)
+            try:
+                assert_safe_url(url)
+            except ValueError as exc:
+                return f"Error: {exc}"
 
             async with httpx.AsyncClient(timeout=tool_def.timeout_seconds) as client:
                 resp = await client.get(url)
@@ -165,55 +188,62 @@ class WebScrapeToolBuilder(ToolBuilder):
 class DBQueryToolBuilder(ToolBuilder):
     """Builder cho tool DB query - thực thi SELECT query trên database.
 
-    Config cần có:
-    - connection_string: URL kết nối database (chỉ hỗ trợ SELECT)
-    - max_rows: số dòng tối đa trả về (mặc định: 50)
+    Config:
+    - connection_string: URL Postgres (asyncpg). Khuyến nghị dùng role read-only.
+    - max_rows: số dòng tối đa trả về (mặc định 50).
 
-    Bảo mật: chỉ cho phép câu lệnh SELECT, chặn INSERT/UPDATE/DELETE/DROP/ALTER.
+    Bảo mật:
+    - connection set ``default_transaction_read_only=on`` ở server level →
+      Postgres reject mọi statement ghi (INSERT/UPDATE/DELETE/DDL).
+    - host trong connection_string phải là public IP — chặn private/loopback/
+      link-local + cloud metadata để LLM không gọi tới Postgres internal của
+      platform hoặc nội mạng VPC.
     """
-
-    # Danh sách từ khóa nguy hiểm bị chặn
-    BLOCKED_KEYWORDS = {"insert", "update", "delete", "drop", "alter", "create", "truncate", "grant", "revoke"}
 
     def build(self, tool_def: Tool) -> StructuredTool:
         config = tool_def.config
 
         async def execute(**kwargs) -> str:
-            import json
-
             query = kwargs.get("query", "")
-
-            # Kiểm tra bảo mật: chỉ cho phép SELECT
-            query_lower = query.strip().lower()
-            first_word = query_lower.split()[0] if query_lower.split() else ""
-            if first_word != "select":
-                return "Error: Chỉ cho phép câu lệnh SELECT."
-
-            for keyword in DBQueryToolBuilder.BLOCKED_KEYWORDS:
-                if keyword in query_lower:
-                    return f"Error: Từ khóa '{keyword}' không được phép."
+            if not query.strip():
+                return "Error: Empty query."
 
             connection_string = config.get("connection_string", "")
             if not connection_string:
                 return "Error: Thiếu connection_string trong config."
+
+            # SSRF guard: parse the host out of the URL and validate it.
+            # ``urlparse`` handles postgres://… URIs the same way it handles
+            # http; we feed the resulting hostname through assert_safe_url
+            # by reconstructing as an http URL so the existing guard applies.
+            from urllib.parse import urlparse
+
+            try:
+                parsed = urlparse(connection_string)
+                if not parsed.hostname:
+                    return "Error: connection_string thiếu hostname."
+                # Reuse the HTTP guard's hostname resolver — it doesn't care
+                # about scheme as long as we feed something it parses.
+                assert_safe_url(f"http://{parsed.hostname}:{parsed.port or 5432}/")
+            except ValueError as exc:
+                return f"Error: {exc}"
 
             max_rows = config.get("max_rows", 50)
 
             try:
                 import asyncpg
 
-                conn = await asyncpg.connect(connection_string)
+                conn = await asyncpg.connect(
+                    connection_string,
+                    server_settings={"default_transaction_read_only": "on"},
+                )
                 try:
                     rows = await conn.fetch(query)
-                    # Chuyển kết quả thành list of dict
                     result = [dict(row) for row in rows[:max_rows]]
-
-                    # Serialize các giá trị đặc biệt (UUID, datetime, ...)
                     for row in result:
                         for key, value in row.items():
                             if not isinstance(value, (str, int, float, bool, type(None))):
                                 row[key] = str(value)
-
                     return json.dumps(result, ensure_ascii=False, indent=2)
                 finally:
                     await conn.close()

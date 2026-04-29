@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.context import current_user_id
 from app.db.session import get_db
+from app.rate_limit import make_limit
 from app.workflows.schemas import (
     NodeExecuteRequest,
     WorkflowCreate,
@@ -106,7 +107,11 @@ async def delete_workflow_endpoint(  # Xóa workflow
 
 # ─── Execution ─────────────────────────────────────────────────────
 
-@router.post("/{workflow_id}/execute", response_model=WorkflowRunResponse)
+@router.post(
+    "/{workflow_id}/execute",
+    response_model=WorkflowRunResponse,
+    dependencies=[Depends(make_limit("workflow-exec", 30))],
+)
 async def execute_workflow_endpoint(  # Chạy workflow và trả về kết quả
     workflow_id: uuid.UUID,
     body: WorkflowExecuteRequest,
@@ -136,6 +141,7 @@ async def execute_workflow_endpoint(  # Chạy workflow và trả về kết qu�
 @router.post(
     "/{workflow_id}/nodes/{node_id}/execute",
     response_model=WorkflowRunResponse,
+    dependencies=[Depends(make_limit("workflow-step-exec", 60))],
 )
 async def execute_node_endpoint(  # NDV "Execute step" — chạy đơn lẻ một node
     workflow_id: uuid.UUID,
