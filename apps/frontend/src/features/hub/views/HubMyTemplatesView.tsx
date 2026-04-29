@@ -22,6 +22,7 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import { EditTemplateDialog } from "../components/EditTemplateDialog";
 import { PublishVersionDialog } from "../components/PublishVersionDialog";
+import { formatPrice } from "../lib/price";
 import {
   useArchiveTemplate,
   useMyPublishedTemplates,
@@ -149,15 +150,12 @@ function TemplateRow({
               Featured
             </Badge>
           )}
-          {isFree ? (
-            <Badge variant="outline" className="text-[10px] text-emerald-600">
-              Free
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-[10px]">
-              ${(template.price_cents / 100).toFixed(2)}
-            </Badge>
-          )}
+          <Badge
+            variant="outline"
+            className={isFree ? "text-[10px] text-emerald-600" : "text-[10px]"}
+          >
+            {formatPrice(template.price_cents, template.currency)}
+          </Badge>
         </div>
         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
           {template.description || "No description"}

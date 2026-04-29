@@ -21,6 +21,7 @@ import {
   useTemplateVersions,
 } from "../hooks/useTemplates";
 import { ReviewsSection } from "../components/ReviewsSection";
+import { formatPrice } from "../lib/price";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 interface HubDetailViewProps {
@@ -52,12 +53,7 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
   }
 
   const isFree = template.price_cents === 0;
-  const priceLabel = isFree
-    ? "Get for free"
-    : new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: template.currency || "USD",
-      }).format(template.price_cents / 100);
+  const priceLabel = isFree ? "Get for free" : formatPrice(template.price_cents, template.currency);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">

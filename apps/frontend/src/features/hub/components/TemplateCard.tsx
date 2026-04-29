@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Star, Bot, Users, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatPrice } from "../lib/price";
 import type { TemplateSummary } from "../types";
 
 interface TemplateCardProps {
@@ -11,12 +12,7 @@ interface TemplateCardProps {
 
 export function TemplateCard({ template }: TemplateCardProps) {
   const isFree = template.price_cents === 0;
-  const priceLabel = isFree
-    ? "Free"
-    : new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: template.currency || "USD",
-      }).format(template.price_cents / 100);
+  const priceLabel = formatPrice(template.price_cents, template.currency);
 
   return (
     <Link

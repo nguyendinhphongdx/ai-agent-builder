@@ -18,6 +18,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { usePayoutStatus } from "@/features/settings/payouts/hooks/usePayouts";
 import { usePublishAgent } from "../hooks/useTemplates";
+import {
+  type Currency,
+  SUPPORTED_CURRENCIES,
+  providerForCurrency,
+} from "../lib/price";
 import { TEMPLATE_CATEGORIES } from "../types";
 
 interface PublishDialogProps {
@@ -45,22 +50,29 @@ export function PublishDialog({
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [pricing, setPricing] = useState<Pricing>("free");
-  const [priceUsd, setPriceUsd] = useState("9.99");
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [priceInput, setPriceInput] = useState("9.99");
 
+  const provider = providerForCurrency(currency);
+  // Stripe authors must complete Connect onboarding before publishing paid.
+  // MoMo (VND) is platform-collects in V1 — no onboarding step.
   const payoutsReady = !!payoutStatus?.charges_enabled && !!payoutStatus?.payouts_enabled;
-  const needsOnboarding = pricing === "paid" && !payoutLoading && !payoutsReady;
+  const needsOnboarding =
+    pricing === "paid" && provider === "stripe" && !payoutLoading && !payoutsReady;
 
   const priceCents = (() => {
     if (pricing === "free") return 0;
-    const n = Number.parseFloat(priceUsd);
+    const n = Number.parseFloat(priceInput);
     if (!Number.isFinite(n) || n <= 0) return 0;
-    return Math.round(n * 100);
+    // VND is stored as whole-unit integers (no subunits). USD/EUR/etc.
+    // multiply by 100 to land in cent-based storage.
+    return currency === "VND" ? Math.round(n) : Math.round(n * 100);
   })();
 
   const canSubmit =
     !!title.trim() &&
     !publish.isPending &&
-    (pricing === "free" || (priceCents > 0 && payoutsReady));
+    (pricing === "free" || (priceCents > 0 && (provider !== "stripe" || payoutsReady)));
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -79,7 +91,7 @@ export function PublishDialog({
           category: category || undefined,
           tags,
           price_cents: priceCents,
-          currency: "USD",
+          currency,
         },
       },
       {
@@ -188,35 +200,42 @@ export function PublishDialog({
                 active={pricing === "paid"}
                 onClick={() => setPricing("paid")}
                 label="Paid"
-                hint="Stripe Checkout."
+                hint="Stripe or MoMo, picked by currency."
               />
             </div>
 
             {pricing === "paid" && (
               <div className="flex items-center gap-2 pt-2">
-                <div className="relative w-32">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min="0.50"
-                    step="0.01"
-                    value={priceUsd}
-                    onChange={(e) => setPriceUsd(e.target.value)}
-                    className="pl-5"
-                  />
-                </div>
-                <span className="text-[11px] text-muted-foreground">USD</span>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as Currency)}
+                  className="rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  type="number"
+                  inputMode={currency === "VND" ? "numeric" : "decimal"}
+                  min={currency === "VND" ? "1000" : "0.50"}
+                  step={currency === "VND" ? "1000" : "0.01"}
+                  value={priceInput}
+                  onChange={(e) => setPriceInput(e.target.value)}
+                  className="w-36"
+                />
                 <span className="ml-auto text-[10px] text-muted-foreground/70">
-                  Stripe + platform fees apply.
+                  {provider === "stripe"
+                    ? "Stripe + platform fees apply."
+                    : "MoMo Checkout · platform settles authors manually."}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Connect onboarding banner */}
+          {/* Connect onboarding banner — Stripe only */}
           {needsOnboarding && <PayoutOnboardingBanner connected={!!payoutStatus?.connected} />}
         </div>
 
