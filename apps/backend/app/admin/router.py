@@ -46,7 +46,7 @@ router = APIRouter(
 
 @router.get("/templates", response_model=list[AdminTemplateRow])
 async def list_templates_endpoint(
-    status: str | None = Query(None, regex="^(draft|published|suspended|archived)$"),
+    status: str | None = Query(None, pattern="^(draft|published|suspended|archived)$"),
     q: str | None = Query(None, description="Search title (ILIKE)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
