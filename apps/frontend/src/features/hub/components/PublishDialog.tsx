@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { AlertCircle, ExternalLink, Loader2, Send, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { usePayoutStatus } from "@/features/settings/payouts/hooks/usePayouts";
 import { usePublishAgent } from "../hooks/useTemplates";
 import { TEMPLATE_CATEGORIES } from "../types";
 
@@ -24,6 +27,8 @@ interface PublishDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type Pricing = "free" | "paid";
+
 export function PublishDialog({
   agentId,
   agentName,
@@ -32,15 +37,33 @@ export function PublishDialog({
 }: PublishDialogProps) {
   const router = useRouter();
   const publish = usePublishAgent();
+  const { data: payoutStatus, isLoading: payoutLoading } = usePayoutStatus();
 
   const [title, setTitle] = useState(agentName);
   const [description, setDescription] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [pricing, setPricing] = useState<Pricing>("free");
+  const [priceUsd, setPriceUsd] = useState("9.99");
+
+  const payoutsReady = !!payoutStatus?.charges_enabled && !!payoutStatus?.payouts_enabled;
+  const needsOnboarding = pricing === "paid" && !payoutLoading && !payoutsReady;
+
+  const priceCents = (() => {
+    if (pricing === "free") return 0;
+    const n = Number.parseFloat(priceUsd);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.round(n * 100);
+  })();
+
+  const canSubmit =
+    !!title.trim() &&
+    !publish.isPending &&
+    (pricing === "free" || (priceCents > 0 && payoutsReady));
 
   const handleSubmit = () => {
-    if (!title.trim()) return;
+    if (!canSubmit) return;
     const tags = tagsInput
       .split(",")
       .map((t) => t.trim())
@@ -55,7 +78,8 @@ export function PublishDialog({
           author_name: authorName.trim() || undefined,
           category: category || undefined,
           tags,
-          price_cents: 0, // V1: free only
+          price_cents: priceCents,
+          currency: "USD",
         },
       },
       {
@@ -84,9 +108,7 @@ export function PublishDialog({
         <div className="space-y-4">
           {/* Title */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Title
-            </label>
+            <label className="text-xs font-medium text-muted-foreground">Title</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -97,9 +119,7 @@ export function PublishDialog({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Description
-            </label>
+            <label className="text-xs font-medium text-muted-foreground">Description</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -128,9 +148,7 @@ export function PublishDialog({
           {/* Category + tags */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Category
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -156,9 +174,50 @@ export function PublishDialog({
             </div>
           </div>
 
-          <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5 text-[11px] text-emerald-700 dark:text-emerald-300">
-            V1 publishes as free. Paid templates and Stripe checkout coming in V2.
-          </p>
+          {/* Pricing */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Pricing</label>
+            <div className="flex gap-2">
+              <PricingPill
+                active={pricing === "free"}
+                onClick={() => setPricing("free")}
+                label="Free"
+                hint="Anyone can fork."
+              />
+              <PricingPill
+                active={pricing === "paid"}
+                onClick={() => setPricing("paid")}
+                label="Paid"
+                hint="Stripe Checkout."
+              />
+            </div>
+
+            {pricing === "paid" && (
+              <div className="flex items-center gap-2 pt-2">
+                <div className="relative w-32">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0.50"
+                    step="0.01"
+                    value={priceUsd}
+                    onChange={(e) => setPriceUsd(e.target.value)}
+                    className="pl-5"
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground">USD</span>
+                <span className="ml-auto text-[10px] text-muted-foreground/70">
+                  Stripe + platform fees apply.
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Connect onboarding banner */}
+          {needsOnboarding && <PayoutOnboardingBanner connected={!!payoutStatus?.connected} />}
         </div>
 
         <DialogFooter>
@@ -169,11 +228,7 @@ export function PublishDialog({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={publish.isPending || !title.trim()}
-            className="gap-1.5"
-          >
+          <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-1.5">
             {publish.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -184,5 +239,58 @@ export function PublishDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PricingPill({
+  active,
+  onClick,
+  label,
+  hint,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 flex-col items-start gap-0.5 rounded-md border px-3 py-2 text-left transition-colors",
+        active
+          ? "border-primary bg-primary/5 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-foreground/30",
+      )}
+    >
+      <span className="text-xs font-medium">{label}</span>
+      <span className="text-[10px] text-muted-foreground/80">{hint}</span>
+    </button>
+  );
+}
+
+function PayoutOnboardingBanner({ connected }: { connected: boolean }) {
+  return (
+    <div className="flex gap-2.5 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] text-amber-700 dark:text-amber-300">
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <div className="flex-1">
+        <p className="font-medium">
+          {connected
+            ? "Finish Stripe onboarding before publishing paid templates."
+            : "Connect a Stripe payout account before publishing paid templates."}
+        </p>
+        <p className="mt-0.5 text-amber-700/80 dark:text-amber-300/80">
+          Stripe handles identity verification and bank linking — usually under 2 minutes.
+        </p>
+        <Link
+          href="/settings#payouts"
+          className="mt-1.5 inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline"
+        >
+          Open Settings → Author Payouts
+          <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
   );
 }
