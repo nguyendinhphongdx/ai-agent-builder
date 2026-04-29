@@ -1,10 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { payoutsService } from "../services/payoutsService";
+import { payoutsService, type HistoryParams } from "../services/payoutsService";
 
 export const payoutsKeys = {
   status: () => ["payouts", "status"] as const,
+  history: (params: HistoryParams) => ["payouts", "history", params] as const,
+  summary: () => ["payouts", "summary"] as const,
 };
 
 /** Cached onboarding status. The backend mirrors Stripe's webhook so this
@@ -35,5 +37,21 @@ export function useDashboardLink() {
     onSuccess: (url) => {
       window.open(url, "_blank", "noopener,noreferrer");
     },
+  });
+}
+
+export function usePayoutHistory(params: HistoryParams = {}) {
+  return useQuery({
+    queryKey: payoutsKeys.history(params),
+    queryFn: () => payoutsService.history(params),
+    staleTime: 15_000,
+  });
+}
+
+export function usePayoutSummary() {
+  return useQuery({
+    queryKey: payoutsKeys.summary(),
+    queryFn: payoutsService.summary,
+    staleTime: 30_000,
   });
 }

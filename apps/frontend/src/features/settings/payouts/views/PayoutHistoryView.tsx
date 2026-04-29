@@ -1,0 +1,322 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatPrice } from "@/features/hub/lib/price";
+import { usePayoutHistory, usePayoutSummary } from "../hooks/usePayouts";
+import type { HistoryParams } from "../services/payoutsService";
+
+const PAGE_SIZE = 50;
+
+/**
+ * Author payment history — purchases of templates owned by the current user.
+ *
+ * Two stacked panels: monthly summary (per currency) at the top, then a
+ * paginated table of individual purchases. Filters narrow by status +
+ * provider; both filters compose with paging.
+ */
+export function PayoutHistoryView() {
+  const [filters, setFilters] = useState<HistoryParams>({});
+  const [page, setPage] = useState(0);
+
+  const params: HistoryParams = {
+    ...filters,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  };
+
+  const { data: history, isLoading: historyLoading } = usePayoutHistory(params);
+  const { data: summary, isLoading: summaryLoading } = usePayoutSummary();
+
+  const setFilter = <K extends keyof HistoryParams>(
+    key: K,
+    value: HistoryParams[K] | undefined,
+  ) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0);
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl p-6">
+      <Link
+        href="/settings"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to Settings
+      </Link>
+
+      <header className="mb-6">
+        <h1 className="font-heading text-2xl font-semibold">Payment history</h1>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Purchases of templates you&apos;ve published. Stripe deducts the platform fee
+          from your payout; MoMo (VND) settlements are handled out-of-band — net
+          equals gross from your side.
+        </p>
+      </header>
+
+      {/* Summary by currency */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-xs font-semibold text-muted-foreground">Totals</h2>
+        {summaryLoading ? (
+          <div className="flex h-24 items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : !summary || summary.totals.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            No paid sales yet.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {summary.totals.map((t) => (
+              <div
+                key={t.currency}
+                className="rounded-xl border border-border bg-card p-4"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {t.currency}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/70">
+                    {t.count} sale{t.count === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-semibold tracking-tight">
+                  {formatPrice(t.net_cents, t.currency)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Gross {formatPrice(t.gross_cents, t.currency)}
+                  {t.fees_cents > 0 && (
+                    <>
+                      {" · "}
+                      Fees{" "}
+                      <span className="text-muted-foreground/70">
+                        −{formatPrice(t.fees_cents, t.currency)}
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {summary && summary.by_month.length > 0 && (
+          <details className="mt-4 rounded-xl border border-border bg-card">
+            <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+              Monthly breakdown ({summary.by_month.length} rows)
+            </summary>
+            <div className="border-t border-border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Month</th>
+                    <th className="px-3 py-2 text-left">Currency</th>
+                    <th className="px-3 py-2 text-right">Sales</th>
+                    <th className="px-3 py-2 text-right">Gross</th>
+                    <th className="px-3 py-2 text-right">Fees</th>
+                    <th className="px-3 py-2 text-right">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.by_month.map((m, i) => (
+                    <tr
+                      key={`${m.month}-${m.currency}`}
+                      className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}
+                    >
+                      <td className="px-3 py-1.5">{m.month}</td>
+                      <td className="px-3 py-1.5">{m.currency}</td>
+                      <td className="px-3 py-1.5 text-right">{m.count}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">
+                        {formatPrice(m.gross_cents, m.currency)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono text-muted-foreground">
+                        {m.fees_cents > 0
+                          ? `−${formatPrice(m.fees_cents, m.currency)}`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono font-semibold">
+                        {formatPrice(m.net_cents, m.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        )}
+      </section>
+
+      {/* Filters */}
+      <section className="mb-3 flex flex-wrap items-center gap-2">
+        <FilterPill
+          active={!filters.status}
+          onClick={() => setFilter("status", undefined)}
+          label="All"
+        />
+        <FilterPill
+          active={filters.status === "paid"}
+          onClick={() => setFilter("status", "paid")}
+          label="Paid"
+        />
+        <FilterPill
+          active={filters.status === "refunded"}
+          onClick={() => setFilter("status", "refunded")}
+          label="Refunded"
+        />
+        <span className="ml-2 text-[10px] text-muted-foreground/60">·</span>
+        <FilterPill
+          active={!filters.provider}
+          onClick={() => setFilter("provider", undefined)}
+          label="Any provider"
+        />
+        <FilterPill
+          active={filters.provider === "stripe"}
+          onClick={() => setFilter("provider", "stripe")}
+          label="Stripe"
+        />
+        <FilterPill
+          active={filters.provider === "momo"}
+          onClick={() => setFilter("provider", "momo")}
+          label="MoMo"
+        />
+      </section>
+
+      {/* Transactions */}
+      <section>
+        {historyLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !history || history.items.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-12 text-center text-xs text-muted-foreground">
+            No transactions match these filters.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">When</th>
+                  <th className="px-3 py-2 text-left">Template</th>
+                  <th className="px-3 py-2 text-left">Buyer</th>
+                  <th className="px-3 py-2 text-left">Provider</th>
+                  <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-right">Gross</th>
+                  <th className="px-3 py-2 text-right">Fee</th>
+                  <th className="px-3 py-2 text-right">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.items.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}
+                  >
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {new Date(row.purchased_at).toLocaleDateString()}
+                    </td>
+                    <td className="max-w-[220px] truncate px-3 py-2 font-medium">
+                      <Link
+                        href={`/hub/${row.template_id}`}
+                        className="hover:underline"
+                      >
+                        {row.template_title}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {row.buyer_email_masked ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 capitalize">{row.provider}</td>
+                    <td className="px-3 py-2">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatPrice(row.price_paid_cents, row.currency)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                      {row.platform_fee_cents > 0
+                        ? `−${formatPrice(row.platform_fee_cents, row.currency)}`
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold">
+                      {formatPrice(row.net_cents, row.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {history && history.total > PAGE_SIZE && (
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, history.total)}{" "}
+              of {history.total}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!history.has_more}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        active
+          ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-foreground"
+          : "rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cls =
+    status === "paid"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : status === "refunded"
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        : "border-border bg-muted text-muted-foreground";
+  return (
+    <Badge variant="outline" className={`text-[10px] ${cls}`}>
+      {status}
+    </Badge>
+  );
+}

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
   Wrench,
+  Home,
   Library,
   BookOpen,
   GitBranch,
@@ -33,6 +34,7 @@ const AVATAR_COLORS = [
 ] as const;
 
 const navItems = [
+  { href: "/home", label: "Home", icon: Home },
   { href: "/hub", label: "Hub", icon: Sparkles },
   { href: "/libraries", label: "Libraries", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },

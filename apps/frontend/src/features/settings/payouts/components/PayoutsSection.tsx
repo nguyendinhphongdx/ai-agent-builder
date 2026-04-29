@@ -1,6 +1,7 @@
 "use client";
 
-import { Banknote, ExternalLink, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Banknote, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useDashboardLink,
@@ -114,6 +115,14 @@ export function PayoutsSection() {
           </div>
         </div>
       </div>
+
+      <Link
+        href="/settings/payouts"
+        className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        View payment history
+        <ArrowRight className="h-3 w-3" />
+      </Link>
     </section>
   );
 }
