@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.user import User
 from app.personal_tokens.schemas import (
     TokenCreate,
     TokenCreatedResponse,
@@ -20,16 +19,17 @@ from app.personal_tokens.schemas import (
 )
 from app.personal_tokens.service import create_token, list_tokens, revoke_token
 
-router = APIRouter(prefix="/api-tokens", tags=["api-tokens"])
+router = APIRouter(
+    prefix="/api-tokens",
+    tags=["api-tokens"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=list[TokenResponse])
-async def list_tokens_endpoint(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
+async def list_tokens_endpoint(db: AsyncSession = Depends(get_db)):
     """List all tokens owned by the current user (revoked included for audit)."""
-    tokens = await list_tokens(db, current_user.id)
+    tokens = await list_tokens(db)
     return [TokenResponse.model_validate(t) for t in tokens]
 
 
@@ -40,12 +40,11 @@ async def list_tokens_endpoint(
 )
 async def create_token_endpoint(
     body: TokenCreate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new token. Plaintext value is returned ONCE — frontend must
     surface it to the user immediately."""
-    token, plaintext = await create_token(db, current_user.id, body)
+    token, plaintext = await create_token(db, body)
     await db.commit()
 
     payload = TokenResponse.model_validate(token).model_dump()
@@ -55,11 +54,10 @@ async def create_token_endpoint(
 @router.post("/{token_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_token_endpoint(
     token_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Soft-revoke a token. Future requests using it will be rejected."""
-    ok = await revoke_token(db, token_id, current_user.id)
+    ok = await revoke_token(db, token_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Token not found")
     await db.commit()

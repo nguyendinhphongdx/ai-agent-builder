@@ -14,6 +14,7 @@ from app.ai_credentials.schemas import (
     AICredentialUpdate,
 )
 from app.config import settings
+from app.context import current_user_id
 from app.models.ai_credential import AICredential
 
 
@@ -56,12 +57,10 @@ def _to_response(cred: AICredential, plaintext: str) -> AICredentialResponse:
 
 # ── CRUD ──────────────────────────────────────────────────────────────
 
-async def list_ai_credentials(
-    db: AsyncSession, user_id: uuid.UUID
-) -> list[AICredentialResponse]:
+async def list_ai_credentials(db: AsyncSession) -> list[AICredentialResponse]:
     result = await db.execute(
         select(AICredential)
-        .where(AICredential.user_id == user_id)
+        .where(AICredential.user_id == current_user_id())
         .order_by(AICredential.created_at.desc())
     )
     creds = result.scalars().all()
@@ -69,11 +68,12 @@ async def list_ai_credentials(
 
 
 async def get_ai_credential(
-    db: AsyncSession, cred_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession, cred_id: uuid.UUID
 ) -> AICredentialResponse | None:
     result = await db.execute(
         select(AICredential).where(
-            AICredential.id == cred_id, AICredential.user_id == user_id
+            AICredential.id == cred_id,
+            AICredential.user_id == current_user_id(),
         )
     )
     cred = result.scalar_one_or_none()
@@ -83,10 +83,10 @@ async def get_ai_credential(
 
 
 async def create_ai_credential(
-    db: AsyncSession, user_id: uuid.UUID, data: AICredentialCreate
+    db: AsyncSession, data: AICredentialCreate
 ) -> AICredentialResponse:
     cred = AICredential(
-        user_id=user_id,
+        user_id=current_user_id(),
         provider=data.provider,
         name=data.name,
         encrypted_key=_encrypt(data.plaintext_key),
@@ -100,12 +100,12 @@ async def create_ai_credential(
 async def update_ai_credential(
     db: AsyncSession,
     cred_id: uuid.UUID,
-    user_id: uuid.UUID,
     data: AICredentialUpdate,
 ) -> AICredentialResponse | None:
     result = await db.execute(
         select(AICredential).where(
-            AICredential.id == cred_id, AICredential.user_id == user_id
+            AICredential.id == cred_id,
+            AICredential.user_id == current_user_id(),
         )
     )
     cred = result.scalar_one_or_none()
@@ -119,12 +119,11 @@ async def update_ai_credential(
     return _to_response(cred, _decrypt(cred.encrypted_key))
 
 
-async def delete_ai_credential(
-    db: AsyncSession, cred_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
+async def delete_ai_credential(db: AsyncSession, cred_id: uuid.UUID) -> bool:
     result = await db.execute(
         select(AICredential).where(
-            AICredential.id == cred_id, AICredential.user_id == user_id
+            AICredential.id == cred_id,
+            AICredential.user_id == current_user_id(),
         )
     )
     cred = result.scalar_one_or_none()

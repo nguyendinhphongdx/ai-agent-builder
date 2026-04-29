@@ -8,20 +8,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.service import get_agent
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.user import User
 from app.multi_agent.schemas import (
     MultiAgentResponse,
     PeerRequest,
     SupervisorRequest,
 )
 
-router = APIRouter(prefix="/multi-agent", tags=["multi-agent"])
+router = APIRouter(
+    prefix="/multi-agent",
+    tags=["multi-agent"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post("/supervisor", response_model=MultiAgentResponse)
 async def run_supervisor_endpoint(  # Chạy supervisor pattern: agent đầu điều phối, các agent sau là worker
     body: SupervisorRequest,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if len(body.agent_ids) < 2:
@@ -33,7 +35,7 @@ async def run_supervisor_endpoint(  # Chạy supervisor pattern: agent đầu đ
     # Lấy tất cả agents và kiểm tra quyền sở hữu
     agents = []
     for agent_id in body.agent_ids:
-        agent = await get_agent(db, agent_id, current_user.id)
+        agent = await get_agent(db, agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
         agents.append(agent)
@@ -62,7 +64,6 @@ async def run_supervisor_endpoint(  # Chạy supervisor pattern: agent đầu đ
 @router.post("/peer", response_model=MultiAgentResponse)
 async def run_peer_endpoint(  # Chạy peer collaboration: các agent xử lý tuần tự
     body: PeerRequest,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if len(body.agent_ids) < 2:
@@ -74,7 +75,7 @@ async def run_peer_endpoint(  # Chạy peer collaboration: các agent xử lý t
     # Lấy tất cả agents và kiểm tra quyền sở hữu
     agents = []
     for agent_id in body.agent_ids:
-        agent = await get_agent(db, agent_id, current_user.id)
+        agent = await get_agent(db, agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
         agents.append(agent)

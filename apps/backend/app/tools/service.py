@@ -3,25 +3,28 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.context import current_user_id
 from app.models.tool import Tool
 
 
-async def list_tools(db: AsyncSession, user_id: uuid.UUID) -> list[Tool]:
+async def list_tools(db: AsyncSession) -> list[Tool]:
     result = await db.execute(
-        select(Tool).where(Tool.user_id == user_id).order_by(Tool.updated_at.desc())
+        select(Tool)
+        .where(Tool.user_id == current_user_id())
+        .order_by(Tool.updated_at.desc())
     )
     return list(result.scalars().all())
 
 
-async def get_tool(db: AsyncSession, tool_id: uuid.UUID, user_id: uuid.UUID) -> Tool | None:
+async def get_tool(db: AsyncSession, tool_id: uuid.UUID) -> Tool | None:
     result = await db.execute(
-        select(Tool).where(Tool.id == tool_id, Tool.user_id == user_id)
+        select(Tool).where(Tool.id == tool_id, Tool.user_id == current_user_id())
     )
     return result.scalar_one_or_none()
 
 
-async def create_tool(db: AsyncSession, user_id: uuid.UUID, **kwargs) -> Tool:
-    tool = Tool(user_id=user_id, **kwargs)
+async def create_tool(db: AsyncSession, **kwargs) -> Tool:
+    tool = Tool(user_id=current_user_id(), **kwargs)
     db.add(tool)
     await db.flush()
     await db.refresh(tool)

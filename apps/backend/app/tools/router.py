@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.user import User
 from app.tools.schemas import (
     ToolCreate,
     ToolResponse,
@@ -16,35 +15,34 @@ from app.tools.schemas import (
 )
 from app.tools.service import create_tool, delete_tool, get_tool, list_tools, update_tool
 
-router = APIRouter(prefix="/tools", tags=["tools"])
+router = APIRouter(
+    prefix="/tools",
+    tags=["tools"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=list[ToolResponse])
-async def list_tools_endpoint(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    tools = await list_tools(db, current_user.id)
+async def list_tools_endpoint(db: AsyncSession = Depends(get_db)):
+    tools = await list_tools(db)
     return [ToolResponse.model_validate(t) for t in tools]
 
 
 @router.post("", response_model=ToolResponse, status_code=status.HTTP_201_CREATED)
 async def create_tool_endpoint(
     body: ToolCreate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    tool = await create_tool(db, current_user.id, **body.model_dump())
+    tool = await create_tool(db, **body.model_dump())
     return ToolResponse.model_validate(tool)
 
 
 @router.get("/{tool_id}", response_model=ToolResponse)
 async def get_tool_endpoint(
     tool_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    tool = await get_tool(db, tool_id, current_user.id)
+    tool = await get_tool(db, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
     return ToolResponse.model_validate(tool)
@@ -54,10 +52,9 @@ async def get_tool_endpoint(
 async def update_tool_endpoint(
     tool_id: uuid.UUID,
     body: ToolUpdate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    tool = await get_tool(db, tool_id, current_user.id)
+    tool = await get_tool(db, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
     tool = await update_tool(db, tool, **body.model_dump(exclude_unset=True))
@@ -67,10 +64,9 @@ async def update_tool_endpoint(
 @router.delete("/{tool_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_endpoint(
     tool_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    tool = await get_tool(db, tool_id, current_user.id)
+    tool = await get_tool(db, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
     await delete_tool(db, tool)
@@ -80,10 +76,9 @@ async def delete_tool_endpoint(
 async def test_tool_endpoint(
     tool_id: uuid.UUID,
     body: ToolTestRequest,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    tool = await get_tool(db, tool_id, current_user.id)
+    tool = await get_tool(db, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
 

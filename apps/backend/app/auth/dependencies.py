@@ -15,6 +15,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.service import decode_token, get_user_by_id
+from app.context import set_current_user_id
 from app.db.session import get_db
 from app.models.user import User
 from app.personal_tokens.service import verify_plaintext
@@ -49,6 +50,7 @@ async def get_current_user(
         token, user = result
         # Stash for require_scope + rate-limit middleware downstream.
         request.state.api_token = token
+        set_current_user_id(user.id)
         return user
 
     # ── 2. Cookie session ────────────────────────────────────────────
@@ -81,6 +83,7 @@ async def get_current_user(
             detail="User not found or inactive",
         )
 
+    set_current_user_id(user.id)
     return user
 
 

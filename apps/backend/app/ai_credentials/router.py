@@ -17,28 +17,27 @@ from app.ai_credentials.service import (
 )
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.user import User
 
-router = APIRouter(prefix="/ai-credentials", tags=["ai-credentials"])
+router = APIRouter(
+    prefix="/ai-credentials",
+    tags=["ai-credentials"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=list[AICredentialResponse])
-async def list_credentials(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
+async def list_credentials(db: AsyncSession = Depends(get_db)):
     """List all AI credentials for the current user (keys are masked)."""
-    return await list_ai_credentials(db, current_user.id)
+    return await list_ai_credentials(db)
 
 
 @router.post("", response_model=AICredentialResponse, status_code=status.HTTP_201_CREATED)
 async def create_credential(
     body: AICredentialCreate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Save a new encrypted AI credential."""
-    result = await create_ai_credential(db, current_user.id, body)
+    result = await create_ai_credential(db, body)
     await db.commit()
     return result
 
@@ -46,10 +45,9 @@ async def create_credential(
 @router.get("/{cred_id}", response_model=AICredentialResponse)
 async def get_credential(
     cred_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    cred = await get_ai_credential(db, cred_id, current_user.id)
+    cred = await get_ai_credential(db, cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="AI credential not found")
     return cred
@@ -59,10 +57,9 @@ async def get_credential(
 async def update_credential(
     cred_id: uuid.UUID,
     body: AICredentialUpdate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    cred = await update_ai_credential(db, cred_id, current_user.id, body)
+    cred = await update_ai_credential(db, cred_id, body)
     if not cred:
         raise HTTPException(status_code=404, detail="AI credential not found")
     await db.commit()
@@ -72,10 +69,9 @@ async def update_credential(
 @router.delete("/{cred_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_credential(
     cred_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    deleted = await delete_ai_credential(db, cred_id, current_user.id)
+    deleted = await delete_ai_credential(db, cred_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="AI credential not found")
     await db.commit()

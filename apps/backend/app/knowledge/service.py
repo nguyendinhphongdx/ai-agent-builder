@@ -5,27 +5,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
+from app.context import current_user_id
 from app.models.agent import AgentKnowledgeBase
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 
 
-async def list_knowledge_bases(db: AsyncSession, user_id: uuid.UUID) -> list[KnowledgeBase]:
+async def list_knowledge_bases(db: AsyncSession) -> list[KnowledgeBase]:
     result = await db.execute(
         select(KnowledgeBase)
-        .where(KnowledgeBase.user_id == user_id)
+        .where(KnowledgeBase.user_id == current_user_id())
         .order_by(KnowledgeBase.updated_at.desc())
     )
     return list(result.scalars().all())
 
 
 async def get_knowledge_base(
-    db: AsyncSession, kb_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession, kb_id: uuid.UUID
 ) -> KnowledgeBase | None:
     result = await db.execute(
         select(KnowledgeBase).where(
-            KnowledgeBase.id == kb_id, KnowledgeBase.user_id == user_id
+            KnowledgeBase.id == kb_id,
+            KnowledgeBase.user_id == current_user_id(),
         )
     )
     return result.scalar_one_or_none()
@@ -39,11 +41,11 @@ async def get_knowledge_base_unscoped(
     return result.scalar_one_or_none()
 
 
-async def create_knowledge_base(db: AsyncSession, user_id: uuid.UUID, **kwargs) -> KnowledgeBase:
+async def create_knowledge_base(db: AsyncSession, **kwargs) -> KnowledgeBase:
     # Snapshot embedding config from platform env at create time. Stored on the
     # KB so ingestion + retrieval always agree, even after admin changes defaults.
     kb = KnowledgeBase(
-        user_id=user_id,
+        user_id=current_user_id(),
         embedding_provider=settings.EMBEDDING_PROVIDER,
         embedding_model=settings.EMBEDDING_MODEL,
         embedding_dimensions=settings.EMBEDDING_DIMENSIONS,

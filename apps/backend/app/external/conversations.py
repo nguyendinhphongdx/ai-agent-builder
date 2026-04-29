@@ -14,9 +14,15 @@ from app.conversations.service import (
 )
 from app.db.session import get_db
 from app.external.schemas import ConversationSummary, MessageOut
-from app.models.user import User
 
-router = APIRouter(prefix="/conversations", tags=["external:conversations"])
+# Auth gate runs once per request — `get_current_user` resolves the bearer
+# token and writes the user to `app.context`, so endpoints/services don't have
+# to thread it through.
+router = APIRouter(
+    prefix="/conversations",
+    tags=["external:conversations"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(
@@ -26,10 +32,9 @@ router = APIRouter(prefix="/conversations", tags=["external:conversations"])
 )
 async def list_endpoint(
     agent_id: uuid.UUID | None = Query(None),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    convs = await list_conversations(db, current_user.id, agent_id)
+    convs = await list_conversations(db, agent_id)
     return [ConversationSummary.model_validate(c, from_attributes=True) for c in convs]
 
 
@@ -42,10 +47,9 @@ async def messages_endpoint(
     conv_id: uuid.UUID,
     limit: int = Query(100, le=200),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    conv = await get_conversation(db, conv_id, current_user.id)
+    conv = await get_conversation(db, conv_id)
     if not conv:
         raise HTTPException(404, "Conversation not found")
     msgs = await get_messages(db, conv_id, limit, offset)

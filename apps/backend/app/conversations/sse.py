@@ -64,11 +64,14 @@ async def chat_sse(
     attachment_ids: list[uuid.UUID] | None = None,
 ) -> StreamingResponse:
     """Stream agent response as Server-Sent Events."""
-    conv = await get_conversation(db, conversation_id, user_id)
+    # `get_conversation` reads the user from request context — caller still
+    # passes user_id explicitly because SSE may outlive the immediate request
+    # task and we want the user to be resolved before streaming starts.
+    conv = await get_conversation(db, conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    agent = await get_agent(db, conv.agent_id, user_id)
+    agent = await get_agent(db, conv.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 

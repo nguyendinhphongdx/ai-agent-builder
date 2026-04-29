@@ -15,11 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.service import list_agents
 from app.auth.dependencies import get_current_user
+from app.context import current_user_id
 from app.db.session import get_db
 from app.models.personal_access_token import PersonalAccessToken
-from app.models.user import User
 
-router = APIRouter(prefix="/integrations/mcp", tags=["integrations:mcp"])
+router = APIRouter(
+    prefix="/integrations/mcp",
+    tags=["integrations:mcp"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Scopes the MCP server requires to call list-agents + chat.
 REQUIRED_SCOPES = ["agents:read", "agents:chat"]
@@ -62,7 +66,6 @@ class McpStatusResponse(BaseModel):
 @router.get("/status", response_model=McpStatusResponse)
 async def mcp_status(
     token_id: uuid.UUID = Query(..., description="Personal access token to check"),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Verify a token is suitable for the MCP server + preview its tools.
@@ -74,7 +77,7 @@ async def mcp_status(
     result = await db.execute(
         select(PersonalAccessToken).where(
             PersonalAccessToken.id == token_id,
-            PersonalAccessToken.user_id == current_user.id,
+            PersonalAccessToken.user_id == current_user_id(),
         )
     )
     token = result.scalar_one_or_none()
@@ -88,7 +91,7 @@ async def mcp_status(
     # Preview tool names — only meaningful when token has the scopes (otherwise
     # the MCP server won't be able to list agents anyway). We still return
     # the preview so the UI can show the tool list right after fixing scopes.
-    agents = await list_agents(db, current_user.id)
+    agents = await list_agents(db)
     previews = [
         AgentToolPreview(
             id=a.id,

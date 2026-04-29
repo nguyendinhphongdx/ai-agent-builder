@@ -37,40 +37,40 @@ from app.knowledge.service import (
     update_knowledge_base,
 )
 from app.models.document import Document
-from app.models.user import User
 from app.storage import get_storage, generate_storage_key
 
-router = APIRouter(prefix="/knowledge-bases", tags=["knowledge-bases"])
+router = APIRouter(
+    prefix="/knowledge-bases",
+    tags=["knowledge-bases"],
+    dependencies=[Depends(get_current_user)],
+)
 
 ALLOWED_EXTENSIONS = {"pdf", "txt", "md", "docx", "csv", "html"}
 
 
 @router.get("", response_model=list[KnowledgeBaseResponse])
 async def list_kbs_endpoint(
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kbs = await list_knowledge_bases(db, current_user.id)
+    kbs = await list_knowledge_bases(db)
     return [KnowledgeBaseResponse.model_validate(kb).release() for kb in kbs]
 
 
 @router.post("", response_model=KnowledgeBaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_kb_endpoint(
     body: KnowledgeBaseCreate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await create_knowledge_base(db, current_user.id, **body.model_dump())
+    kb = await create_knowledge_base(db, **body.model_dump())
     return KnowledgeBaseResponse.model_validate(kb).release()
 
 
 @router.get("/{kb_id}", response_model=KnowledgeBaseResponse)
 async def get_kb_endpoint(
     kb_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     return KnowledgeBaseResponse.model_validate(kb).release()
@@ -80,10 +80,9 @@ async def get_kb_endpoint(
 async def update_kb_endpoint(
     kb_id: uuid.UUID,
     body: KnowledgeBaseUpdate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     kb = await update_knowledge_base(db, kb, **body.model_dump(exclude_unset=True))
@@ -93,10 +92,9 @@ async def update_kb_endpoint(
 @router.delete("/{kb_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_kb_endpoint(
     kb_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     await delete_knowledge_base(db, kb)
@@ -109,10 +107,9 @@ async def delete_kb_endpoint(
 async def upload_document_endpoint(
     kb_id: uuid.UUID,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -170,10 +167,9 @@ async def upload_document_endpoint(
 @router.get("/{kb_id}/documents", response_model=list[DocumentResponse])
 async def list_documents_endpoint(
     kb_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     docs = await list_documents(db, kb_id)
@@ -184,11 +180,10 @@ async def list_documents_endpoint(
 async def get_document_detail_endpoint(
     kb_id: uuid.UUID,
     doc_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Detail endpoint for a document — includes snapshot of KB settings for the right-panel."""
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -237,11 +232,10 @@ async def list_chunks_endpoint(
     doc_id: uuid.UUID,
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List chunks for a document (paginated)."""
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -260,7 +254,6 @@ async def list_chunks_endpoint(
 async def reprocess_document_endpoint(
     kb_id: uuid.UUID,
     doc_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Retry ingestion for a document — resets its state and re-enqueues.
@@ -270,7 +263,7 @@ async def reprocess_document_endpoint(
     queue like a fresh upload. Progress is surfaced via `document:progress`
     socket events like normal ingestion.
     """
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -299,10 +292,9 @@ async def reprocess_document_endpoint(
 async def delete_document_endpoint(
     kb_id: uuid.UUID,
     doc_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -323,10 +315,9 @@ async def delete_document_endpoint(
 async def query_kb_endpoint(
     kb_id: uuid.UUID,
     body: RetrievalQuery,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    kb = await get_knowledge_base(db, kb_id, current_user.id)
+    kb = await get_knowledge_base(db, kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 

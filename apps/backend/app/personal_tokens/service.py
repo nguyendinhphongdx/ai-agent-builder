@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.context import current_user_id
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.user import User
 from app.personal_tokens.schemas import TokenCreate
@@ -35,25 +36,23 @@ def _generate_plaintext() -> str:
 # ─── CRUD ───────────────────────────────────────────────────────────
 
 
-async def list_tokens(
-    db: AsyncSession, user_id: uuid.UUID
-) -> list[PersonalAccessToken]:
+async def list_tokens(db: AsyncSession) -> list[PersonalAccessToken]:
     result = await db.execute(
         select(PersonalAccessToken)
-        .where(PersonalAccessToken.user_id == user_id)
+        .where(PersonalAccessToken.user_id == current_user_id())
         .order_by(PersonalAccessToken.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 async def create_token(
-    db: AsyncSession, user_id: uuid.UUID, data: TokenCreate
+    db: AsyncSession, data: TokenCreate
 ) -> tuple[PersonalAccessToken, str]:
     """Mint a new token for the user. Returns (row, plaintext) — caller MUST
     surface the plaintext to the user immediately and never store it."""
     plaintext = _generate_plaintext()
     token = PersonalAccessToken(
-        user_id=user_id,
+        user_id=current_user_id(),
         name=data.name,
         key_hash=_hash(plaintext),
         key_prefix=plaintext[:PREFIX_DISPLAY_LEN],
@@ -66,14 +65,12 @@ async def create_token(
     return token, plaintext
 
 
-async def revoke_token(
-    db: AsyncSession, token_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
+async def revoke_token(db: AsyncSession, token_id: uuid.UUID) -> bool:
     """Soft-revoke. Row is kept for audit; ``revoked_at`` rejects future use."""
     result = await db.execute(
         select(PersonalAccessToken).where(
             PersonalAccessToken.id == token_id,
-            PersonalAccessToken.user_id == user_id,
+            PersonalAccessToken.user_id == current_user_id(),
         )
     )
     token = result.scalar_one_or_none()

@@ -1,22 +1,24 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.context import current_user_id
 from app.models.conversation import Conversation
 from app.models.message import Message
 
 
 async def list_conversations(
-    db: AsyncSession, user_id: uuid.UUID, agent_id: uuid.UUID | None = None
+    db: AsyncSession, agent_id: uuid.UUID | None = None
 ) -> list[Conversation]:
     """Lấy danh sách cuộc hội thoại chưa lưu trữ, sắp xếp theo tin nhắn mới nhất.
 
     Có thể lọc theo agent_id nếu được cung cấp.
     """
     q = select(Conversation).where(
-        Conversation.user_id == user_id, Conversation.is_archived == False  # noqa: E712
+        Conversation.user_id == current_user_id(),
+        Conversation.is_archived == False,  # noqa: E712
     )
     if agent_id:
         q = q.where(Conversation.agent_id == agent_id)
@@ -26,22 +28,23 @@ async def list_conversations(
 
 
 async def get_conversation(
-    db: AsyncSession, conv_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession, conv_id: uuid.UUID
 ) -> Conversation | None:
     """Lấy cuộc hội thoại theo ID, chỉ trả về nếu thuộc về user hiện tại."""
     result = await db.execute(
         select(Conversation).where(
-            Conversation.id == conv_id, Conversation.user_id == user_id
+            Conversation.id == conv_id,
+            Conversation.user_id == current_user_id(),
         )
     )
     return result.scalar_one_or_none()
 
 
 async def create_conversation(
-    db: AsyncSession, user_id: uuid.UUID, agent_id: uuid.UUID, title: str | None = None
+    db: AsyncSession, agent_id: uuid.UUID, title: str | None = None
 ) -> Conversation:
-    """Tạo cuộc hội thoại mới giữa user và agent."""
-    conv = Conversation(user_id=user_id, agent_id=agent_id, title=title)
+    """Tạo cuộc hội thoại mới giữa user hiện tại và agent."""
+    conv = Conversation(user_id=current_user_id(), agent_id=agent_id, title=title)
     db.add(conv)
     await db.flush()
     await db.refresh(conv)
@@ -73,17 +76,21 @@ async def save_message(
     msg = Message(conversation_id=conversation_id, role=role, content=content, **kwargs)
     db.add(msg)
 
-    # Cập nhật bộ đếm trên conversation (số tin nhắn, thời gian, token)
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
+    # Atomic counter bump — concurrent SSE/WS streams won't lose updates.
+    values = {
+        "total_messages": Conversation.total_messages + 1,
+        "last_message_at": datetime.now(timezone.utc),
+    }
+    if kwargs.get("token_usage"):
+        added = kwargs["token_usage"].get("total_tokens", 0) or 0
+        if added:
+            values["total_tokens"] = Conversation.total_tokens + added
+
+    await db.execute(
+        update(Conversation)
+        .where(Conversation.id == conversation_id)
+        .values(**values)
     )
-    conv = result.scalar_one_or_none()
-    if conv:
-        conv.total_messages = (conv.total_messages or 0) + 1
-        conv.last_message_at = datetime.now(timezone.utc)
-        if kwargs.get("token_usage"):
-            usage = kwargs["token_usage"]
-            conv.total_tokens = (conv.total_tokens or 0) + usage.get("total_tokens", 0)
 
     await db.flush()
     await db.refresh(msg)
