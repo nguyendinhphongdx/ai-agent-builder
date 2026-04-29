@@ -16,26 +16,27 @@ logger = logging.getLogger("agentforge")
 logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
+from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
-from app.auth.router import router as auth_router
+from app.ai_credentials.router import router as ai_credentials_router
 from app.auth.oauth_router import router as oauth_router
+from app.auth.router import router as auth_router
 from app.config import settings
 from app.conversations.router import router as conversations_router
-from app.knowledge.router import router as knowledge_router
-from app.tools.router import router as tools_router
-from app.workflows.router import router as workflows_router
-from app.multi_agent.router import router as multi_agent_router
-from app.ai_credentials.router import router as ai_credentials_router
-from app.llm.router import router as llm_router
-from app.internal.router import router as internal_router
 from app.external.router import router as external_router
+from app.hub.router import auth_router as hub_auth_router
+from app.hub.router import public_router as hub_public_router
+from app.hub.webhook_router import router as stripe_webhook_router
 from app.integrations.router import router as integrations_router
+from app.internal.router import router as internal_router
+from app.knowledge.router import router as knowledge_router
+from app.llm.router import router as llm_router
+from app.multi_agent.router import router as multi_agent_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.share.router import router as share_router
+from app.tools.router import router as tools_router
 from app.webhooks.router import router as webhooks_router
-from app.hub.router import public_router as hub_public_router, auth_router as hub_auth_router
-from app.hub.webhook_router import router as stripe_webhook_router
-from app.admin.router import router as admin_router
+from app.workflows.router import router as workflows_router
 
 
 def create_app() -> FastAPI:
@@ -158,6 +159,7 @@ def create_app() -> FastAPI:
 
     # Serve uploaded files (avatars, documents)
     import os
+
     from fastapi.staticfiles import StaticFiles
     uploads_dir = settings.UPLOAD_DIR
     os.makedirs(uploads_dir, exist_ok=True)
