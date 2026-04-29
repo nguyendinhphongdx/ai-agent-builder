@@ -6,6 +6,7 @@ import { templateService } from "../services/templateService";
 import type {
   BrowseFilters,
   PublishInput,
+  ReviewInput,
   UpdateTemplateInput,
 } from "../types";
 
@@ -15,6 +16,7 @@ export const templateKeys = {
   detail: (id: string) => [...templateKeys.all, "detail", id] as const,
   myPublished: () => [...templateKeys.all, "mine", "published"] as const,
   myForks: () => [...templateKeys.all, "mine", "forks"] as const,
+  reviews: (templateId: string) => [...templateKeys.all, "reviews", templateId] as const,
 };
 
 export function useBrowseTemplates(filters: BrowseFilters = {}) {
@@ -87,5 +89,38 @@ export function useMyPublishedTemplates() {
   return useQuery({
     queryKey: templateKeys.myPublished(),
     queryFn: templateService.myPublished,
+  });
+}
+
+export function useTemplateReviews(templateId: string) {
+  return useQuery({
+    queryKey: templateKeys.reviews(templateId),
+    queryFn: () => templateService.listReviews(templateId),
+    enabled: !!templateId,
+  });
+}
+
+export function useUpsertReview(templateId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReviewInput) =>
+      templateService.upsertReview(templateId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.reviews(templateId) });
+      // rating_avg + rating_count on the template change too
+      queryClient.invalidateQueries({ queryKey: templateKeys.detail(templateId) });
+      queryClient.invalidateQueries({ queryKey: templateKeys.all });
+    },
+  });
+}
+
+export function useDeleteReview(templateId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => templateService.deleteReview(templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.reviews(templateId) });
+      queryClient.invalidateQueries({ queryKey: templateKeys.detail(templateId) });
+    },
   });
 }

@@ -14,6 +14,8 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.hub.schemas import (
     ForkResponse,
+    ReviewCreate,
+    ReviewResponse,
     TemplateBrowseResponse,
     TemplateDetail,
     TemplatePublishRequest,
@@ -29,6 +31,11 @@ from app.hub.service import (
     list_published,
     publish_agent,
     update_template,
+)
+from app.hub.reviews import (
+    delete_review,
+    list_reviews,
+    upsert_review,
 )
 
 # Public router — browse + detail. No auth dep at router level.
@@ -145,6 +152,68 @@ async def archive_endpoint(
         await archive_template(db, template_id)
     except PermissionError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    await db.commit()
+
+
+# ─── Reviews ──────────────────────────────────────────────────────────
+
+
+@public_router.get("/{template_id}/reviews", response_model=list[ReviewResponse])
+async def list_reviews_endpoint(
+    template_id: uuid.UUID,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Public — anyone can read reviews on a published template."""
+    rows = await list_reviews(db, template_id, limit=limit, offset=offset)
+    return [
+        ReviewResponse(
+            id=r.id,
+            template_id=r.template_id,
+            user_id=r.user_id,
+            user_name=name,
+            rating=r.rating,
+            body=r.body,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+        for r, name in rows
+    ]
+
+
+@auth_router.put("/{template_id}/reviews/me", response_model=ReviewResponse)
+async def upsert_review_endpoint(
+    template_id: uuid.UUID,
+    body: ReviewCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update my review of this template. Must have forked it first."""
+    try:
+        review = await upsert_review(db, template_id, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
+    return ReviewResponse(
+        id=review.id,
+        template_id=review.template_id,
+        user_id=review.user_id,
+        user_name=None,  # caller knows their own name
+        rating=review.rating,
+        body=review.body,
+        created_at=review.created_at,
+        updated_at=review.updated_at,
+    )
+
+
+@auth_router.delete("/{template_id}/reviews/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_review_endpoint(
+    template_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    deleted = await delete_review(db, template_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No review to delete")
     await db.commit()
 
 

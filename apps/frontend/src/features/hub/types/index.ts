@@ -103,6 +103,22 @@ export interface ForkResponse {
   purchase_id: string;
 }
 
+export interface Review {
+  id: string;
+  template_id: string;
+  user_id: string;
+  user_name: string | null;
+  rating: number;       // 1..5
+  body: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewInput {
+  rating: number;
+  body?: string;
+}
+
 /** Built-in categories for V1 — matches what filters/dropdown UI offers. */
 export const TEMPLATE_CATEGORIES = [
   { value: "support", label: "Customer Support" },

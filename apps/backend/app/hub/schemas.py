@@ -144,3 +144,24 @@ class TemplateBrowseResponse(BaseModel):
     items: list[TemplateSummary]
     total: int
     has_more: bool
+
+
+# ─── Reviews ──────────────────────────────────────────────────────────
+
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    body: str | None = Field(default=None, max_length=2000)
+
+
+class ReviewResponse(BaseModel):
+    id: uuid.UUID
+    template_id: uuid.UUID
+    user_id: uuid.UUID
+    user_name: str | None = None  # populated server-side from join
+    rating: int
+    body: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

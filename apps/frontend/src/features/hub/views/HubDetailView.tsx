@@ -14,6 +14,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTemplate, useForkTemplate } from "../hooks/useTemplates";
+import { ReviewsSection } from "../components/ReviewsSection";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 interface HubDetailViewProps {
   slugOrId: string;
@@ -22,6 +24,7 @@ interface HubDetailViewProps {
 export function HubDetailView({ slugOrId }: HubDetailViewProps) {
   const router = useRouter();
   const { data: template, isLoading } = useTemplate(slugOrId);
+  const { isAuthenticated } = useAuth();
   const fork = useForkTemplate();
 
   if (isLoading) {
@@ -124,6 +127,9 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
               ))}
             </div>
           )}
+
+          {/* Reviews */}
+          <ReviewsSection templateId={template.id} canReview={isAuthenticated} />
         </div>
 
         {/* Right: action sidebar */}

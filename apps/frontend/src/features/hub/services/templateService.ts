@@ -4,6 +4,8 @@ import type {
   BrowseResponse,
   ForkResponse,
   PublishInput,
+  Review,
+  ReviewInput,
   TemplateDetail,
   TemplateSummary,
   UpdateTemplateInput,
@@ -43,4 +45,17 @@ export const templateService = {
 
   myForkAgentIds: () =>
     apiClient.get<string[]>("/templates/me/forks").then((r) => r.data),
+
+  listReviews: (templateId: string) =>
+    apiClient
+      .get<Review[]>(`/templates/${templateId}/reviews`)
+      .then((r) => r.data),
+
+  upsertReview: (templateId: string, body: ReviewInput) =>
+    apiClient
+      .put<Review>(`/templates/${templateId}/reviews/me`, body)
+      .then((r) => r.data),
+
+  deleteReview: (templateId: string) =>
+    apiClient.delete(`/templates/${templateId}/reviews/me`),
 };
