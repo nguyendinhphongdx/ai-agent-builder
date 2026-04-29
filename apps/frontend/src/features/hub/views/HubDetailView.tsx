@@ -6,6 +6,7 @@ import {
   Bot,
   CheckCircle2,
   Database,
+  GitCommit,
   Loader2,
   Sparkles,
   Users,
@@ -17,6 +18,7 @@ import {
   useTemplate,
   useForkTemplate,
   usePurchaseTemplate,
+  useTemplateVersions,
 } from "../hooks/useTemplates";
 import { ReviewsSection } from "../components/ReviewsSection";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -28,6 +30,7 @@ interface HubDetailViewProps {
 export function HubDetailView({ slugOrId }: HubDetailViewProps) {
   const router = useRouter();
   const { data: template, isLoading } = useTemplate(slugOrId);
+  const { data: versions } = useTemplateVersions(template?.id ?? "");
   const { isAuthenticated } = useAuth();
   const fork = useForkTemplate();
   const purchase = usePurchaseTemplate();
@@ -131,6 +134,41 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
                 </Badge>
               ))}
             </div>
+          )}
+
+          {/* Version history */}
+          {versions && versions.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold">Version history</h2>
+              <ul className="space-y-2">
+                {versions.map((v) => (
+                  <li
+                    key={v.id}
+                    className="rounded-lg border border-border bg-card p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GitCommit className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-mono text-xs font-medium">v{v.version}</span>
+                        {v.is_current && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(v.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {v.changelog && (
+                      <p className="mt-1.5 whitespace-pre-wrap text-[11px] text-muted-foreground">
+                        {v.changelog}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {/* Reviews */}

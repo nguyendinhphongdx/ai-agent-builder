@@ -221,6 +221,115 @@ async def archive_template(db: AsyncSession, template_id: uuid.UUID) -> None:
     await db.flush()
 
 
+# ─── Versioning ───────────────────────────────────────────────────────
+
+
+def _bump_semver(current: str, bump: str) -> str:
+    """Increment a semver string. Falls back to ``current+'.1'`` when the
+    version isn't well-formed — older rows may not be strict semver.
+    """
+    parts = current.split(".")
+    try:
+        major, minor, patch = (int(p) for p in parts[:3])
+    except (ValueError, IndexError):
+        return f"{current}.1"
+
+    if bump == "major":
+        return f"{major + 1}.0.0"
+    if bump == "minor":
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
+
+
+async def publish_new_version(
+    db: AsyncSession,
+    template_id: uuid.UUID,
+    *,
+    bump: str = "patch",
+    version_override: str | None = None,
+    changelog: str | None = None,
+) -> AgentTemplateVersion:
+    """Snapshot the source agent again and ship it as a new template version.
+
+    The previous current version is preserved (existing forks still reference
+    it via Agent.template_version_id). New forks pick up the new snapshot.
+
+    Raises:
+        PermissionError — caller doesn't own the template
+        ValueError — source agent was deleted or version conflict
+    """
+    user_id = current_user_id()
+    template = await db.get(AgentTemplate, template_id)
+    if template is None or template.user_id != user_id:
+        raise PermissionError("Template not found or not owned by user")
+    if template.source_agent_id is None:
+        raise ValueError(
+            "Source agent was deleted — can't publish a new version. "
+            "Re-publish from a fresh agent instead."
+        )
+
+    from app.hub.snapshot import build_snapshot_from_agent, load_agent_for_snapshot
+
+    agent = await load_agent_for_snapshot(db, template.source_agent_id)
+    if agent is None:
+        raise ValueError("Source agent not found or not owned by user")
+
+    # Pick the current version to bump from.
+    current_version_result = await db.execute(
+        select(AgentTemplateVersion).where(
+            AgentTemplateVersion.template_id == template_id,
+            AgentTemplateVersion.is_current == True,  # noqa: E712
+        ).limit(1)
+    )
+    current = current_version_result.scalar_one_or_none()
+    new_version = version_override or _bump_semver(
+        current.version if current else "0.0.0", bump
+    )
+
+    # Conflict check — partial-unique index would 500 too, but a clean
+    # error is friendlier.
+    existing = await db.execute(
+        select(AgentTemplateVersion.id).where(
+            AgentTemplateVersion.template_id == template_id,
+            AgentTemplateVersion.version == new_version,
+        ).limit(1)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise ValueError(f"Version {new_version} already exists")
+
+    snapshot = await build_snapshot_from_agent(db, agent)
+
+    # Demote previous current *before* inserting the new row — partial
+    # unique index ix_template_versions_current would otherwise fire.
+    if current is not None:
+        current.is_current = False
+        await db.flush()
+
+    new_row = AgentTemplateVersion(
+        template_id=template_id,
+        version=new_version,
+        snapshot=snapshot.model_dump(),
+        changelog=changelog,
+        is_current=True,
+    )
+    db.add(new_row)
+    await db.flush()
+    await db.refresh(new_row)
+    return new_row
+
+
+async def list_versions(
+    db: AsyncSession, template_id: uuid.UUID
+) -> list[AgentTemplateVersion]:
+    """Public — version history for a template's detail page."""
+    result = await db.execute(
+        select(AgentTemplateVersion)
+        .where(AgentTemplateVersion.template_id == template_id)
+        .order_by(AgentTemplateVersion.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
 # ─── Fork (free path) ─────────────────────────────────────────────────
 
 

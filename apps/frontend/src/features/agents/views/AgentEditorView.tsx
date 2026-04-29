@@ -169,7 +169,12 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
             <span className="text-sm font-medium">
               {isEditMode ? "Chỉnh sửa Agent" : "Tạo Agent mới"}
             </span>
-            {agent?.template_id && <ForkedFromBadge templateId={agent.template_id} />}
+            {agent?.template_id && (
+              <ForkedFromBadge
+                templateId={agent.template_id}
+                versionId={agent.template_version_id}
+              />
+            )}
           </div>
           <div className="flex items-center gap-2">
             {isEditMode && agentId && (

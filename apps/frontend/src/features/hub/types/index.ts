@@ -119,6 +119,21 @@ export interface ReviewInput {
   body?: string;
 }
 
+export interface TemplateVersion {
+  id: string;
+  template_id: string;
+  version: string;
+  changelog: string | null;
+  is_current: boolean;
+  created_at: string;
+}
+
+export interface PublishVersionInput {
+  bump?: "patch" | "minor" | "major";
+  version?: string;        // explicit override (e.g. 0.x → 1.0.0)
+  changelog?: string;
+}
+
 /** Built-in categories for V1 — matches what filters/dropdown UI offers. */
 export const TEMPLATE_CATEGORIES = [
   { value: "support", label: "Customer Support" },

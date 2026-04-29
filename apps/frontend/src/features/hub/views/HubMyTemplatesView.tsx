@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Archive,
   ExternalLink,
+  GitCommit,
   Loader2,
   Pencil,
   Sparkles,
@@ -20,15 +21,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import { EditTemplateDialog } from "../components/EditTemplateDialog";
+import { PublishVersionDialog } from "../components/PublishVersionDialog";
 import {
   useArchiveTemplate,
   useMyPublishedTemplates,
+  useTemplateVersions,
 } from "../hooks/useTemplates";
 import type { TemplateSummary } from "../types";
 
 export function HubMyTemplatesView() {
   const { data: templates, isLoading } = useMyPublishedTemplates();
   const [editing, setEditing] = useState<TemplateSummary | null>(null);
+  const [publishing, setPublishing] = useState<TemplateSummary | null>(null);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -56,7 +60,12 @@ export function HubMyTemplatesView() {
       ) : (
         <div className="space-y-2">
           {templates.map((t) => (
-            <TemplateRow key={t.id} template={t} onEdit={() => setEditing(t)} />
+            <TemplateRow
+              key={t.id}
+              template={t}
+              onEdit={() => setEditing(t)}
+              onPublishVersion={() => setPublishing(t)}
+            />
           ))}
         </div>
       )}
@@ -68,16 +77,49 @@ export function HubMyTemplatesView() {
           onOpenChange={(open) => !open && setEditing(null)}
         />
       )}
+
+      {publishing && (
+        <PublishVersionWrapper
+          template={publishing}
+          open={!!publishing}
+          onOpenChange={(open) => !open && setPublishing(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Loads the current version separately so the dialog shows the right preview. */
+function PublishVersionWrapper({
+  template,
+  open,
+  onOpenChange,
+}: {
+  template: TemplateSummary;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: versions } = useTemplateVersions(template.id);
+  const current = versions?.find((v) => v.is_current)?.version ?? null;
+  return (
+    <PublishVersionDialog
+      templateId={template.id}
+      templateTitle={template.title}
+      currentVersion={current}
+      open={open}
+      onOpenChange={onOpenChange}
+    />
   );
 }
 
 function TemplateRow({
   template,
   onEdit,
+  onPublishVersion,
 }: {
   template: TemplateSummary;
   onEdit: () => void;
+  onPublishVersion: () => void;
 }) {
   const archive = useArchiveTemplate();
   const isFree = template.price_cents === 0;
@@ -130,6 +172,10 @@ function TemplateRow({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={onPublishVersion}>
+          <GitCommit className="h-3 w-3" />
+          New version
+        </Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
           <Pencil className="h-3 w-3" />
           Edit

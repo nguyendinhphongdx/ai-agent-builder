@@ -128,6 +128,17 @@ class TemplateVersionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PublishVersionRequest(BaseModel):
+    """Author publishes a new version of an existing template.
+
+    ``bump`` decides the semver step from the previous version. Pass an
+    explicit ``version`` to override (e.g. for going from ``0.x`` to ``1.0``).
+    """
+    bump: str = Field(default="patch", pattern="^(patch|minor|major)$")
+    version: str | None = None  # explicit override
+    changelog: str | None = Field(default=None, max_length=5000)
+
+
 class ForkResponse(BaseModel):
     """Returned to the buyer after a successful fork — points at the new agent."""
     agent_id: uuid.UUID

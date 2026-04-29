@@ -4,10 +4,12 @@ import type {
   BrowseResponse,
   ForkResponse,
   PublishInput,
+  PublishVersionInput,
   Review,
   ReviewInput,
   TemplateDetail,
   TemplateSummary,
+  TemplateVersion,
   UpdateTemplateInput,
 } from "../types";
 
@@ -72,5 +74,16 @@ export const templateService = {
       .get<{ status: string; template_id: string; agent_id: string | null }>(
         `/templates/purchases/${sessionId}/status`,
       )
+      .then((r) => r.data),
+
+  // Versioning
+  listVersions: (templateId: string) =>
+    apiClient
+      .get<TemplateVersion[]>(`/templates/${templateId}/versions`)
+      .then((r) => r.data),
+
+  publishVersion: (templateId: string, body: PublishVersionInput) =>
+    apiClient
+      .post<TemplateVersion>(`/templates/${templateId}/versions`, body)
       .then((r) => r.data),
 };

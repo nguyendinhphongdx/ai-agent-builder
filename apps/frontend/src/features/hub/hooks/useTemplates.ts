@@ -6,6 +6,7 @@ import { templateService } from "../services/templateService";
 import type {
   BrowseFilters,
   PublishInput,
+  PublishVersionInput,
   ReviewInput,
   UpdateTemplateInput,
 } from "../types";
@@ -17,6 +18,7 @@ export const templateKeys = {
   myPublished: () => [...templateKeys.all, "mine", "published"] as const,
   myForks: () => [...templateKeys.all, "mine", "forks"] as const,
   reviews: (templateId: string) => [...templateKeys.all, "reviews", templateId] as const,
+  versions: (templateId: string) => [...templateKeys.all, "versions", templateId] as const,
 };
 
 export function useBrowseTemplates(filters: BrowseFilters = {}) {
@@ -146,5 +148,29 @@ export function usePurchaseStatus(sessionId: string | null) {
     // within 1–3 seconds. Stop once we have an agent_id (paid + forked).
     refetchInterval: (query) =>
       query.state.data?.agent_id ? false : 1500,
+  });
+}
+
+/** Public — version history for a template's detail page. */
+export function useTemplateVersions(templateId: string) {
+  return useQuery({
+    queryKey: templateKeys.versions(templateId),
+    queryFn: () => templateService.listVersions(templateId),
+    enabled: !!templateId,
+    staleTime: 30_000,
+  });
+}
+
+/** Owner-only — re-snapshot the source agent and ship a new version. */
+export function usePublishVersion(templateId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PublishVersionInput) =>
+      templateService.publishVersion(templateId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.versions(templateId) });
+      queryClient.invalidateQueries({ queryKey: templateKeys.detail(templateId) });
+      queryClient.invalidateQueries({ queryKey: templateKeys.myPublished() });
+    },
   });
 }

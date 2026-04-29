@@ -14,6 +14,7 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.hub.schemas import (
     ForkResponse,
+    PublishVersionRequest,
     ReviewCreate,
     ReviewResponse,
     TemplateBrowseResponse,
@@ -21,6 +22,7 @@ from app.hub.schemas import (
     TemplatePublishRequest,
     TemplateSummary,
     TemplateUpdateRequest,
+    TemplateVersionResponse,
 )
 from app.hub.service import (
     archive_template,
@@ -29,7 +31,9 @@ from app.hub.service import (
     list_my_forks,
     list_my_templates,
     list_published,
+    list_versions,
     publish_agent,
+    publish_new_version,
     update_template,
 )
 from app.hub.reviews import (
@@ -127,6 +131,46 @@ async def fork_endpoint(
         version_id=version.id,
         purchase_id=purchase.id,
     )
+
+
+# ─── Versions ─────────────────────────────────────────────────────────
+
+
+@public_router.get("/{template_id}/versions", response_model=list[TemplateVersionResponse])
+async def list_versions_endpoint(
+    template_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public — full version history for a template (most recent first)."""
+    versions = await list_versions(db, template_id)
+    return [TemplateVersionResponse.model_validate(v) for v in versions]
+
+
+@auth_router.post(
+    "/{template_id}/versions",
+    response_model=TemplateVersionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def publish_version_endpoint(
+    template_id: uuid.UUID,
+    body: PublishVersionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Owner-only — re-snapshot the source agent and ship as a new version."""
+    try:
+        version = await publish_new_version(
+            db,
+            template_id,
+            bump=body.bump,
+            version_override=body.version,
+            changelog=body.changelog,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
+    return TemplateVersionResponse.model_validate(version)
 
 
 # ─── Authenticated: paid purchase via Stripe Checkout ────────────────
