@@ -68,6 +68,8 @@ class AgentResponse(AppBaseModel):
     status: str
     tools: list[ToolBrief] = []
     knowledge_bases: list[KnowledgeBaseBrief] = []
+    template_id: uuid.UUID | None = None
+    template_version_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

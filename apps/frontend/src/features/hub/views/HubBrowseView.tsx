@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Loader2, Bot } from "lucide-react";
 import { TemplateCard } from "../components/TemplateCard";
 import { HubFilters } from "../components/HubFilters";
@@ -13,11 +14,19 @@ export function HubBrowseView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
-      <header className="mb-6 space-y-1">
-        <h1 className="font-heading text-2xl font-semibold">Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse agents published by the community. Fork one to get your own copy.
-        </p>
+      <header className="mb-6 flex items-end justify-between">
+        <div className="space-y-1">
+          <h1 className="font-heading text-2xl font-semibold">Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Browse agents published by the community. Fork one to get your own copy.
+          </p>
+        </div>
+        <Link
+          href="/hub/me"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          My templates →
+        </Link>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">

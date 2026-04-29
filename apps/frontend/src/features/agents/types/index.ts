@@ -13,6 +13,9 @@ export interface Agent {
   status: string;
   tools: ToolBrief[];
   knowledge_bases: KnowledgeBaseBrief[];
+  // Hub provenance — set when this agent was forked from a template.
+  template_id: string | null;
+  template_version_id: string | null;
   created_at: string;
   updated_at: string;
 }

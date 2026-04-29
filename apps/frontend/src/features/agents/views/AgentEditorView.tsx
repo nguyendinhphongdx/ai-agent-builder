@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublishDialog } from "@/features/hub/components/PublishDialog";
+import { ForkedFromBadge } from "@/features/hub/components/ForkedFromBadge";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BasicInfoCard } from "../components/editor/BasicInfoCard";
@@ -168,6 +169,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
             <span className="text-sm font-medium">
               {isEditMode ? "Chỉnh sửa Agent" : "Tạo Agent mới"}
             </span>
+            {agent?.template_id && <ForkedFromBadge templateId={agent.template_id} />}
           </div>
           <div className="flex items-center gap-2">
             {isEditMode && agentId && (
