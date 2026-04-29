@@ -1,7 +1,11 @@
 """Public webhook endpoints.
 
 Each active workflow with a ``webhook_trigger`` node exposes:
-    POST /api/webhooks/{workflow_id}/{path:path}
+    POST /api/webhooks/{workflow_id}/{webhook_token}/{path:path}
+
+The ``webhook_token`` is a per-workflow URL-embedded secret — leaking the
+``workflow_id`` alone is not enough to fire the workflow. Owners can rotate
+the token via ``POST /api/workflows/{id}/webhook-token/rotate``.
 
 Response is driven by the node's ``config`` — see :func:`_build_response` for
 the supported ``response_mode`` values.
@@ -11,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 import uuid
 from typing import Any
 
@@ -134,9 +139,10 @@ async def _run_detached(
         logger.exception("Background webhook execution failed")
 
 
-@router.post("/{workflow_id}/{path:path}")
+@router.post("/{workflow_id}/{webhook_token}/{path:path}")
 async def receive_webhook(
     workflow_id: uuid.UUID,
+    webhook_token: str,
     path: str,
     request: Request,
 ):
@@ -153,6 +159,15 @@ async def receive_webhook(
         )
         workflow = result.scalar_one_or_none()
         if not workflow or not workflow.is_active:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+
+        # Constant-time compare so a wrong-token caller can't time-side-channel
+        # the right one. 404 (not 401) on mismatch keeps existence opaque.
+        # Guard against legacy rows with NULL token — compare_digest raises
+        # TypeError on None.
+        if not workflow.webhook_token or not secrets.compare_digest(
+            workflow.webhook_token, webhook_token
+        ):
             raise HTTPException(status_code=404, detail="Webhook not found")
 
         trigger_node = _find_matching_webhook_node(workflow, path)

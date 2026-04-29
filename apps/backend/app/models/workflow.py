@@ -22,6 +22,9 @@ class Workflow(Base, UUIDMixin, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, default=1)  # Số phiên bản workflow
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)  # Workflow đang hoạt động hay không
     viewport: Mapped[dict] = mapped_column(JSONB, default=dict)  # Trạng thái viewport của canvas editor
+    # URL-embedded shared secret. Public webhook callers must include this in
+    # the path so leaking workflow_id alone is not enough to trigger.
+    webhook_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 
     # Relationships
     user: Mapped["User"] = relationship()
