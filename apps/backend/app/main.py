@@ -223,7 +223,12 @@ def create_app() -> FastAPI:
         detail = f"{type(exc).__name__}: {exc}" if settings.DEBUG else "Internal server error"
         return JSONResponse(status_code=500, content={"detail": detail})
 
-    # Endpoint kiểm tra trạng thái server
+    # Liveness + readiness at the root (not under /api/) so infra probes hit
+    # them directly. Legacy `/api/health` kept for backwards compat.
+    from app.observability import health_router
+
+    app.include_router(health_router)
+
     @app.get("/api/health")
     async def health():
         return {"status": "ok"}
