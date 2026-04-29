@@ -35,6 +35,7 @@ from app.auth.oauth_router import router as oauth_router
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.conversations.router import router as conversations_router
+from app.dashboard.router import router as dashboard_router
 from app.external.router import router as external_router
 from app.hub.router import auth_router as hub_auth_router
 from app.hub.router import public_router as hub_public_router
@@ -220,8 +221,10 @@ def create_app() -> FastAPI:
     app.include_router(momo_webhook_router, prefix=settings.API_PREFIX)
     # Platform admin — gated by user.role hierarchy (moderator/support/admin).
     app.include_router(admin_router, prefix=settings.API_PREFIX)
-    # Author payouts — Stripe Connect onboarding + status.
+    # Author payouts — Stripe Connect onboarding + status + payment history.
     app.include_router(payouts_router, prefix=settings.API_PREFIX)
+    # Personal dashboard — combined stats endpoint.
+    app.include_router(dashboard_router, prefix=settings.API_PREFIX)
 
     # File uploads are handled by the knowledge router (document upload) and
     # the static `/uploads/` mount above. The dedicated upload router was

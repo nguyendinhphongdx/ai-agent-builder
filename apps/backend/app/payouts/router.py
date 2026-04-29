@@ -1,7 +1,7 @@
-"""Author payout management — Stripe Connect onboarding + status."""
+"""Author payout management — Stripe Connect onboarding + payment history."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -45,3 +45,38 @@ async def dashboard_link(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     return {"url": url}
+
+
+@router.get("/history", response_model=dict)
+async def history_endpoint(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    purchase_status: str | None = Query(default=None, alias="status"),
+    provider: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Paginated paid-purchase history for templates the user owns.
+
+    Query params:
+      - ``limit``, ``offset`` — paging.
+      - ``status=paid|refunded`` — filter by payment state.
+      - ``provider=stripe|momo`` — filter by gateway.
+    """
+    items, total = await service.list_history(
+        db,
+        limit=limit,
+        offset=offset,
+        status=purchase_status,
+        provider=provider,
+    )
+    return {
+        "items": items,
+        "total": total,
+        "has_more": offset + len(items) < total,
+    }
+
+
+@router.get("/summary", response_model=dict)
+async def summary_endpoint(db: AsyncSession = Depends(get_db)) -> dict:
+    """Monthly + total revenue aggregates for the current user."""
+    return await service.get_summary(db)

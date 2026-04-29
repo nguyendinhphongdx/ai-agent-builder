@@ -1,25 +1,45 @@
-"""Stripe Connect Express — author onboarding + status sync.
+"""Author payouts.
 
-The platform creates one Express account per author (lazily, on first
-``start_onboarding`` call). Stripe hosts the onboarding form;
-we redirect the user there via an ``AccountLink``. After onboarding,
-``account.updated`` events flow to our webhook and we mirror the
-``charges_enabled`` / ``payouts_enabled`` flags onto the User row.
+- **Stripe Connect Express onboarding** (``start_onboarding``,
+  ``get_status``, ``create_dashboard_link``, ``sync_account_from_event``).
+  Lazily creates an Express account, hosts onboarding via AccountLink,
+  mirrors ``charges_enabled`` / ``payouts_enabled`` from the
+  ``account.updated`` webhook onto the User row.
+- **Payment history** (``list_history``, ``get_summary``). Author-side
+  view of purchases of templates they own. Stripe gross deducts the
+  platform fee (computed deterministically from
+  ``STRIPE_PLATFORM_FEE_BPS``); MoMo is platform-collects so net = gross.
 """
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.context import current_user_id
+from app.models.agent_template import AgentTemplate
+from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.user import User
 from app.payments.providers.stripe import _stripe, is_stripe_configured
 
 logger = logging.getLogger("agentforge")
+
+
+def _platform_fee_cents(price_cents: int, provider: str) -> int:
+    """Deterministic platform fee — must match what Stripe collects on
+    the actual charge (`application_fee_amount` in the Checkout call).
+
+    MoMo currently has no platform-side fee on the charge; we settle
+    authors out-of-band, so net = gross from the author's perspective.
+    """
+    if provider == "stripe":
+        return (price_cents * settings.STRIPE_PLATFORM_FEE_BPS) // 10_000
+    return 0
 
 
 def can_receive_payouts(user: User) -> bool:
@@ -124,6 +144,183 @@ async def create_dashboard_link(db: AsyncSession) -> str:
     stripe = _stripe()
     link = stripe.Account.create_login_link(user.stripe_account_id)
     return link.url
+
+
+# ─── Webhook sync (account.updated) ───────────────────────────────────
+
+
+# ─── Author payment history ───────────────────────────────────────────
+
+
+async def list_history(
+    db: AsyncSession,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+    status: str | None = None,
+    provider: str | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Paginated list of paid purchases for templates the user owns.
+
+    Returns ``(items, total)``. Item rows include a computed
+    ``platform_fee_cents`` and ``net_cents`` so the FE doesn't have to
+    duplicate the fee math.
+
+    Free purchases (``price_paid_cents == 0``) are excluded — they don't
+    represent revenue.
+    """
+    user_id = current_user_id()
+
+    base = (
+        select(AgentTemplatePurchase, AgentTemplate.title, User.email)
+        .join(AgentTemplate, AgentTemplate.id == AgentTemplatePurchase.template_id)
+        .join(User, User.id == AgentTemplatePurchase.buyer_id)
+        .where(AgentTemplate.user_id == user_id)
+        .where(AgentTemplatePurchase.price_paid_cents > 0)
+    )
+    if status:
+        base = base.where(AgentTemplatePurchase.status == status)
+    if provider:
+        base = base.where(AgentTemplatePurchase.provider == provider)
+
+    count_q = (
+        select(func.count())
+        .select_from(AgentTemplatePurchase)
+        .join(AgentTemplate, AgentTemplate.id == AgentTemplatePurchase.template_id)
+        .where(AgentTemplate.user_id == user_id)
+        .where(AgentTemplatePurchase.price_paid_cents > 0)
+    )
+    if status:
+        count_q = count_q.where(AgentTemplatePurchase.status == status)
+    if provider:
+        count_q = count_q.where(AgentTemplatePurchase.provider == provider)
+
+    total = (await db.execute(count_q)).scalar_one()
+
+    rows = await db.execute(
+        base.order_by(desc(AgentTemplatePurchase.purchased_at))
+        .limit(limit)
+        .offset(offset)
+    )
+
+    items: list[dict[str, Any]] = []
+    for purchase, template_title, buyer_email in rows.all():
+        fee = _platform_fee_cents(purchase.price_paid_cents, purchase.provider)
+        items.append(
+            {
+                "id": str(purchase.id),
+                "template_id": str(purchase.template_id),
+                "template_title": template_title,
+                # Mask the local-part for privacy — staff can pull full
+                # email from /admin/purchases if needed for support.
+                "buyer_email_masked": _mask_email(buyer_email),
+                "price_paid_cents": purchase.price_paid_cents,
+                "currency": purchase.currency,
+                "platform_fee_cents": fee,
+                "net_cents": purchase.price_paid_cents - fee,
+                "provider": purchase.provider,
+                "status": purchase.status,
+                "purchased_at": purchase.purchased_at.isoformat()
+                if purchase.purchased_at
+                else None,
+                "refunded_at": purchase.refunded_at.isoformat()
+                if purchase.refunded_at
+                else None,
+            }
+        )
+
+    return items, total
+
+
+def _mask_email(email: str | None) -> str | None:
+    if not email or "@" not in email:
+        return email
+    local, _, domain = email.partition("@")
+    if len(local) <= 2:
+        return f"{local[0]}***@{domain}"
+    return f"{local[0]}***{local[-1]}@{domain}"
+
+
+async def get_summary(db: AsyncSession) -> dict[str, Any]:
+    """Monthly + total revenue aggregates for the current user.
+
+    Groups by ``(year-month, currency)`` so cross-currency rows stay
+    distinct (we don't convert across currencies). Net is computed after
+    the platform fee is deducted.
+    """
+    user_id = current_user_id()
+
+    rows = await db.execute(
+        select(
+            func.date_trunc("month", AgentTemplatePurchase.purchased_at).label("month"),
+            AgentTemplatePurchase.currency,
+            AgentTemplatePurchase.provider,
+            func.count().label("count"),
+            func.coalesce(func.sum(AgentTemplatePurchase.price_paid_cents), 0).label(
+                "gross"
+            ),
+        )
+        .join(AgentTemplate, AgentTemplate.id == AgentTemplatePurchase.template_id)
+        .where(AgentTemplate.user_id == user_id)
+        .where(AgentTemplatePurchase.status == "paid")
+        .where(AgentTemplatePurchase.price_paid_cents > 0)
+        .group_by("month", AgentTemplatePurchase.currency, AgentTemplatePurchase.provider)
+        .order_by(desc("month"))
+    )
+
+    by_month: dict[tuple[str, str], dict[str, int]] = defaultdict(
+        lambda: {"gross": 0, "fees": 0, "net": 0, "count": 0}
+    )
+    by_currency: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"gross": 0, "fees": 0, "net": 0, "count": 0}
+    )
+
+    for month, currency, provider, count, gross in rows.all():
+        cur = (currency or "USD").upper()
+        # `month` is a Postgres timestamp at the start of the month; format
+        # as "YYYY-MM" for the FE. Defensive isinstance for older drivers.
+        if isinstance(month, datetime):
+            month_key = month.strftime("%Y-%m")
+        else:
+            month_key = str(month)[:7]
+
+        fee = _platform_fee_cents(int(gross or 0), provider)
+
+        bucket_m = by_month[(month_key, cur)]
+        bucket_m["count"] += count
+        bucket_m["gross"] += int(gross or 0)
+        bucket_m["fees"] += fee
+        bucket_m["net"] += int(gross or 0) - fee
+
+        bucket_c = by_currency[cur]
+        bucket_c["count"] += count
+        bucket_c["gross"] += int(gross or 0)
+        bucket_c["fees"] += fee
+        bucket_c["net"] += int(gross or 0) - fee
+
+    return {
+        "by_month": [
+            {
+                "month": m,
+                "currency": c,
+                "gross_cents": v["gross"],
+                "fees_cents": v["fees"],
+                "net_cents": v["net"],
+                "count": v["count"],
+            }
+            for (m, c), v in sorted(by_month.items(), key=lambda x: (x[0][0], x[0][1]), reverse=True)
+        ],
+        "totals": [
+            {
+                "currency": c,
+                "gross_cents": v["gross"],
+                "fees_cents": v["fees"],
+                "net_cents": v["net"],
+                "count": v["count"],
+            }
+            for c, v in sorted(by_currency.items())
+        ],
+    }
 
 
 # ─── Webhook sync (account.updated) ───────────────────────────────────
