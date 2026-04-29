@@ -1,0 +1,49 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches: [master]
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/frontend.yml"
+
+defaults:
+  run:
+    working-directory: apps/frontend
+
+jobs:
+  typecheck-lint-test:
+    name: tsc + eslint + vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/frontend/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Non-blocking until pre-existing eslint backlog is cleared.
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+
+      - name: Test
+        run: pnpm test
