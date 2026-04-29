@@ -47,3 +47,51 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  # Production build + Sentry source-map upload. Runs only on push to
+  # master so PRs don't burn the Sentry release quota. Source maps upload
+  # to Sentry only when SENTRY_AUTH_TOKEN is provided as a repo secret;
+  # missing token → withSentryConfig is a no-op and the build still ships,
+  # just without symbol-resolved stack traces.
+  build:
+    name: build (+ sentry sourcemaps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: typecheck-lint-test
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Sentry release plugin tags the upload with the git SHA. Fetch
+          # full history so it can compute the commit range too.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/frontend/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          # CI secrets — set in repo settings → Secrets and variables → Actions.
+          # Empty / unset → no upload (build still succeeds).
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # Tag releases with the commit SHA so Sentry issue-grouping
+          # spans matching backend + browser symbols.
+          SENTRY_RELEASE: ${{ github.sha }}
+          NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+          # Required by the @sentry/nextjs plugin to suppress its noisy
+          # "we're uploading source maps" log.
+          CI: "true"
+        run: pnpm build

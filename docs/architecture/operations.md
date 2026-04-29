@@ -191,6 +191,21 @@ get minified function names in stack traces.
 Source maps are deleted from the client bundle after upload
 (`sourcemaps.deleteSourcemapsAfterUpload`) so they don't ship to users.
 
+**GitHub Actions wiring**: the frontend workflow (`.github/workflows/frontend.yml`)
+has a separate `build` job that runs only on `push` to `master`, reading
+the three Sentry vars from repo secrets:
+
+```
+Settings → Secrets and variables → Actions → New repository secret
+  SENTRY_AUTH_TOKEN
+  SENTRY_ORG
+  SENTRY_PROJECT
+```
+
+The release tag is auto-set to the commit SHA (`SENTRY_RELEASE` +
+`NEXT_PUBLIC_SENTRY_RELEASE`), so a Sentry issue links back to the exact
+commit. PRs skip this job — only master pushes burn the release quota.
+
 ---
 
 ## 5. Buyer-side checkout — multi-provider
