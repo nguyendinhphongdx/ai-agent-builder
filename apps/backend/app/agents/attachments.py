@@ -23,8 +23,6 @@ import base64
 import logging
 from typing import Any, Iterable
 
-import httpx
-
 from app.extractors import (
     Extractor,
     ExtractionError,
@@ -32,15 +30,21 @@ from app.extractors import (
 )
 from app.models.file import File as FileModel
 from app.storage import get_storage
+from app.tools.url_guard import safe_get
 
 logger = logging.getLogger("agentforge")
 
 
 async def _fetch_bytes(url: str) -> bytes:
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.content
+    """Download ``url`` with redirect-aware SSRF guard.
+
+    The URL comes from our storage backend (S3 presigned, GCS, local FS),
+    but we still re-validate each redirect hop so a misconfigured backend
+    can't be steered into the metadata API.
+    """
+    resp = await safe_get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
 
 
 async def _image_part(file: FileModel) -> dict[str, Any]:

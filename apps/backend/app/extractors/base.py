@@ -158,15 +158,19 @@ class Extractor:
     @staticmethod
     async def _download_to_temp(url: str, file_type: str) -> str:
         """Fetch ``url`` and write the bytes to a NamedTemporaryFile. Returns
-        the temp file path. Caller is responsible for unlinking."""
-        import httpx
+        the temp file path. Caller is responsible for unlinking.
+
+        Uses ``safe_get`` so each redirect hop is re-validated against the
+        SSRF blocklist — important when the URL ultimately came from
+        user-supplied storage config.
+        """
+        from app.tools.url_guard import safe_get
 
         suffix = f".{file_type}" if file_type else ""
         try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                data = resp.content
+            resp = await safe_get(url, timeout=30)
+            resp.raise_for_status()
+            data = resp.content
         except Exception as e:
             raise ExtractionError(f"Failed to download {url}: {e}") from e
 
