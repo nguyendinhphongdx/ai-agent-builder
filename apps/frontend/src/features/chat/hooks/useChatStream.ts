@@ -118,8 +118,14 @@ export function useChatStream(
   const sseRef = useRef<ReturnType<typeof createChatSSE> | null>(null);
 
   useEffect(() => {
-    return () => sseRef.current?.close();
-  }, [conversationId]);
+    // Close on conversation switch AND on unmount; also clear streaming flags
+    // so the next conversation doesn't inherit stale "isStreaming/content" state.
+    return () => {
+      sseRef.current?.close();
+      sseRef.current = null;
+      if (persist) useChatStore.getState().resetStream();
+    };
+  }, [conversationId, persist]);
 
   const abort = useCallback(() => {
     sseRef.current?.close();
@@ -162,9 +168,16 @@ export function useChatStream(
         setLocalStreaming(true);
       }
 
+      // Guard: if user switches conversation (or aborts), `sseRef.current`
+      // is replaced/cleared. Stale callbacks from this closure must no-op
+      // so they don't write into the new conversation's state.
+      let mySse: ReturnType<typeof createChatSSE> | null = null;
+      const isLive = () => sseRef.current === mySse;
+
       const sse = createChatSSE({
         conversationId,
         onToken: (c) => {
+          if (!isLive()) return;
           if (persist) {
             useChatStore.getState().appendStreamContent(c);
           } else {
@@ -173,14 +186,17 @@ export function useChatStream(
           }
         },
         onToolStart: (name) => {
+          if (!isLive()) return;
           if (persist) useChatStore.getState().setActiveTool(name);
           else setLocalActiveTool(name);
         },
         onToolEnd: () => {
+          if (!isLive()) return;
           if (persist) useChatStore.getState().setActiveTool(null);
           else setLocalActiveTool(null);
         },
         onDone: () => {
+          if (!isLive()) return;
           if (persist) {
             const state = useChatStore.getState();
             if (state.streamingContent) {
@@ -205,6 +221,7 @@ export function useChatStream(
           }
         },
         onError: (msg) => {
+          if (!isLive()) return;
           console.error("Chat stream error:", msg);
           if (persist) useChatStore.getState().resetStream();
           else {
@@ -216,6 +233,7 @@ export function useChatStream(
         },
       });
 
+      mySse = sse;
       sseRef.current = sse;
       sse.send(content, attachmentIds);
     },
