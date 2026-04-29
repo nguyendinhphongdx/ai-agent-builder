@@ -229,8 +229,10 @@ async def fork_template(
 ) -> tuple[Agent, AgentTemplatePurchase, AgentTemplateVersion]:
     """Fork a published template into the current user's agent list.
 
-    V1 only handles free templates. Paid templates raise — V2 routes them
-    through Stripe before reaching here.
+    Free templates fork unconditionally; paid templates require a prior
+    paid Purchase row (via Stripe Checkout). The Stripe webhook auto-forks
+    on payment, so this path is mainly for "reinstall" — buyer already paid
+    and wants a fresh copy.
     """
     user_id = current_user_id()
 
@@ -239,8 +241,18 @@ async def fork_template(
         raise ValueError("Template not found or not published")
 
     if template.price_cents > 0:
-        # V2 will gate this behind a Stripe payment intent confirmation.
-        raise ValueError("Paid templates require purchase — V2 feature")
+        # Paid template — must have a paid Purchase row already.
+        existing = await db.execute(
+            select(AgentTemplatePurchase).where(
+                AgentTemplatePurchase.buyer_id == user_id,
+                AgentTemplatePurchase.template_id == template.id,
+                AgentTemplatePurchase.status == "paid",
+            ).limit(1)
+        )
+        if existing.scalar_one_or_none() is None:
+            raise ValueError(
+                "Paid template — purchase first via /templates/{id}/purchase"
+            )
 
     # Use the current version (denormalised flag avoids ORDER BY at fork time).
     version_result = await db.execute(
@@ -260,12 +272,14 @@ async def fork_template(
         db, version.snapshot, template_id=template.id, version_id=version.id
     )
 
-    # 2. Audit row — same shape for free and paid
+    # 2. Audit row — for free templates we mint here; for paid the row
+    # already exists (created by checkout flow). Keep semantics uniform:
+    # the row that records *this fork* is always the most recent paid row.
     purchase = AgentTemplatePurchase(
         buyer_id=user_id,
         template_id=template.id,
         version_id=version.id,
-        price_paid_cents=0,
+        price_paid_cents=0 if template.price_cents == 0 else template.price_cents,
         currency=template.currency,
         status="paid",
     )

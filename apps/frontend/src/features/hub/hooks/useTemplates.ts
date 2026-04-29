@@ -124,3 +124,27 @@ export function useDeleteReview(templateId: string) {
     },
   });
 }
+
+/** Buy a paid template — returns Stripe checkout URL; caller redirects browser. */
+export function usePurchaseTemplate() {
+  return useMutation({
+    mutationFn: (templateId: string) => templateService.purchase(templateId),
+    onSuccess: (data) => {
+      // Hard navigation — leaves the SPA scope, so no router.push.
+      window.location.href = data.checkout_url;
+    },
+  });
+}
+
+/** Poll the purchase status from the post-checkout return page. */
+export function usePurchaseStatus(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["purchase-status", sessionId],
+    queryFn: () => templateService.purchaseStatus(sessionId!),
+    enabled: !!sessionId,
+    // Poll while the webhook is still processing — typically resolves
+    // within 1–3 seconds. Stop once we have an agent_id (paid + forked).
+    refetchInterval: (query) =>
+      query.state.data?.agent_id ? false : 1500,
+  });
+}

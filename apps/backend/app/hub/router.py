@@ -37,6 +37,11 @@ from app.hub.reviews import (
     list_reviews,
     upsert_review,
 )
+from app.hub.payment import (
+    create_checkout_session,
+    get_purchase_status,
+    is_stripe_configured,
+)
 
 # Public router — browse + detail. No auth dep at router level.
 public_router = APIRouter(prefix="/templates", tags=["hub"])
@@ -122,6 +127,54 @@ async def fork_endpoint(
         version_id=version.id,
         purchase_id=purchase.id,
     )
+
+
+# ─── Authenticated: paid purchase via Stripe Checkout ────────────────
+
+
+@auth_router.post("/{template_id}/purchase")
+async def purchase_endpoint(
+    template_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a Stripe Checkout Session for a paid template.
+
+    Returns ``{checkout_url}`` — caller redirects the browser to it. The
+    session id is stored on the Purchase row so the webhook can find it
+    when payment completes.
+
+    503 when Stripe isn't configured (lets the FE show a clear message
+    instead of a confusing 500).
+    """
+    if not is_stripe_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Paid templates are not available on this deployment",
+        )
+    try:
+        url, purchase = await create_checkout_session(db, template_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    await db.commit()
+    return {"checkout_url": url, "purchase_id": str(purchase.id)}
+
+
+@auth_router.get("/purchases/{session_id}/status")
+async def purchase_status_endpoint(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Poll endpoint for the FE return-from-Stripe page.
+
+    Returns ``{status: 'pending'|'paid'|'refunded'|'failed', agent_id?: uuid}``
+    once the agent is forked. 404 when the session doesn't belong to the caller.
+    """
+    result = await get_purchase_status(db, session_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    return result
 
 
 # ─── Authenticated: owner edits ───────────────────────────────────────

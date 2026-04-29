@@ -35,6 +35,7 @@ dependencies = [
     "python-pptx>=1.0",
     "beautifulsoup4>=4.12",
     "redis[hiredis]>=5.0",
+    "stripe>=11.0",
 ]
 
 [project.optional-dependencies]

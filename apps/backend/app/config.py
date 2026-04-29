@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     DISPATCHER_URL: str = "http://localhost:3010"  # Docker: http://dispatcher:3010
     DISPATCHER_SECRET: str = ""
 
+    # Code sandbox — direct internal call from backend (not via dispatcher).
+    # SANDBOX_SECRET must match the sandbox service's INTERNAL_TOKEN env.
+    SANDBOX_URL: str = "http://code-sandbox:8000"
+    SANDBOX_SECRET: str = ""
+
     # Redis — used for rate limiting (and future: caching, session store).
     # Empty disables rate limit (dev mode without Redis).
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -85,6 +90,18 @@ class Settings(BaseSettings):
     # Per-IP rate limit on /api/share/* (req/min) — embed widget channel,
     # callers are anonymous browsers so we key on client IP. 0 disables.
     SHARE_RATE_LIMIT_PER_MIN: int = 30
+
+    # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
+    # Empty = paid templates disabled — POST /templates/{id}/purchase
+    # returns 503 instead of erroring deeper into the stack.
+    # STRIPE_WEBHOOK_SECRET must match the endpoint's signing secret in
+    # the Stripe Dashboard (`whsec_...`).
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    # Where Stripe redirects after Checkout. {SESSION_ID} placeholder is
+    # filled by Stripe with the real session id at redirect time.
+    STRIPE_SUCCESS_URL: str = ""  # e.g. https://app.example.com/hub/purchase-complete?session_id={CHECKOUT_SESSION_ID}
+    STRIPE_CANCEL_URL: str = ""   # e.g. https://app.example.com/hub
 
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).

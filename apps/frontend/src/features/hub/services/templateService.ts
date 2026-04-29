@@ -58,4 +58,19 @@ export const templateService = {
 
   deleteReview: (templateId: string) =>
     apiClient.delete(`/templates/${templateId}/reviews/me`),
+
+  // Stripe paid flow (V2)
+  purchase: (templateId: string) =>
+    apiClient
+      .post<{ checkout_url: string; purchase_id: string }>(
+        `/templates/${templateId}/purchase`,
+      )
+      .then((r) => r.data),
+
+  purchaseStatus: (sessionId: string) =>
+    apiClient
+      .get<{ status: string; template_id: string; agent_id: string | null }>(
+        `/templates/purchases/${sessionId}/status`,
+      )
+      .then((r) => r.data),
 };

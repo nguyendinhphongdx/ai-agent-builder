@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useTemplate, useForkTemplate } from "../hooks/useTemplates";
+import {
+  useTemplate,
+  useForkTemplate,
+  usePurchaseTemplate,
+} from "../hooks/useTemplates";
 import { ReviewsSection } from "../components/ReviewsSection";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
@@ -26,6 +30,7 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
   const { data: template, isLoading } = useTemplate(slugOrId);
   const { isAuthenticated } = useAuth();
   const fork = useForkTemplate();
+  const purchase = usePurchaseTemplate();
 
   if (isLoading) {
     return (
@@ -145,27 +150,50 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
               </p>
               {!isFree && (
                 <p className="text-[11px] text-muted-foreground">
-                  Paid templates are V2 — coming soon
+                  Secure checkout via Stripe
                 </p>
               )}
             </div>
 
-            <Button
-              onClick={() => fork.mutate(template.id)}
-              disabled={fork.isPending || !isFree}
-              className="w-full gap-1.5"
-              size="lg"
-            >
-              {fork.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              {fork.isPending ? "Forking…" : isFree ? "Get this agent" : "Buy"}
-            </Button>
+            {isFree ? (
+              <Button
+                onClick={() => fork.mutate(template.id)}
+                disabled={fork.isPending}
+                className="w-full gap-1.5"
+                size="lg"
+              >
+                {fork.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {fork.isPending ? "Forking…" : "Get this agent"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => purchase.mutate(template.id)}
+                disabled={purchase.isPending}
+                className="w-full gap-1.5"
+                size="lg"
+              >
+                {purchase.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {purchase.isPending ? "Redirecting…" : `Buy for ${priceLabel}`}
+              </Button>
+            )}
+            {purchase.isError && (
+              <p className="rounded-md border border-red-500/30 bg-red-500/5 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-300">
+                {(purchase.error as Error)?.message ?? "Checkout failed"}
+              </p>
+            )}
 
             <p className="text-[10px] text-muted-foreground">
-              Forking creates a new agent in your library. You can edit it freely.
+              {isFree
+                ? "Forking creates a new agent in your library. You can edit it freely."
+                : "Pay once, install whenever. Tools are cloned; knowledge bases are empty shells."}
             </p>
 
             <div className="space-y-2 border-t border-border pt-4 text-xs">

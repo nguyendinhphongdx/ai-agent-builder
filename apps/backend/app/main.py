@@ -34,6 +34,7 @@ from app.personal_tokens.router import router as personal_tokens_router
 from app.share.router import router as share_router
 from app.webhooks.router import router as webhooks_router
 from app.hub.router import public_router as hub_public_router, auth_router as hub_auth_router
+from app.hub.webhook_router import router as stripe_webhook_router
 
 
 def create_app() -> FastAPI:
@@ -184,6 +185,10 @@ def create_app() -> FastAPI:
     # include here doesn't affect routing.
     app.include_router(hub_public_router, prefix=settings.API_PREFIX)
     app.include_router(hub_auth_router, prefix=settings.API_PREFIX)
+    # Stripe webhook — public, signature-verified. Mounted at
+    # /api/webhooks/stripe (separate from /api/webhooks/{wf}/... which is
+    # the workflow-trigger webhook with its own URL token scheme).
+    app.include_router(stripe_webhook_router, prefix=settings.API_PREFIX)
 
     # File uploads are handled by the knowledge router (document upload) and
     # the static `/uploads/` mount above. The dedicated upload router was
