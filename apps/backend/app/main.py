@@ -1,11 +1,8 @@
 import logging
 import time
-import uuid
 
-from fastapi import Cookie, Depends, FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logging.basicConfig(
@@ -22,10 +19,8 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 from app.agents.router import router as agents_router
 from app.auth.router import router as auth_router
 from app.auth.oauth_router import router as oauth_router
-from app.auth.service import decode_token
 from app.config import settings
 from app.conversations.router import router as conversations_router
-from app.db.session import get_db
 from app.knowledge.router import router as knowledge_router
 from app.tools.router import router as tools_router
 from app.workflows.router import router as workflows_router
@@ -66,49 +61,96 @@ def create_app() -> FastAPI:
 
     app.add_middleware(LoggingMiddleware)
 
-    # CORS — split by route family:
-    #   /api/external/*  → open to any origin (public API, no cookies)
-    #   everything else  → restricted to the configured frontend origins (cookies)
-    # Starlette's CORSMiddleware doesn't natively scope by path, so we mount it
-    # twice via a tiny dispatcher that picks the right policy per request.
-    class ScopedCORSMiddleware(BaseHTTPMiddleware):
-        """Apply CORS-* response headers based on whether the path is public."""
+    # CSRF guard — for cookie-authenticated mutating requests, require Origin to
+    # match an allow-listed CORS origin. Bearer-token / no-cookie callers are
+    # exempt: they aren't subject to CSRF (no ambient credentials in the browser).
+    _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+    _CSRF_PUBLIC_PREFIXES = (
+        f"{settings.API_PREFIX}/external/",
+        f"{settings.API_PREFIX}/share/",
+        f"{settings.API_PREFIX}/internal/",
+        f"{settings.API_PREFIX}/auth/oauth/",
+    )
 
-        # Both families are origin-less by design: external uses Bearer tokens,
-        # share uses opaque path tokens. Neither relies on cookies, so wildcard
-        # CORS is safe — the embed widget lives on third-party sites.
+    class CSRFOriginMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            if request.method in _MUTATING_METHODS and not request.url.path.startswith(_CSRF_PUBLIC_PREFIXES):
+                # Only enforce when the caller is using cookie auth.
+                if "access_token" in request.cookies or "refresh_token" in request.cookies:
+                    origin = request.headers.get("origin") or request.headers.get("referer")
+                    if origin:
+                        # Compare origin (scheme://host[:port]) prefix against allowlist.
+                        if not any(origin.startswith(o) for o in settings.CORS_ORIGINS):
+                            return JSONResponse(
+                                status_code=403,
+                                content={"detail": "Origin not allowed"},
+                            )
+            return await call_next(request)
+
+    app.add_middleware(CSRFOriginMiddleware)
+
+    # CORS — split by route family. One middleware now handles both regular
+    # responses and OPTIONS preflight, so we don't stack Starlette's built-in
+    # CORSMiddleware on top (the two used to fight over the same headers).
+    #   /api/external/*  → open to any origin (public API, no cookies)
+    #   /api/share/*     → open to any origin (path-token auth, no cookies)
+    #   everything else  → restricted to settings.CORS_ORIGINS (cookies)
+    class ScopedCORSMiddleware(BaseHTTPMiddleware):
+        """Apply CORS-* response headers based on whether the path is public.
+
+        Single source of truth for CORS: also short-circuits OPTIONS preflight
+        so Starlette doesn't reach a route handler that may not allow OPTIONS.
+        """
+
         PUBLIC_PREFIXES = (
             f"{settings.API_PREFIX}/external/",
             f"{settings.API_PREFIX}/share/",
         )
 
         async def dispatch(self, request: Request, call_next):
-            response = await call_next(request)
             origin = request.headers.get("origin")
-            if not origin:
+            is_public = request.url.path.startswith(self.PUBLIC_PREFIXES)
+            is_preflight = (
+                request.method == "OPTIONS"
+                and "access-control-request-method" in request.headers
+            )
+
+            if is_preflight and origin:
+                response = Response(status_code=204)
+                self._apply_headers(response, origin, is_public, request)
                 return response
 
-            is_public = request.url.path.startswith(self.PUBLIC_PREFIXES)
-            if is_public:
-                # Public API — bearer/path-token auth, no cookies; any origin.
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                response.headers["Access-Control-Allow-Methods"] = "*"
-                response.headers["Access-Control-Allow-Headers"] = "*"
-            elif origin in settings.CORS_ORIGINS:
-                # Browser app — cookie-auth, must echo origin and allow creds.
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-                response.headers["Vary"] = "Origin"
+            response = await call_next(request)
+            if origin:
+                self._apply_headers(response, origin, is_public, request)
             return response
 
-    # Built-in CORS for the cookie-auth app routes (handles preflight properly).
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+        @staticmethod
+        def _apply_headers(
+            response: Response,
+            origin: str,
+            is_public: bool,
+            request: Request,
+        ) -> None:
+            requested_headers = request.headers.get(
+                "access-control-request-headers", "*"
+            )
+            requested_method = request.headers.get(
+                "access-control-request-method", "*"
+            )
+            if is_public:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                response.headers["Access-Control-Allow-Methods"] = requested_method
+                response.headers["Access-Control-Allow-Headers"] = requested_headers
+                response.headers["Access-Control-Max-Age"] = "86400"
+            elif origin in settings.CORS_ORIGINS:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Access-Control-Allow-Methods"] = requested_method
+                response.headers["Access-Control-Allow-Headers"] = requested_headers
+                response.headers["Access-Control-Max-Age"] = "86400"
+                response.headers["Vary"] = "Origin"
+
     app.add_middleware(ScopedCORSMiddleware)
 
     # Serve uploaded files (avatars, documents)
@@ -136,8 +178,9 @@ def create_app() -> FastAPI:
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
 
-    from app.uploads.router import router as upload_router
-    app.include_router(upload_router, prefix=settings.API_PREFIX)
+    # File uploads are handled by the knowledge router (document upload) and
+    # the static `/uploads/` mount above. The dedicated upload router was
+    # never written — re-add this import only if/when `app/uploads/` exists.
 
     from app.notifications.router import router as notifications_router
     app.include_router(notifications_router, prefix=settings.API_PREFIX)
@@ -149,11 +192,13 @@ def create_app() -> FastAPI:
         logger.error(f"{request.method} {request.url.path} → ValidationError: {exc.errors()}")
         return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
-    # Global exception handler (500)
+    # Global exception handler (500). Never echo raw exception text to clients —
+    # provider/SDK errors can carry API keys, SQL fragments, or filesystem paths.
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         logger.exception(f"{request.method} {request.url.path} → {type(exc).__name__}: {exc}")
-        return JSONResponse(status_code=500, content={"detail": str(exc)})
+        detail = f"{type(exc).__name__}: {exc}" if settings.DEBUG else "Internal server error"
+        return JSONResponse(status_code=500, content={"detail": detail})
 
     # Endpoint kiểm tra trạng thái server
     @app.get("/api/health")

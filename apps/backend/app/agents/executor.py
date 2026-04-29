@@ -169,7 +169,10 @@ async def execute_agent_stream(
         kb_context = await _auto_retrieve_context(agent, messages, db)
 
     system_prompt = "Your name is " + agent.name + ". " if agent.name else ""
-    system_prompt += _build_system_prompt(agent.system_prompt, kb_context)
+    # _build_system_prompt returns None when both base prompt and KB context are
+    # empty (KB-only mode with no retrieved context). Coerce to "" to avoid
+    # `str + None` TypeError.
+    system_prompt += _build_system_prompt(agent.system_prompt, kb_context) or ""
 
     if tools:
         # Use LangGraph ReAct agent with tools
