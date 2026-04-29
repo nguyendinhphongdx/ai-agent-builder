@@ -71,6 +71,11 @@ class TemplatePublishRequest(BaseModel):
     cover_image_url: str | None = None
     price_cents: int = Field(default=0, ge=0)
     currency: str = Field(default="USD", min_length=3, max_length=3)
+    # When true, publishing copies the source agent's KB documents +
+    # chunks (content + embedding) into a frozen per-version dataset.
+    # Requires explicit author consent — UI presents a "this is permanent"
+    # warning before flipping this on. Subject to a 50 MiB content cap.
+    include_kb_content: bool = False
 
 
 class TemplateUpdateRequest(BaseModel):
@@ -117,6 +122,11 @@ class TemplateDetail(TemplateSummary):
     current_version: str | None = None
     created_at: datetime
     updated_at: datetime
+    # Surfaced so the buyer-side detail UI can warn "ships with N
+    # documents" before fork. Sourced from agent_templates.include_kb_content.
+    include_kb_content: bool = False
+    bundled_kb_doc_count: int = 0
+    bundled_kb_total_bytes: int = 0
 
 
 class TemplateVersionResponse(BaseModel):

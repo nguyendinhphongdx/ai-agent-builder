@@ -8,6 +8,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -101,6 +102,24 @@ async def detail_endpoint(
 
     # Pick current version for snapshot preview.
     current = next((v for v in template.versions if v.is_current), None)
+
+    # Bundled-KB summary stats — only computed when the author opted in,
+    # so the detail row stays cheap for free / shell-only templates.
+    bundled_doc_count = 0
+    bundled_total_bytes = 0
+    if template.include_kb_content and current is not None:
+        from sqlalchemy import func as sql_func
+
+        from app.models.agent_template_kb import AgentTemplateKbDocument
+
+        row = await db.execute(
+            select(
+                sql_func.count(AgentTemplateKbDocument.id),
+                sql_func.coalesce(sql_func.sum(AgentTemplateKbDocument.size_bytes), 0),
+            ).where(AgentTemplateKbDocument.version_id == current.id)
+        )
+        bundled_doc_count, bundled_total_bytes = row.one()
+
     return TemplateDetail(
         **TemplateSummary.model_validate(template).model_dump(),
         user_id=template.user_id,
@@ -109,6 +128,9 @@ async def detail_endpoint(
         current_version=current.version if current else None,
         created_at=template.created_at,
         updated_at=template.updated_at,
+        include_kb_content=template.include_kb_content,
+        bundled_kb_doc_count=int(bundled_doc_count or 0),
+        bundled_kb_total_bytes=int(bundled_total_bytes or 0),
     )
 
 

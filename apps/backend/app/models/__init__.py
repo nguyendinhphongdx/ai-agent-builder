@@ -1,6 +1,7 @@
 from app.models.admin_action import AdminAction
 from app.models.agent import Agent, AgentKnowledgeBase, AgentTool
 from app.models.agent_template import AgentTemplate
+from app.models.agent_template_kb import AgentTemplateKbChunk, AgentTemplateKbDocument
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_review import AgentTemplateReview
 from app.models.agent_template_version import AgentTemplateVersion
@@ -32,6 +33,8 @@ __all__ = [
     "AgentTemplateVersion",
     "AgentTemplatePurchase",
     "AgentTemplateReview",
+    "AgentTemplateKbDocument",
+    "AgentTemplateKbChunk",
     "AdminAction",
     "Tool",
     "KnowledgeBase",

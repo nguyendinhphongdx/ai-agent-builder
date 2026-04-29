@@ -52,6 +52,14 @@ class AgentTemplate(Base):
     # draft | published | suspended | archived
     status: Mapped[str] = mapped_column(String(20), default="draft", index=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When true, publishing this template clones author's KB documents +
+    # chunks (content + embedding) into a frozen per-version dataset so
+    # buyers fork with the knowledge content already loaded. Must be
+    # accompanied by an "I understand this is permanent" consent at the
+    # publish step — see `hub.service.publish_agent`.
+    include_kb_content: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     # Aggregates — denormalised, refreshed on fork / review write.
     fork_count: Mapped[int] = mapped_column(Integer, default=0)

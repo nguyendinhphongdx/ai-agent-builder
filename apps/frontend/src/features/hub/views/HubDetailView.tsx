@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BookOpen,
   Bot,
   CheckCircle2,
   Database,
@@ -120,6 +121,14 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
 
           {/* What's included */}
           {template.snapshot && <SnapshotPreview snapshot={template.snapshot} />}
+
+          {/* Bundled KB content notice — author opted to ship docs with this template */}
+          {template.include_kb_content && template.bundled_kb_doc_count > 0 && (
+            <BundledKbNotice
+              docCount={template.bundled_kb_doc_count}
+              totalBytes={template.bundled_kb_total_bytes}
+            />
+          )}
 
           {/* Tags */}
           {template.tags.length > 0 && (
@@ -267,6 +276,34 @@ export function HubDetailView({ slugOrId }: HubDetailViewProps) {
         </aside>
       </div>
     </div>
+  );
+}
+
+function BundledKbNotice({
+  docCount,
+  totalBytes,
+}: {
+  docCount: number;
+  totalBytes: number;
+}) {
+  const sizeMb = (totalBytes / (1024 * 1024)).toFixed(1);
+  return (
+    <section className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
+      <div className="flex items-start gap-3">
+        <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
+        <div className="min-w-0 flex-1 text-xs">
+          <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+            Ships with knowledge content
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {docCount} document{docCount === 1 ? "" : "s"} ({sizeMb} MB) will
+            copy into your KB on fork — chat over it immediately, no upload
+            needed. Retrieval works best when your AI credential matches the
+            template&apos;s embedding provider.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 

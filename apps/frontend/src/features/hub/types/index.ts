@@ -23,6 +23,11 @@ export interface TemplateDetail extends TemplateSummary {
   current_version: string | null;
   created_at: string;
   updated_at: string;
+  // Bundled KB content — only populated when the author opted in at publish.
+  // Buyer-side detail UI surfaces "ships with N documents (X MB)" before fork.
+  include_kb_content: boolean;
+  bundled_kb_doc_count: number;
+  bundled_kb_total_bytes: number;
 }
 
 export interface TemplateSnapshot {
@@ -83,6 +88,7 @@ export interface PublishInput {
   cover_image_url?: string;
   price_cents?: number;
   currency?: string;
+  include_kb_content?: boolean;
 }
 
 export interface UpdateTemplateInput {

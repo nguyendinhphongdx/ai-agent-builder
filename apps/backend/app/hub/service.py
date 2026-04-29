@@ -98,6 +98,7 @@ async def publish_agent(
         price_cents=body.price_cents,
         currency=body.currency,
         status="published",
+        include_kb_content=bool(getattr(body, "include_kb_content", False)),
         published_at=func.now(),
     )
     db.add(template)
@@ -112,6 +113,21 @@ async def publish_agent(
     )
     db.add(version)
     await db.flush()
+
+    # If author opted into shipping KB content, freeze documents +
+    # chunks under this version. ValueError surfaces as a 400 from the
+    # router (oversize / over-cap).
+    if template.include_kb_content:
+        from app.hub.snapshot import freeze_kb_content_for_version
+
+        try:
+            await freeze_kb_content_for_version(db, agent, version_id=version.id)
+        except ValueError:
+            # Roll the partial template + version back so the author can
+            # retry at a smaller size.
+            await db.rollback()
+            raise
+
     await db.refresh(template)
     return template
 

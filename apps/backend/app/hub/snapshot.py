@@ -26,8 +26,16 @@ from app.hub.schemas import (
     ToolSnapshot,
 )
 from app.models.agent import Agent, AgentKnowledgeBase, AgentTool
+from app.models.agent_template_kb import AgentTemplateKbChunk, AgentTemplateKbDocument
+from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 from app.models.tool import Tool
+
+# Soft cap on bundled KB content — author + buyer + platform don't pay
+# unbounded storage / replication costs. 50 MiB ≈ a small book / 100 PDF
+# pages. Surfaced in the publish UI so authors know before they pick.
+MAX_TEMPLATE_KB_BYTES = 50 * 1024 * 1024
 
 # ─── Build snapshot from a live agent ─────────────────────────────────
 
@@ -97,6 +105,72 @@ def _detect_required_credentials(agent: Agent) -> list[str]:
     return [agent.model_id.split("/", 1)[0]]
 
 
+# ─── Freeze KB content into per-version frozen tables ─────────────────
+
+
+async def freeze_kb_content_for_version(
+    db: AsyncSession,
+    agent: Agent,
+    *,
+    version_id: uuid.UUID,
+) -> dict[str, int]:
+    """Copy author's KB documents + chunks into the frozen template tables.
+
+    Caller must have committed the AgentTemplateVersion row first
+    (we attach by version_id). Returns ``{doc_count, chunk_count, bytes}``.
+    Raises ``ValueError`` when total content exceeds
+    ``MAX_TEMPLATE_KB_BYTES`` — caller rolls back.
+    """
+    total_bytes = 0
+    doc_count = 0
+    chunk_count = 0
+
+    for kb_index, kb in enumerate(agent.knowledge_bases or []):
+        result = await db.execute(
+            select(Document)
+            .options(selectinload(Document.chunks))
+            .where(Document.knowledge_base_id == kb.id)
+            .order_by(Document.created_at)
+        )
+        for doc in result.scalars():
+            doc_bytes = sum(len((c.content or "").encode("utf-8")) for c in doc.chunks)
+            if total_bytes + doc_bytes > MAX_TEMPLATE_KB_BYTES:
+                raise ValueError(
+                    f"Bundled KB content exceeds "
+                    f"{MAX_TEMPLATE_KB_BYTES // (1024 * 1024)} MiB cap — "
+                    f"trim the KB or publish without `include_kb_content`."
+                )
+            total_bytes += doc_bytes
+
+            template_doc = AgentTemplateKbDocument(
+                version_id=version_id,
+                kb_snapshot_index=kb_index,
+                filename=doc.filename or "document",
+                mime_type=doc.mime_type,
+                size_bytes=doc.file_size or 0,
+            )
+            db.add(template_doc)
+            await db.flush()
+            doc_count += 1
+
+            for chunk in doc.chunks:
+                db.add(
+                    AgentTemplateKbChunk(
+                        template_document_id=template_doc.id,
+                        chunk_index=chunk.chunk_index,
+                        content=chunk.content,
+                        token_count=chunk.token_count,
+                        embedding=chunk.embedding,
+                        data=chunk.data or {},
+                    )
+                )
+                chunk_count += 1
+
+        await db.flush()
+
+    return {"doc_count": doc_count, "chunk_count": chunk_count, "bytes": total_bytes}
+
+
 # ─── Restore snapshot into a new agent (fork) ─────────────────────────
 
 
@@ -153,8 +227,10 @@ async def fork_snapshot_into_agent(
         await db.flush()
         db.add(AgentTool(agent_id=agent.id, tool_id=tool.id))
 
-    # 3. KBs — empty shells; buyer uploads their own documents post-fork
-    for kb_snap in snap.knowledge_bases:
+    # 3. KBs — shell + (optional) frozen content cloned from the version.
+    # Map snapshot-index → newly created KB so docs can attach below.
+    kb_by_index: dict[int, KnowledgeBase] = {}
+    for kb_index, kb_snap in enumerate(snap.knowledge_bases):
         kb = KnowledgeBase(
             user_id=user_id,
             name=kb_snap.name,
@@ -169,8 +245,54 @@ async def fork_snapshot_into_agent(
         db.add(kb)
         await db.flush()
         db.add(AgentKnowledgeBase(agent_id=agent.id, knowledge_base_id=kb.id))
+        kb_by_index[kb_index] = kb
 
-    await db.flush()
+    # Hydrate frozen documents + chunks (only present when the template
+    # was published with `include_kb_content=True`). Cheap when the table
+    # is empty — single index lookup.
+    if kb_by_index:
+        result = await db.execute(
+            select(AgentTemplateKbDocument)
+            .options(selectinload(AgentTemplateKbDocument.chunks))
+            .where(AgentTemplateKbDocument.version_id == version_id)
+            .order_by(
+                AgentTemplateKbDocument.kb_snapshot_index,
+                AgentTemplateKbDocument.created_at,
+            )
+        )
+        for tdoc in result.scalars():
+            target_kb = kb_by_index.get(tdoc.kb_snapshot_index)
+            if target_kb is None:
+                continue  # snapshot/version drift — skip orphan docs
+            doc = Document(
+                knowledge_base_id=target_kb.id,
+                filename=tdoc.filename,
+                # Frozen content has no underlying file on this user's storage.
+                # Mark with a sentinel path; UI hides download for `template:` docs.
+                file_path=f"template:{tdoc.id}",
+                file_type=(tdoc.filename.rsplit(".", 1)[-1] if "." in tdoc.filename else "txt"),
+                file_size=tdoc.size_bytes or 0,
+                mime_type=tdoc.mime_type,
+                chunk_count=len(tdoc.chunks),
+                status="ready",
+                processing_phase="ready",
+            )
+            db.add(doc)
+            await db.flush()
+            for tc in tdoc.chunks:
+                db.add(
+                    DocumentChunk(
+                        document_id=doc.id,
+                        knowledge_base_id=target_kb.id,
+                        chunk_index=tc.chunk_index,
+                        content=tc.content,
+                        token_count=tc.token_count,
+                        embedding=tc.embedding,
+                        data=tc.data or {},
+                    )
+                )
+        await db.flush()
+
     await db.refresh(agent)
     await db.refresh(agent, ["tools", "knowledge_bases"])
     return agent

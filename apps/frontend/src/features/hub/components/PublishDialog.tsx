@@ -3,7 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ExternalLink, Loader2, Send, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  BookOpen,
+  ExternalLink,
+  Loader2,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +56,10 @@ export function PublishDialog({
   const [pricing, setPricing] = useState<Pricing>("free");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [priceInput, setPriceInput] = useState("9.99");
+  // Bundled KB content — defaults off. Author must explicitly toggle on AND
+  // tick the consent checkbox before submit accepts it.
+  const [includeKb, setIncludeKb] = useState(false);
+  const [kbConsent, setKbConsent] = useState(false);
 
   const provider = providerForCurrency(currency);
   // Stripe authors must complete Connect onboarding before publishing paid.
@@ -65,9 +77,14 @@ export function PublishDialog({
     return currency === "VND" ? Math.round(n) : Math.round(n * 100);
   })();
 
+  // Bundled KB requires explicit consent — author can flip the toggle but
+  // submit stays disabled until they tick the "I understand" checkbox.
+  const kbReady = !includeKb || kbConsent;
+
   const canSubmit =
     !!title.trim() &&
     !publish.isPending &&
+    kbReady &&
     (pricing === "free" || (priceCents > 0 && (provider !== "stripe" || payoutsReady)));
 
   const handleSubmit = () => {
@@ -88,6 +105,7 @@ export function PublishDialog({
           tags,
           price_cents: priceCents,
           currency,
+          include_kb_content: includeKb,
         },
       },
       {
@@ -242,6 +260,17 @@ export function PublishDialog({
 
           {/* Connect onboarding banner — Stripe only */}
           {needsOnboarding && <PayoutOnboardingBanner connected={!!payoutStatus?.connected} />}
+
+          {/* Knowledge content opt-in */}
+          <KbContentConsent
+            includeKb={includeKb}
+            onToggle={(v) => {
+              setIncludeKb(v);
+              if (!v) setKbConsent(false);
+            }}
+            consent={kbConsent}
+            onConsentChange={setKbConsent}
+          />
         </div>
 
         <DialogFooter>
@@ -326,6 +355,75 @@ function PricingPill({
       <span className="text-xs font-medium">{label}</span>
       <span className="text-[10px] text-muted-foreground/80">{hint}</span>
     </button>
+  );
+}
+
+function KbContentConsent({
+  includeKb,
+  onToggle,
+  consent,
+  onConsentChange,
+}: {
+  includeKb: boolean;
+  onToggle: (v: boolean) => void;
+  consent: boolean;
+  onConsentChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="flex items-start gap-2.5 rounded-md border border-border bg-muted/20 p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-3.5 w-3.5 cursor-pointer"
+          checked={includeKb}
+          onChange={(e) => onToggle(e.target.checked)}
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <BookOpen className="h-3 w-3" />
+            Include knowledge content (≤ 50 MiB)
+          </div>
+          <p className="mt-0.5 text-[10px] text-muted-foreground/80">
+            Buyers get your KB documents pre-loaded. Without this, KBs fork as
+            empty shells. Use only when the docs ARE the product (FAQ, manual,
+            curated dataset).
+          </p>
+        </div>
+      </label>
+
+      {includeKb && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-200">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">This is permanent.</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-amber-800/90 dark:text-amber-200/90">
+                <li>Every fork keeps a copy of every document.</li>
+                <li>You cannot recall the content from forks already created.</li>
+                <li>
+                  Don&apos;t include private, copyrighted, or licensed material —
+                  copyright clearance is your responsibility.
+                </li>
+                <li>
+                  Total content must fit under 50 MiB; oversize publishes are rejected.
+                </li>
+              </ul>
+              <label className="mt-2 flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer"
+                  checked={consent}
+                  onChange={(e) => onConsentChange(e.target.checked)}
+                />
+                <span className="text-[11px] font-medium">
+                  I understand. Ship the documents to every forker.
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
