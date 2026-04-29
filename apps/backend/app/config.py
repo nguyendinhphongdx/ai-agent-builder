@@ -113,6 +113,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # ── Observability ──────────────────────────────────────────────────
+    # "text" = human-readable (dev default). "json" = single-line JSON
+    # per log record, ready for Loki/Datadog/CloudWatch ingestion.
+    LOG_FORMAT: str = "text"
     # Empty SENTRY_DSN disables the SDK entirely — local dev, tests, CI
     # never touch the Sentry network.
     SENTRY_DSN: str = ""

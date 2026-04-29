@@ -18,9 +18,15 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Init Sentry before app construction so its integrations can hook the
 # Starlette ASGI app + asyncio event loop. No-op when SENTRY_DSN is unset.
-from app.observability import init_sentry  # noqa: E402
+from app.config import settings as _settings  # noqa: E402
+from app.observability import init_sentry, install_json_formatter  # noqa: E402
 
 init_sentry()
+
+# Switch root logger handlers to JSON formatting in production. Done after
+# basicConfig so we replace the freshly-installed StreamHandler's formatter.
+if _settings.LOG_FORMAT == "json":
+    install_json_formatter()
 
 from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
@@ -53,23 +59,34 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
-    # Request/Response logging middleware
-    # Paths to skip logging (static files)
-    _SILENT_PREFIXES = ("/uploads/",)
+    # Request id + structured access log. Order matters: RequestId runs first
+    # so the access log line (and any deeper logger.* calls) carries the id.
+    from app.observability import (
+        RequestIdMiddleware,
+        StructuredAccessLogMiddleware,
+    )
 
-    class LoggingMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: Request, call_next):
-            path = request.url.path
-            if path.startswith(_SILENT_PREFIXES):
-                return await call_next(request)
-            start = time.time()
-            logger.info(f"→ {request.method} {path}")
-            response = await call_next(request)
-            ms = int((time.time() - start) * 1000)
-            logger.info(f"← {request.method} {path} {response.status_code} ({ms}ms)")
-            return response
+    if settings.LOG_FORMAT == "json":
+        app.add_middleware(StructuredAccessLogMiddleware)
+        app.add_middleware(RequestIdMiddleware)
+    else:
+        # Dev: keep the human-readable text logger.
+        _SILENT_PREFIXES = ("/uploads/", "/healthz", "/readyz")
 
-    app.add_middleware(LoggingMiddleware)
+        class LoggingMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next):
+                path = request.url.path
+                if path.startswith(_SILENT_PREFIXES):
+                    return await call_next(request)
+                start = time.time()
+                logger.info(f"→ {request.method} {path}")
+                response = await call_next(request)
+                ms = int((time.time() - start) * 1000)
+                logger.info(f"← {request.method} {path} {response.status_code} ({ms}ms)")
+                return response
+
+        app.add_middleware(LoggingMiddleware)
+        app.add_middleware(RequestIdMiddleware)
 
     # CSRF guard — for cookie-authenticated mutating requests, require Origin to
     # match an allow-listed CORS origin. Bearer-token / no-cookie callers are
