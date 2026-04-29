@@ -3,6 +3,11 @@
 MoMo's IPN is a JSON POST with a `signature` field; we verify it and
 dispatch to the same fork-on-paid handler the redirect-side polling
 relies on. MoMo retries non-2xx like Stripe does.
+
+Per-author MoMo connect: when an author has connected their own MoMo
+merchant account, the IPN comes signed with *their* secret. We resolve
+the right secret from the Purchase row before verifying, falling back
+to platform creds when the author hasn't connected.
 """
 from __future__ import annotations
 
@@ -11,8 +16,14 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app.config import settings
 from app.db.session import async_session_factory
-from app.payments.providers.momo import MoMoProvider, handle_ipn, verify_ipn_signature
+from app.payments.providers.momo import (
+    MoMoProvider,
+    handle_ipn,
+    resolve_ipn_credentials,
+    verify_ipn_signature,
+)
 
 logger = logging.getLogger("agentforge")
 
@@ -21,7 +32,15 @@ router = APIRouter(prefix="/webhooks/momo", tags=["webhooks"])
 
 @router.post("")
 async def momo_ipn(request: Request):
-    if not MoMoProvider.is_configured():
+    # Allow either platform OR per-author Connect to keep this endpoint
+    # alive — without per-author Connect we still need platform creds,
+    # but if at least one author has connected we should accept their
+    # IPN even when platform creds are blank.
+    if not (
+        MoMoProvider.is_configured()
+        or (settings.MOMO_ACCESS_KEY or settings.MOMO_SECRET_KEY)
+    ):
+        # Honest 404 when nothing is configured at all.
         raise HTTPException(status_code=404, detail="MoMo webhook not configured")
 
     try:
@@ -32,16 +51,24 @@ async def momo_ipn(request: Request):
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Expected JSON object")
 
-    if not verify_ipn_signature(payload):
-        logger.warning(f"momo ipn: bad signature for order {payload.get('orderId')}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
-
-    logger.info(
-        f"momo ipn: order={payload.get('orderId')} "
-        f"resultCode={payload.get('resultCode')}"
-    )
-
     async with async_session_factory() as db:
+        creds = await resolve_ipn_credentials(db, payload)
+        if creds is None:
+            logger.warning(
+                f"momo ipn: no credentials available for order {payload.get('orderId')}"
+            )
+            raise HTTPException(status_code=400, detail="No credentials configured")
+
+        access_key, secret_key = creds
+        if not verify_ipn_signature(payload, access_key, secret_key):
+            logger.warning(f"momo ipn: bad signature for order {payload.get('orderId')}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+
+        logger.info(
+            f"momo ipn: order={payload.get('orderId')} "
+            f"resultCode={payload.get('resultCode')}"
+        )
+
         try:
             await handle_ipn(db, payload)
             await db.commit()

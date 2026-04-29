@@ -11,6 +11,7 @@ import {
   SettingsPageHeader,
   SettingsStack,
 } from "@/features/settings/components/SettingsPrimitives";
+import { MomoConnectSection } from "../components/MomoConnectSection";
 import { PayoutsSection } from "../components/PayoutsSection";
 import { usePayoutHistory, usePayoutSummary } from "../hooks/usePayouts";
 import type { HistoryParams } from "../services/payoutsService";
@@ -49,11 +50,12 @@ export function PayoutHistoryView() {
     <div>
       <SettingsPageHeader
         title="Author Payouts"
-        description="Connect a Stripe payout account to receive USD/EUR/GBP sales. VND (MoMo) sales are settled by the platform out-of-band — net equals gross from your side."
+        description="Connect Stripe (USD/EUR/GBP) and/or MoMo Business (VND) so sale proceeds settle directly to you. Without a connection, sales fall back to platform-collects (we settle you manually)."
       />
 
       <SettingsStack>
         <PayoutsSection />
+        <MomoConnectSection />
 
         {/* Summary by currency */}
         <SettingsCard

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import TIMESTAMP, Boolean, Integer, String
+from sqlalchemy import TIMESTAMP, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -42,6 +42,15 @@ class User(Base, UUIDMixin, TimestampMixin):
     stripe_payouts_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
     )
+
+    # ── MoMo Business — per-author merchant credentials ─────────────────
+    # Authors register with MoMo Business out-of-band (Vietnamese business
+    # registration required) and paste the resulting trio into Settings.
+    # NULL = not connected; VND checkout falls back to platform-collects
+    # using settings.MOMO_*. Secret values encrypted via app.security.crypto.
+    momo_partner_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    momo_access_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    momo_secret_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Quan hệ 1-N: user sở hữu nhiều agents, tools, KBs, conversations, API keys
     agents: Mapped[list["Agent"]] = relationship(back_populates="user", cascade="all, delete-orphan")

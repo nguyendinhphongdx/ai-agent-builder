@@ -5,6 +5,14 @@ export interface PayoutStatus {
   charges_enabled: boolean;
   payouts_enabled: boolean;
   account_id: string | null;
+  momo_connected: boolean;
+  momo_partner_code: string | null;
+}
+
+export interface MoMoConnectInput {
+  partner_code: string;
+  access_key: string;
+  secret_key: string;
 }
 
 export interface PayoutHistoryItem {
@@ -81,4 +89,15 @@ export const payoutsService = {
 
   summary: () =>
     apiClient.get<PayoutSummary>("/me/payouts/summary").then((r) => r.data),
+
+  connectMomo: (data: MoMoConnectInput) =>
+    apiClient
+      .patch<{ connected: true; partner_code: string; access_key_masked: string }>(
+        "/me/payouts/momo",
+        data,
+      )
+      .then((r) => r.data),
+
+  disconnectMomo: () =>
+    apiClient.delete<void>("/me/payouts/momo").then((r) => r.data),
 };

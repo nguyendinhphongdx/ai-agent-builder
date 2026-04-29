@@ -1,12 +1,21 @@
-"""Author payout management — Stripe Connect onboarding + payment history."""
+"""Author payout management — Stripe Connect + MoMo connect + payment history."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.payouts import service
+
+
+class MoMoConnectRequest(BaseModel):
+    """Body for ``PATCH /me/payouts/momo`` — author's MoMo Business creds."""
+
+    partner_code: str = Field(min_length=1, max_length=64)
+    access_key: str = Field(min_length=1, max_length=128)
+    secret_key: str = Field(min_length=1, max_length=256)
 
 router = APIRouter(
     prefix="/me/payouts",
@@ -80,3 +89,36 @@ async def history_endpoint(
 async def summary_endpoint(db: AsyncSession = Depends(get_db)) -> dict:
     """Monthly + total revenue aggregates for the current user."""
     return await service.get_summary(db)
+
+
+@router.patch("/momo", response_model=dict)
+async def connect_momo_endpoint(
+    body: MoMoConnectRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Save author's MoMo Business merchant credentials.
+
+    The author registers with MoMo Business out-of-band first
+    (Vietnamese business documents required); this endpoint just
+    encrypts + stores the resulting ``(partnerCode, accessKey, secretKey)``
+    so VND checkouts on their templates route to *their* MoMo balance.
+    """
+    try:
+        result = await service.connect_momo(
+            db,
+            partner_code=body.partner_code,
+            access_key=body.access_key,
+            secret_key=body.secret_key,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
+    return result
+
+
+@router.delete("/momo", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_momo_endpoint(db: AsyncSession = Depends(get_db)):
+    """Forget the author's MoMo credentials. Future VND checkouts fall
+    back to platform-collects (manual settlement)."""
+    await service.disconnect_momo(db)
+    await db.commit()

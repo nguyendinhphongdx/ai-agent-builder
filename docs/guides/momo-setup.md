@@ -181,28 +181,63 @@ balance ledger should subtract the refunded amount accordingly.
 
 ---
 
-## 7. Future — per-author MoMo connect
+## 7. Per-author MoMo connect (optional)
 
-If you want each author to receive payments directly to *their* MoMo
-merchant balance (no platform-collects step), the architecture is:
+Authors can opt in to receiving VND sales **directly into their own
+MoMo merchant balance** instead of through the platform-collects model.
 
-1. **Author registers separately** with MoMo Business — out-of-band
-   process, on the author's side. MoMo issues them their own
-   `partnerCode/accessKey/secretKey`.
-2. **Settings UI captures the credentials.** Add a "Connect MoMo" form
-   on `/settings/payouts` next to Stripe. Encrypt with the same Fernet
-   helper that encrypts AI credentials and store on the User row (or a
-   separate `payment_accounts` table).
-3. **Checkout uses the author's credentials.** `MoMoProvider.create_checkout`
-   reads from `template.author.momo_*` instead of the platform-level
-   `settings.MOMO_*`. Platform fee comes via reduce-from-display: we
-   calculate fees and ask the author to remit them out-of-band, since
-   MoMo has no `application_fee` primitive equivalent.
+How it works
+------------
 
-This is roughly a 2-3 hour lift but **gates publishing on the author
-having registered with MoMo Business themselves** — a much higher
-friction point than connecting a Stripe Express account. For most
-launches the platform-collects model is the right default.
+1. **Author registers separately** with MoMo Business at
+   [business.momo.vn](https://business.momo.vn). Vietnamese business
+   documents required; approval takes a few business days. MoMo issues
+   their own `partnerCode` / `accessKey` / `secretKey`.
+2. **Author pastes the trio** at *Settings → Author Payouts → MoMo*.
+   The secret values are encrypted at rest with Fernet (same helper
+   that protects AI provider keys, in `app.security.crypto`).
+3. **Future VND checkouts on their templates** use the author's
+   credentials. `MoMoProvider.create_checkout` looks up the template's
+   author and routes to *their* MoMo balance via
+   `partner_code/access_key/secret_key` from the User row. IPN signature
+   verification picks up the author's secret automatically (the webhook
+   resolves credentials from the orderId → Purchase → template author
+   chain before checking the HMAC).
+4. **Refunds go through the same path** — `MoMoProvider.refund` reads
+   the author's creds from the Purchase's template, so we refund from
+   the merchant that originally received the payment.
+
+Endpoints
+---------
+
+```
+PATCH  /api/me/payouts/momo    body: {partner_code, access_key, secret_key}
+DELETE /api/me/payouts/momo    forget the credentials → fall back to platform-collects
+GET    /api/me/payouts/status  includes momo_connected + momo_partner_code
+```
+
+Operational notes
+-----------------
+
+- **Platform fee handling**: MoMo has no `application_fee` equivalent
+  on captureWallet. Per-author Connect means the platform isn't on the
+  charge at all — the platform fee is recognised in our books only,
+  via the per-purchase math in `payouts.service._platform_fee_cents`.
+  Authors are expected to remit our fee separately (out-of-band) per
+  the marketplace agreement; that workflow is your problem, not the
+  gateway's.
+- **No validation round-trip on save**: MoMo doesn't expose a "test
+  these credentials" endpoint. We accept whatever the author pastes;
+  the first real checkout call surfaces a `MoMo create failed: code=…`
+  if the trio is wrong, and the author can re-paste in Settings.
+- **Disconnect is instant**: clicking "Disconnect" wipes the three
+  fields from the User row. Subsequent checkouts on that author's
+  templates fall back to platform-collects automatically. No drop in
+  service.
+- **Mixed authors are supported**: some templates use per-author
+  connect, others (older or owners-without-MoMo) use platform-collects.
+  Each Purchase row remembers which path it took via `provider='momo'`
+  and the `provider_transaction_id` is the merchant-specific txn id.
 
 ---
 

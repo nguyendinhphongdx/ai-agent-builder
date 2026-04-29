@@ -26,6 +26,7 @@ from app.models.agent_template import AgentTemplate
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.user import User
 from app.payments.providers.stripe import _stripe, is_stripe_configured
+from app.security.crypto import encrypt_secret, mask_secret
 
 logger = logging.getLogger("agentforge")
 
@@ -112,19 +113,66 @@ async def get_status(db: AsyncSession) -> dict[str, Any]:
     truly nothing is cached yet we fall back to a Stripe round-trip.
     """
     user = await _get_user_strict(db)
+    momo_connected = bool(
+        user.momo_partner_code and user.momo_access_key_enc and user.momo_secret_key_enc
+    )
     if not user.stripe_account_id:
         return {
             "connected": False,
             "charges_enabled": False,
             "payouts_enabled": False,
             "account_id": None,
+            "momo_connected": momo_connected,
+            "momo_partner_code": user.momo_partner_code,
         }
     return {
         "connected": True,
         "charges_enabled": user.stripe_charges_enabled,
         "payouts_enabled": user.stripe_payouts_enabled,
         "account_id": user.stripe_account_id,
+        "momo_connected": momo_connected,
+        "momo_partner_code": user.momo_partner_code,
     }
+
+
+# ─── MoMo per-author connect ──────────────────────────────────────────
+
+
+async def connect_momo(
+    db: AsyncSession,
+    *,
+    partner_code: str,
+    access_key: str,
+    secret_key: str,
+) -> dict[str, Any]:
+    """Save the author's MoMo Business merchant credentials. Encrypted at
+    rest with the same Fernet key that protects ai_credentials.
+
+    No round-trip to MoMo to validate — they have no test endpoint for
+    "are these credentials live". The first real checkout call will fail
+    fast with a clear `MoMo create failed: code=…` if the trio is wrong,
+    and the author can re-paste.
+    """
+    user = await _get_user_strict(db)
+    user.momo_partner_code = partner_code.strip()
+    user.momo_access_key_enc = encrypt_secret(access_key.strip())
+    user.momo_secret_key_enc = encrypt_secret(secret_key.strip())
+    await db.flush()
+    return {
+        "connected": True,
+        "partner_code": user.momo_partner_code,
+        "access_key_masked": mask_secret(access_key.strip()),
+    }
+
+
+async def disconnect_momo(db: AsyncSession) -> None:
+    """Forget the author's MoMo credentials. Future VND checkouts on
+    their templates fall back to platform-collects."""
+    user = await _get_user_strict(db)
+    user.momo_partner_code = None
+    user.momo_access_key_enc = None
+    user.momo_secret_key_enc = None
+    await db.flush()
 
 
 async def create_dashboard_link(db: AsyncSession) -> str:

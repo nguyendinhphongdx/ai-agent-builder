@@ -4,7 +4,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,35 +12,15 @@ from app.ai_credentials.schemas import (
     AICredentialResponse,
     AICredentialUpdate,
 )
-from app.config import settings
 from app.context import current_user_id
 from app.models.ai_credential import AICredential
+from app.security.crypto import decrypt_secret, encrypt_secret, mask_secret
 
-
-def _fernet() -> Fernet:
-    if not settings.ENCRYPTION_KEY:
-        raise RuntimeError(
-            "ENCRYPTION_KEY is not set. Generate one with: "
-            "python -c \"import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())\""
-        )
-    return Fernet(settings.ENCRYPTION_KEY.encode())
-
-
-def _encrypt(plaintext: str) -> str:
-    return _fernet().encrypt(plaintext.encode()).decode()
-
-
-def _decrypt(ciphertext: str) -> str:
-    try:
-        return _fernet().decrypt(ciphertext.encode()).decode()
-    except InvalidToken as exc:
-        raise ValueError("Failed to decrypt credential — invalid or corrupt ciphertext") from exc
-
-
-def _mask(plaintext: str) -> str:
-    if len(plaintext) <= 10:
-        return "****"
-    return plaintext[:6] + "•" * 8 + plaintext[-4:]
+# Module-local aliases keep the rest of the file's existing call sites
+# (`_encrypt`, `_decrypt`, `_mask`) working without churn.
+_encrypt = encrypt_secret
+_decrypt = decrypt_secret
+_mask = mask_secret
 
 
 def _to_response(cred: AICredential, plaintext: str) -> AICredentialResponse:

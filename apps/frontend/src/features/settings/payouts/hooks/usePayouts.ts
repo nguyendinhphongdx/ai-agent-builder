@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { payoutsService, type HistoryParams } from "../services/payoutsService";
 
 export const payoutsKeys = {
@@ -53,5 +53,27 @@ export function usePayoutSummary() {
     queryKey: payoutsKeys.summary(),
     queryFn: payoutsService.summary,
     staleTime: 30_000,
+  });
+}
+
+/** Save author's MoMo Business credentials. Triggers a status refetch
+ *  so the UI flips to the connected state immediately. */
+export function useConnectMomo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payoutsService.connectMomo,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: payoutsKeys.status() });
+    },
+  });
+}
+
+export function useDisconnectMomo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payoutsService.disconnectMomo,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: payoutsKeys.status() });
+    },
   });
 }

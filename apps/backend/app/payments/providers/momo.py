@@ -37,7 +37,9 @@ from app.models.agent import Agent
 from app.models.agent_template import AgentTemplate
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_version import AgentTemplateVersion
+from app.models.user import User
 from app.payments.base import PaymentProvider
+from app.security.crypto import decrypt_secret
 
 logger = logging.getLogger("agentforge")
 
@@ -50,6 +52,25 @@ def _sign(secret: str, raw: str) -> str:
     (sorting alphabetically silently breaks signing).
     """
     return hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
+
+
+def _author_credentials(author: User) -> tuple[str, str, str] | None:
+    """Return ``(partner_code, access_key, secret_key)`` for an author with
+    a connected MoMo Business account, or ``None`` if they haven't connected.
+
+    Falls back to platform-collects (`settings.MOMO_*`) at the call site.
+    """
+    if not (
+        author.momo_partner_code
+        and author.momo_access_key_enc
+        and author.momo_secret_key_enc
+    ):
+        return None
+    return (
+        author.momo_partner_code,
+        decrypt_secret(author.momo_access_key_enc),
+        decrypt_secret(author.momo_secret_key_enc),
+    )
 
 
 class MoMoProvider(PaymentProvider):
@@ -68,9 +89,6 @@ class MoMoProvider(PaymentProvider):
     async def create_checkout(
         self, db: AsyncSession, template_id: uuid.UUID
     ) -> tuple[str, AgentTemplatePurchase]:
-        if not self.is_configured():
-            raise RuntimeError("VND payments are unavailable — MoMo not configured")
-
         user_id = current_user_id()
         template = await db.get(AgentTemplate, template_id)
         if template is None or template.status != "published":
@@ -80,6 +98,26 @@ class MoMoProvider(PaymentProvider):
         if template.currency.upper() != "VND":
             raise ValueError(
                 f"Template is priced in {template.currency} — use the Stripe path"
+            )
+
+        # Per-author Connect: if the template author has stored MoMo
+        # merchant credentials, route the buyer's payment to *their*
+        # MoMo balance. Falls back to platform-collects (settings.MOMO_*)
+        # when the author hasn't connected — then ops settles them
+        # out-of-band as before.
+        author = await db.get(User, template.user_id)
+        if author is None:
+            raise RuntimeError("Template author missing")
+        author_creds = _author_credentials(author)
+        if author_creds is not None:
+            partner_code, access_key, secret_key = author_creds
+        elif self.is_configured():
+            partner_code = settings.MOMO_PARTNER_CODE
+            access_key = settings.MOMO_ACCESS_KEY
+            secret_key = settings.MOMO_SECRET_KEY
+        else:
+            raise RuntimeError(
+                "VND payments are unavailable — neither author nor platform has MoMo configured"
             )
 
         existing_paid = await db.execute(
@@ -117,20 +155,20 @@ class MoMoProvider(PaymentProvider):
         )
 
         raw = (
-            f"accessKey={settings.MOMO_ACCESS_KEY}"
+            f"accessKey={access_key}"
             f"&amount={amount_vnd}"
             f"&extraData={extra_data}"
             f"&ipnUrl={settings.MOMO_NOTIFY_URL}"
             f"&orderId={txn_id}"
             f"&orderInfo={order_info}"
-            f"&partnerCode={settings.MOMO_PARTNER_CODE}"
+            f"&partnerCode={partner_code}"
             f"&redirectUrl={settings.MOMO_RETURN_URL}"
             f"&requestId={txn_id}"
             f"&requestType=captureWallet"
         )
         body = {
-            "partnerCode": settings.MOMO_PARTNER_CODE,
-            "accessKey": settings.MOMO_ACCESS_KEY,
+            "partnerCode": partner_code,
+            "accessKey": access_key,
             "requestId": txn_id,
             "orderId": txn_id,
             "amount": str(amount_vnd),
@@ -140,7 +178,7 @@ class MoMoProvider(PaymentProvider):
             "requestType": "captureWallet",
             "extraData": extra_data,
             "lang": "vi",
-            "signature": _sign(settings.MOMO_SECRET_KEY, raw),
+            "signature": _sign(secret_key, raw),
         }
 
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -184,10 +222,26 @@ class MoMoProvider(PaymentProvider):
         it on the Purchase row when handling the IPN. A fresh ``requestId``
         per refund call (uuid4) is needed for idempotency on MoMo's side.
         """
-        if not self.is_configured():
-            raise RuntimeError("MoMo not configured — cannot refund")
         if not purchase.provider_transaction_id:
             raise ValueError("Purchase has no MoMo transaction id to refund")
+
+        # Refund against the same merchant the original charge ran through —
+        # author-Connect rows refund from the author's MoMo account, platform
+        # rows from the platform's. Look up the template author from the
+        # Purchase row.
+        template = await db.get(AgentTemplate, purchase.template_id)
+        author = await db.get(User, template.user_id) if template else None
+        author_creds = _author_credentials(author) if author else None
+        if author_creds is not None:
+            partner_code, access_key, secret_key = author_creds
+        elif self.is_configured():
+            partner_code = settings.MOMO_PARTNER_CODE
+            access_key = settings.MOMO_ACCESS_KEY
+            secret_key = settings.MOMO_SECRET_KEY
+        else:
+            raise RuntimeError(
+                "MoMo not configured — neither author nor platform credentials available"
+            )
 
         # MoMo identifies the original payment by its `transId`. We replaced
         # `provider_transaction_id` with that id when we received the IPN.
@@ -200,24 +254,24 @@ class MoMoProvider(PaymentProvider):
         description = (reason or "Buyer refund")[:200]
 
         raw = (
-            f"accessKey={settings.MOMO_ACCESS_KEY}"
+            f"accessKey={access_key}"
             f"&amount={amount}"
             f"&description={description}"
             f"&orderId={refund_order_id}"
-            f"&partnerCode={settings.MOMO_PARTNER_CODE}"
+            f"&partnerCode={partner_code}"
             f"&requestId={request_id}"
             f"&transId={trans_id}"
         )
         body = {
-            "partnerCode": settings.MOMO_PARTNER_CODE,
-            "accessKey": settings.MOMO_ACCESS_KEY,
+            "partnerCode": partner_code,
+            "accessKey": access_key,
             "requestId": request_id,
             "orderId": refund_order_id,
             "amount": str(amount),
             "transId": trans_id,
             "description": description,
             "lang": "vi",
-            "signature": _sign(settings.MOMO_SECRET_KEY, raw),
+            "signature": _sign(secret_key, raw),
         }
 
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -275,8 +329,48 @@ class MoMoProvider(PaymentProvider):
 # ─── Webhook signature + event handler — called by `webhooks.momo` ────
 
 
-def verify_ipn_signature(payload: dict[str, Any]) -> bool:
-    """Verify HMAC-SHA256 on a MoMo IPN payload.
+async def resolve_ipn_credentials(
+    db: AsyncSession, payload: dict[str, Any]
+) -> tuple[str, str] | None:
+    """Pick the (access_key, secret_key) MoMo would have signed this IPN with.
+
+    Per-author connect: the IPN's orderId is the txn we issued, which
+    points back to a Purchase → Template → author. If the author has
+    connected their own MoMo merchant we use their creds; otherwise
+    fall back to platform creds. Returns ``None`` when neither set is
+    available (e.g. unknown orderId + platform unconfigured).
+    """
+    order_id = payload.get("orderId")
+    if order_id:
+        # `orderId` matches `provider_transaction_id` *until* we replace
+        # it with `transId` post-IPN — IPN arrives before that swap, so
+        # this lookup is reliable for fresh IPNs but may miss on retries
+        # of a row we already processed (which is a no-op anyway).
+        result = await db.execute(
+            select(AgentTemplatePurchase).where(
+                AgentTemplatePurchase.provider == "momo",
+                AgentTemplatePurchase.provider_transaction_id == order_id,
+            ).limit(1)
+        )
+        purchase = result.scalar_one_or_none()
+        if purchase is not None:
+            template = await db.get(AgentTemplate, purchase.template_id)
+            author = await db.get(User, template.user_id) if template else None
+            author_creds = _author_credentials(author) if author else None
+            if author_creds is not None:
+                _, access_key, secret_key = author_creds
+                return access_key, secret_key
+
+    if settings.MOMO_ACCESS_KEY and settings.MOMO_SECRET_KEY:
+        return settings.MOMO_ACCESS_KEY, settings.MOMO_SECRET_KEY
+    return None
+
+
+def verify_ipn_signature(
+    payload: dict[str, Any], access_key: str, secret_key: str
+) -> bool:
+    """Verify HMAC-SHA256 on a MoMo IPN payload against the supplied
+    access/secret pair (resolved via :func:`resolve_ipn_credentials`).
 
     Param order is fixed by MoMo's IPN contract — see their docs.
     Returns False on any mismatch / missing field rather than raising,
@@ -286,7 +380,7 @@ def verify_ipn_signature(payload: dict[str, Any]) -> bool:
     if not sig:
         return False
     raw = (
-        f"accessKey={settings.MOMO_ACCESS_KEY}"
+        f"accessKey={access_key}"
         f"&amount={payload.get('amount', '')}"
         f"&extraData={payload.get('extraData', '')}"
         f"&message={payload.get('message', '')}"
@@ -300,7 +394,7 @@ def verify_ipn_signature(payload: dict[str, Any]) -> bool:
         f"&resultCode={payload.get('resultCode', '')}"
         f"&transId={payload.get('transId', '')}"
     )
-    expected = _sign(settings.MOMO_SECRET_KEY, raw)
+    expected = _sign(secret_key, raw)
     return hmac.compare_digest(expected, sig)
 
 
