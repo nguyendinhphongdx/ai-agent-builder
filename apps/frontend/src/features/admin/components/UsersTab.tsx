@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Mail, ShieldCheck, ShieldOff } from "lucide-react";
+import { Banknote, Loader2, Mail, ShieldCheck, ShieldOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAdminUsers, useBanUser, useGrantRole } from "../hooks/useAdmin";
+import {
+  useAdminUsers,
+  useBanUser,
+  useGrantRole,
+  useSetPayoutStatus,
+} from "../hooks/useAdmin";
 import {
   hasRole,
   type AdminUserRow,
@@ -58,6 +63,7 @@ function UserRowCard({
 }) {
   const ban = useBanUser();
   const grant = useGrantRole();
+  const setPayouts = useSetPayoutStatus();
 
   const toggleBan = () => {
     if (
@@ -72,6 +78,26 @@ function UserRowCard({
   const setRole = (role: UserRole) => {
     if (role === user.role) return;
     grant.mutate({ id: user.id, body: { role } });
+  };
+
+  const payoutsActive = user.stripe_charges_enabled && user.stripe_payouts_enabled;
+  const togglePayouts = () => {
+    if (!user.stripe_account_id) return; // Author never connected — nothing to suspend.
+    if (
+      payoutsActive &&
+      !window.confirm(
+        `Suspend payouts for ${user.email}? They won't be able to publish or sell paid templates until restored.`,
+      )
+    ) {
+      return;
+    }
+    const reason = payoutsActive
+      ? window.prompt("Reason (visible in audit log):") ?? undefined
+      : undefined;
+    setPayouts.mutate({
+      id: user.id,
+      body: { enabled: !payoutsActive, reason },
+    });
   };
 
   return (
@@ -92,6 +118,7 @@ function UserRowCard({
             </Badge>
           )}
           <RoleBadge role={user.role} />
+          <PayoutBadge user={user} />
         </div>
         <p className="text-[11px] text-muted-foreground">
           {user.full_name ?? "—"} · joined {new Date(user.created_at).toLocaleDateString()}
@@ -113,6 +140,19 @@ function UserRowCard({
             ))}
           </select>
         )}
+        {user.stripe_account_id && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={togglePayouts}
+            disabled={setPayouts.isPending}
+            title={payoutsActive ? "Suspend payouts" : "Restore payouts"}
+          >
+            <Banknote className="h-3 w-3" />
+            {payoutsActive ? "Suspend payouts" : "Restore payouts"}
+          </Button>
+        )}
         <Button
           variant={user.is_active ? "outline" : "default"}
           size="sm"
@@ -125,6 +165,24 @@ function UserRowCard({
         </Button>
       </div>
     </div>
+  );
+}
+
+function PayoutBadge({ user }: { user: AdminUserRow }) {
+  if (!user.stripe_account_id) return null;
+  const ready = user.stripe_charges_enabled && user.stripe_payouts_enabled;
+  return (
+    <Badge
+      variant="outline"
+      className={
+        ready
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px]"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px]"
+      }
+      title={ready ? "Connect onboarded — can receive payouts" : "Onboarding incomplete or suspended"}
+    >
+      Payouts {ready ? "ok" : "off"}
+    </Badge>
   );
 }
 

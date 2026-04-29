@@ -20,6 +20,7 @@ from app.admin.schemas import (
     AdminTemplateRow,
     AdminUserRow,
     GrantRoleRequest,
+    PayoutSuspendRequest,
     RefundRequest,
     TemplateModerationRequest,
     UserBanRequest,
@@ -164,6 +165,33 @@ async def grant_role_endpoint(
     """Admin-only — grant or downgrade a platform role."""
     try:
         user = await service.grant_role(db, user_id, role=body.role)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
+    return AdminUserRow.model_validate(user, from_attributes=True)
+
+
+@router.patch(
+    "/users/{user_id}/payouts",
+    response_model=AdminUserRow,
+    dependencies=[Depends(require_role(UserRole.SUPPORT))],
+)
+async def set_payout_status_endpoint(
+    user_id: uuid.UUID,
+    body: PayoutSuspendRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Suspend or restore an author's payout state. Support+ only.
+
+    Flips both Stripe Connect flags on the User row. Authors with
+    `enabled=False` can't publish paid templates and existing paid
+    checkouts on their templates start failing the
+    `can_receive_payouts` gate.
+    """
+    try:
+        user = await service.set_user_payout_status(
+            db, user_id, enabled=body.enabled, reason=body.reason
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     await db.commit()

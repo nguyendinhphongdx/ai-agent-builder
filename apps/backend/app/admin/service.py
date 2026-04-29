@@ -152,6 +152,48 @@ async def set_user_active(
     return user
 
 
+async def set_user_payout_status(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    enabled: bool,
+    reason: str | None,
+) -> User:
+    """Override Stripe Connect payout flags on an author's User row.
+
+    Used by moderation when an author is abusing the marketplace. We
+    flip both ``stripe_charges_enabled`` and ``stripe_payouts_enabled``
+    locally — Stripe's account stays as-is on their side, but our
+    publish-paid + checkout gates start refusing because they read from
+    our cached flags.
+
+    Restoring (enabled=True) is rare; we usually wait for the author to
+    re-onboard which fires a fresh ``account.updated`` webhook. Explicit
+    re-enable is logged so it's auditable.
+    """
+    user = await db.get(User, user_id)
+    if user is None:
+        raise ValueError("User not found")
+
+    changed = (
+        user.stripe_charges_enabled != enabled
+        or user.stripe_payouts_enabled != enabled
+    )
+    if changed:
+        user.stripe_charges_enabled = enabled
+        user.stripe_payouts_enabled = enabled
+        await log_admin_action(
+            db,
+            action="user.suspend_payouts" if not enabled else "user.restore_payouts",
+            target_type="user",
+            target_id=str(user_id),
+            details={"reason": reason},
+        )
+        await db.flush()
+        await db.refresh(user)
+    return user
+
+
 async def grant_role(
     db: AsyncSession, user_id: uuid.UUID, *, role: str
 ) -> User:

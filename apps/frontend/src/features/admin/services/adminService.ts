@@ -6,6 +6,7 @@ import type {
   AdminTemplateRow,
   AdminUserRow,
   GrantRoleInput,
+  PayoutSuspendInput,
   TemplateModerationInput,
   UserBanInput,
 } from "../types";
@@ -34,6 +35,11 @@ export const adminService = {
   grantRole: (id: string, body: GrantRoleInput) =>
     apiClient
       .patch<AdminUserRow>(`/admin/users/${id}/role`, body)
+      .then((r) => r.data),
+
+  setPayoutStatus: (id: string, body: PayoutSuspendInput) =>
+    apiClient
+      .patch<AdminUserRow>(`/admin/users/${id}/payouts`, body)
       .then((r) => r.data),
 
   // Purchases

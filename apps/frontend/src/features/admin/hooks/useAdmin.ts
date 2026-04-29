@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminService } from "../services/adminService";
 import type {
   GrantRoleInput,
+  PayoutSuspendInput,
   TemplateModerationInput,
   UserBanInput,
 } from "../types";
@@ -66,6 +67,18 @@ export function useGrantRole() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: GrantRoleInput }) =>
       adminService.grantRole(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...adminKeys.all, "users"] });
+      queryClient.invalidateQueries({ queryKey: adminKeys.audit({}) });
+    },
+  });
+}
+
+export function useSetPayoutStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PayoutSuspendInput }) =>
+      adminService.setPayoutStatus(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...adminKeys.all, "users"] });
       queryClient.invalidateQueries({ queryKey: adminKeys.audit({}) });

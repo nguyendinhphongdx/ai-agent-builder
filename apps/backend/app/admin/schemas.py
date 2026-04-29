@@ -47,6 +47,11 @@ class AdminUserRow(BaseModel):
     is_verified: bool
     created_at: datetime
     last_login_at: datetime | None
+    # Stripe Connect onboarding state — surfaced so staff can see at a
+    # glance whether an author is configured to sell paid templates.
+    stripe_account_id: str | None
+    stripe_charges_enabled: bool
+    stripe_payouts_enabled: bool
 
 
 class UserBanRequest(BaseModel):
@@ -56,6 +61,20 @@ class UserBanRequest(BaseModel):
 
 class GrantRoleRequest(BaseModel):
     role: str = Field(pattern="^(user|moderator|support|admin)$")
+
+
+class PayoutSuspendRequest(BaseModel):
+    """Admin override for an author's payout state.
+
+    Setting ``enabled=False`` flips both ``stripe_charges_enabled`` and
+    ``stripe_payouts_enabled`` to False — the author can no longer be
+    paid for paid-template sales until they re-onboard. Setting it back
+    to True restores ground truth from Stripe (we re-sync from the next
+    ``account.updated`` event; explicit re-enable is rare and logged).
+    """
+
+    enabled: bool
+    reason: str | None = Field(default=None, max_length=500)
 
 
 # ─── Purchases ────────────────────────────────────────────────────────

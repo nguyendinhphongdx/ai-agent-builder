@@ -39,6 +39,11 @@ export interface AdminUserRow {
   is_verified: boolean;
   created_at: string;
   last_login_at: string | null;
+  // Stripe Connect onboarding state — surfaced so admins can see at a
+  // glance whether an author can be paid for paid templates.
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean;
+  stripe_payouts_enabled: boolean;
 }
 
 export interface AdminPurchaseRow {
@@ -50,7 +55,7 @@ export interface AdminPurchaseRow {
   price_paid_cents: number;
   currency: string;
   status: string;
-  stripe_payment_intent_id: string | null;
+  provider_transaction_id: string | null;
   purchased_at: string;
   refunded_at: string | null;
 }
@@ -90,4 +95,9 @@ export interface UserBanInput {
 
 export interface GrantRoleInput {
   role: UserRole;
+}
+
+export interface PayoutSuspendInput {
+  enabled: boolean;
+  reason?: string;
 }

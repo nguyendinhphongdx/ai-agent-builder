@@ -18,11 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { usePayoutStatus } from "@/features/settings/payouts/hooks/usePayouts";
 import { usePublishAgent } from "../hooks/useTemplates";
-import {
-  type Currency,
-  SUPPORTED_CURRENCIES,
-  providerForCurrency,
-} from "../lib/price";
+import { type Currency, providerForCurrency } from "../lib/price";
 import { TEMPLATE_CATEGORIES } from "../types";
 
 interface PublishDialogProps {
@@ -205,32 +201,41 @@ export function PublishDialog({
             </div>
 
             {pricing === "paid" && (
-              <div className="flex items-center gap-2 pt-2">
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as Currency)}
-                  className="rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
-                >
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  type="number"
-                  inputMode={currency === "VND" ? "numeric" : "decimal"}
-                  min={currency === "VND" ? "1000" : "0.50"}
-                  step={currency === "VND" ? "1000" : "0.01"}
-                  value={priceInput}
-                  onChange={(e) => setPriceInput(e.target.value)}
-                  className="w-36"
-                />
-                <span className="ml-auto text-[10px] text-muted-foreground/70">
-                  {provider === "stripe"
-                    ? "Stripe + platform fees apply."
-                    : "MoMo Checkout · platform settles authors manually."}
-                </span>
+              <div className="space-y-2 pt-2">
+                {/* Provider picker — currency defines which gateway */}
+                <div className="flex gap-2">
+                  <CurrencyPill
+                    active={currency === "USD"}
+                    onClick={() => setCurrency("USD")}
+                    label="USD"
+                    provider="Stripe"
+                    hint="Cards · 10% platform fee · author payouts via Stripe Connect."
+                  />
+                  <CurrencyPill
+                    active={currency === "VND"}
+                    onClick={() => setCurrency("VND")}
+                    label="VND"
+                    provider="MoMo"
+                    hint="MoMo wallet · platform settles authors manually (no Connect)."
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">Price</span>
+                  <Input
+                    type="number"
+                    inputMode={currency === "VND" ? "numeric" : "decimal"}
+                    min={currency === "VND" ? "1000" : "0.50"}
+                    step={currency === "VND" ? "1000" : "0.01"}
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    className="w-36"
+                  />
+                  <span className="text-[11px] text-muted-foreground">{currency}</span>
+                  <span className="ml-auto rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    via {provider === "stripe" ? "Stripe" : "MoMo"}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -258,6 +263,41 @@ export function PublishDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CurrencyPill({
+  active,
+  onClick,
+  label,
+  provider,
+  hint,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  provider: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 flex-col items-start gap-0.5 rounded-md border px-3 py-2 text-left transition-colors",
+        active
+          ? "border-primary bg-primary/5 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-foreground/30",
+      )}
+    >
+      <span className="flex items-center gap-1.5 text-xs font-medium">
+        {label}
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
+          {provider}
+        </span>
+      </span>
+      <span className="text-[10px] text-muted-foreground/80">{hint}</span>
+    </button>
   );
 }
 
