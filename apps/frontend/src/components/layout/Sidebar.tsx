@@ -13,6 +13,7 @@ import {
   Settings,
   MessageSquare,
   PlusSquare,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -29,6 +30,7 @@ const AVATAR_COLORS = [
 ] as const;
 
 const navItems = [
+  { href: "/hub", label: "Hub", icon: Sparkles },
   { href: "/libraries", label: "Libraries", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/tools", label: "Tools", icon: Wrench },

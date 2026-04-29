@@ -2,6 +2,9 @@ from app.models.user import User
 from app.models.auth_token import AuthToken
 from app.models.oauth_account import OAuthAccount
 from app.models.agent import Agent, AgentTool, AgentKnowledgeBase
+from app.models.agent_template import AgentTemplate
+from app.models.agent_template_version import AgentTemplateVersion
+from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.tool import Tool
 from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
@@ -23,6 +26,9 @@ __all__ = [
     "Agent",
     "AgentTool",
     "AgentKnowledgeBase",
+    "AgentTemplate",
+    "AgentTemplateVersion",
+    "AgentTemplatePurchase",
     "Tool",
     "KnowledgeBase",
     "Document",

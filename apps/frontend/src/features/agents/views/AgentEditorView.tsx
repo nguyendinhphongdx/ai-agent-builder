@@ -13,8 +13,10 @@ import {
   Wrench,
   Settings,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublishDialog } from "@/features/hub/components/PublishDialog";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BasicInfoCard } from "../components/editor/BasicInfoCard";
@@ -53,6 +55,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
   const [collabMode, setCollabMode] = useState<"none" | "supervisor" | "peer">("none");
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [workerIds, setWorkerIds] = useState<string[]>([]);
+  const [publishOpen, setPublishOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [isCredentialReady, setIsCredentialReady] = useState(false);
 
@@ -166,20 +169,43 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
               {isEditMode ? "Chỉnh sửa Agent" : "Tạo Agent mới"}
             </span>
           </div>
-          <Button
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={isPending}
-            size="sm"
-            className="gap-1.5"
-          >
-            {isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2">
+            {isEditMode && agentId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setPublishOpen(true)}
+                title="Publish this agent to the Hub"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Publish
+              </Button>
             )}
-            {isEditMode ? "Lưu" : "Tạo"}
-          </Button>
+            <Button
+              onClick={form.handleSubmit(onSubmit)}
+              disabled={isPending}
+              size="sm"
+              className="gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              {isEditMode ? "Lưu" : "Tạo"}
+            </Button>
+          </div>
         </div>
+
+        {isEditMode && agentId && agent && (
+          <PublishDialog
+            agentId={agentId}
+            agentName={agent.name}
+            open={publishOpen}
+            onOpenChange={setPublishOpen}
+          />
+        )}
 
         {/* Tabs navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">

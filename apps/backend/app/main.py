@@ -33,6 +33,7 @@ from app.integrations.router import router as integrations_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.share.router import router as share_router
 from app.webhooks.router import router as webhooks_router
+from app.hub.router import public_router as hub_public_router, auth_router as hub_auth_router
 
 
 def create_app() -> FastAPI:
@@ -177,6 +178,12 @@ def create_app() -> FastAPI:
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
+    # Hub: public browse + detail, then authenticated fork/publish/edit on the
+    # same /templates prefix. Order matters — public routes are defined before
+    # the auth-gated ones in routers, but FastAPI matches by path so order of
+    # include here doesn't affect routing.
+    app.include_router(hub_public_router, prefix=settings.API_PREFIX)
+    app.include_router(hub_auth_router, prefix=settings.API_PREFIX)
 
     # File uploads are handled by the knowledge router (document upload) and
     # the static `/uploads/` mount above. The dedicated upload router was

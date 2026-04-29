@@ -72,6 +72,20 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     # JSON so the widget can evolve without DB migrations.
     share_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
 
+    # Hub provenance — set when this agent was forked from a published template.
+    # Both nullable: agents created from scratch don't have these.
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    template_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_template_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Quan hệ
     user: Mapped["User"] = relationship(back_populates="agents")
     credential: Mapped["AICredential | None"] = relationship(lazy="joined")
