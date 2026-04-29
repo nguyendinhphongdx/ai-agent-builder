@@ -26,6 +26,19 @@ class User(Base, UUIDMixin, TimestampMixin):
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
 
+    # ── Stripe Connect (Hub paid template payouts) ──────────────────────
+    # Express account id, populated when the author starts onboarding.
+    # `charges_enabled` flips true after Stripe finishes identity verification
+    # + bank linking; we mirror it from the `account.updated` webhook so the
+    # publish-paid gate doesn't round-trip the Stripe API.
+    stripe_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stripe_charges_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    stripe_payouts_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
     # Quan hệ 1-N: user sở hữu nhiều agents, tools, KBs, conversations, API keys
     agents: Mapped[list["Agent"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     tools: Mapped[list["Tool"]] = relationship(back_populates="user", cascade="all, delete-orphan")

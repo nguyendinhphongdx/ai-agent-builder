@@ -102,6 +102,15 @@ class Settings(BaseSettings):
     # filled by Stripe with the real session id at redirect time.
     STRIPE_SUCCESS_URL: str = ""  # e.g. https://app.example.com/hub/purchase-complete?session_id={CHECKOUT_SESSION_ID}
     STRIPE_CANCEL_URL: str = ""   # e.g. https://app.example.com/hub
+    # Platform fee on paid template sales, in basis points (1/100 of a
+    # percent). 1000 = 10%. Stripe also takes its own processing fee on
+    # top, paid by the platform. Set to 0 for free passthrough during
+    # promotion / staging tests.
+    STRIPE_PLATFORM_FEE_BPS: int = 1000
+    # Where Stripe sends the author after the Connect onboarding flow.
+    # {ACCOUNT_ID} is replaced by Stripe at redirect time.
+    STRIPE_CONNECT_RETURN_URL: str = ""  # e.g. https://app.example.com/settings/payouts?ok=1
+    STRIPE_CONNECT_REFRESH_URL: str = "" # e.g. https://app.example.com/settings/payouts?refresh=1
 
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).

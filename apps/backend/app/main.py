@@ -44,6 +44,7 @@ from app.internal.router import router as internal_router
 from app.knowledge.router import router as knowledge_router
 from app.llm.router import router as llm_router
 from app.multi_agent.router import router as multi_agent_router
+from app.payouts.router import router as payouts_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.share.router import router as share_router
 from app.tools.router import router as tools_router
@@ -217,6 +218,8 @@ def create_app() -> FastAPI:
     app.include_router(stripe_webhook_router, prefix=settings.API_PREFIX)
     # Platform admin — gated by user.role hierarchy (moderator/support/admin).
     app.include_router(admin_router, prefix=settings.API_PREFIX)
+    # Author payouts — Stripe Connect onboarding + status.
+    app.include_router(payouts_router, prefix=settings.API_PREFIX)
 
     # File uploads are handled by the knowledge router (document upload) and
     # the static `/uploads/` mount above. The dedicated upload router was

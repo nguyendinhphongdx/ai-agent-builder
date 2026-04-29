@@ -12,6 +12,7 @@ import {
 import { ConnectCredentialDialog } from "@/features/agents/components/editor/ConnectCredentialDialog";
 import { ApiTokensSection } from "../components/ApiTokensSection";
 import { IntegrationsLinkSection } from "../components/IntegrationsLinkSection";
+import { PayoutsSection } from "../payouts/components/PayoutsSection";
 
 export function SettingsView() {
   const { data: catalog } = useModelCatalog();
@@ -158,6 +159,9 @@ export function SettingsView() {
 
           {/* Integrations — channels that consume the API */}
           <IntegrationsLinkSection />
+
+          {/* Author payouts — Stripe Connect for paid template sales */}
+          <PayoutsSection />
         </div>
       </div>
 

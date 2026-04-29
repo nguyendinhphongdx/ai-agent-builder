@@ -64,12 +64,24 @@ async def publish_agent(
     if agent is None:
         raise PermissionError("Agent not found or not owned by user")
 
+    user = await db.get(User, user_id)
+
+    # Paid templates require an onboarded Stripe Connect account so we can
+    # actually pay the author. Free templates skip the gate — anyone can
+    # share their work without a Stripe round-trip.
+    if body.price_cents > 0:
+        from app.payouts.service import can_receive_payouts
+
+        if user is None or not can_receive_payouts(user):
+            raise PermissionError(
+                "Connect a Stripe payout account before publishing paid templates"
+            )
+
     snapshot = await build_snapshot_from_agent(db, agent)
 
     # Fall back to user's display name if author_name not provided.
     author_name = body.author_name
     if not author_name:
-        user = await db.get(User, user_id)
         author_name = user.name if user and user.name else "Anonymous"
 
     template = AgentTemplate(

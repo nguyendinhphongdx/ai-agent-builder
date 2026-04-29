@@ -74,6 +74,19 @@ async def create_checkout_session(
     if template.price_cents <= 0:
         raise ValueError("Template is free — call /fork instead of /purchase")
 
+    # Author must have an onboarded Stripe Connect account before they can
+    # be paid. Reject at checkout time rather than letting Stripe accept
+    # the charge into the platform account with no path to reroute it.
+    author = await db.get(User, template.user_id)
+    if author is None:
+        raise RuntimeError("Template author missing")
+    from app.payouts.service import can_receive_payouts
+
+    if not can_receive_payouts(author):
+        raise ValueError(
+            "Template is unavailable — the author has not finished setting up payouts"
+        )
+
     # Reuse a paid Purchase if the buyer already owns this template (free reinstall).
     existing_paid = await db.execute(
         select(AgentTemplatePurchase).where(
@@ -100,6 +113,11 @@ async def create_checkout_session(
     user = await db.get(User, user_id)
     customer_email = user.email if user else None
 
+    # Destination charge: Stripe collects the buyer's payment, takes the
+    # platform fee for us, and routes the rest to the author's connected
+    # account. The author owns the funds; payouts run on their schedule.
+    platform_fee_cents = (template.price_cents * settings.STRIPE_PLATFORM_FEE_BPS) // 10_000
+
     stripe = _stripe()
     session = stripe.checkout.Session.create(
         mode="payment",
@@ -116,6 +134,10 @@ async def create_checkout_session(
                 "quantity": 1,
             }
         ],
+        payment_intent_data={
+            "application_fee_amount": platform_fee_cents,
+            "transfer_data": {"destination": author.stripe_account_id},
+        },
         success_url=settings.STRIPE_SUCCESS_URL or "https://example.com/?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=settings.STRIPE_CANCEL_URL or "https://example.com/",
         customer_email=customer_email,

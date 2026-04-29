@@ -72,6 +72,22 @@ async def stripe_webhook(
                 # Return 500 so Stripe retries.
                 raise HTTPException(status_code=500, detail="Handler failed")
 
+    elif event_type == "account.updated":
+        # Stripe Connect — author finished/changed onboarding state. Mirror
+        # ``charges_enabled`` / ``payouts_enabled`` onto the User row so the
+        # publish-paid gate doesn't have to round-trip Stripe.
+        from app.payouts.service import sync_account_from_event
+
+        account = event.get("data", {}).get("object", {})
+        async with async_session_factory() as db:
+            try:
+                await sync_account_from_event(db, account)
+                await db.commit()
+            except Exception:
+                logger.exception("stripe webhook: connect sync failed")
+                await db.rollback()
+                raise HTTPException(status_code=500, detail="Handler failed")
+
     # All other event types are explicitly accepted-and-ignored — Stripe
     # sends a lot of events we don't care about (charge.updated, etc.)
     return JSONResponse({"received": True})
