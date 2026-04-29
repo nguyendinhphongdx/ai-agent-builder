@@ -55,9 +55,16 @@ export interface AdminPurchaseRow {
   price_paid_cents: number;
   currency: string;
   status: string;
+  provider: "stripe" | "momo";
   provider_transaction_id: string | null;
   purchased_at: string;
   refunded_at: string | null;
+  settled_at: string | null;
+  settlement_reference: string | null;
+}
+
+export interface SettlePurchaseInput {
+  reference?: string;
 }
 
 export interface AdminStats {

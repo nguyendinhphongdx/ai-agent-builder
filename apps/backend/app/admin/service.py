@@ -242,6 +242,50 @@ async def list_purchases(
     return [(p, email, title) for p, email, title in result.all()]
 
 
+async def mark_purchase_settled(
+    db: AsyncSession,
+    purchase_id: uuid.UUID,
+    *,
+    reference: str | None,
+) -> AgentTemplatePurchase:
+    """Flip ``settled_at`` on a paid purchase. Idempotent — re-marking
+    only refreshes the reference string + audit row.
+
+    Stripe destination-charge rows can be auto-settled at payment time
+    by the webhook (Stripe Connect handles the actual transfer). MoMo
+    rows wait for ops to mark them after a manual bank transfer.
+    """
+    from datetime import datetime, timezone
+
+    purchase = await db.get(AgentTemplatePurchase, purchase_id)
+    if purchase is None:
+        raise ValueError("Purchase not found")
+    if purchase.status != "paid":
+        raise ValueError(
+            f"Purchase status is {purchase.status}, not paid — only paid purchases settle"
+        )
+
+    purchase.settled_at = purchase.settled_at or datetime.now(timezone.utc)
+    if reference:
+        purchase.settlement_reference = reference
+
+    await log_admin_action(
+        db,
+        action="purchase.settle",
+        target_type="purchase",
+        target_id=str(purchase_id),
+        details={
+            "reference": reference,
+            "amount_cents": purchase.price_paid_cents,
+            "currency": purchase.currency,
+            "provider": purchase.provider,
+        },
+    )
+    await db.flush()
+    await db.refresh(purchase)
+    return purchase
+
+
 async def refund_purchase(
     db: AsyncSession,
     purchase_id: uuid.UUID,

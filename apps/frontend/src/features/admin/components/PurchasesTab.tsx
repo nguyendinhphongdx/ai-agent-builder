@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Loader2, RotateCcw } from "lucide-react";
+import { CheckCircle2, CreditCard, Loader2, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAdminPurchases, useRefundPurchase } from "../hooks/useAdmin";
+import { formatPrice } from "@/features/hub/lib/price";
+import {
+  useAdminPurchases,
+  useRefundPurchase,
+  useSettlePurchase,
+} from "../hooks/useAdmin";
 import type { AdminPurchaseRow } from "../types";
 
 const STATUS_FILTERS = [
@@ -60,14 +65,26 @@ export function PurchasesTab() {
 
 function PurchaseRow({ purchase }: { purchase: AdminPurchaseRow }) {
   const refund = useRefundPurchase();
+  const settle = useSettlePurchase();
 
   const handleRefund = () => {
     const reason = window.prompt(
-      `Refund ${formatCents(purchase.price_paid_cents)} to ${purchase.buyer_email ?? "buyer"}?\n\nOptional reason:`,
+      `Refund ${formatPrice(purchase.price_paid_cents, purchase.currency)} to ${purchase.buyer_email ?? "buyer"}?\n\nOptional reason:`,
     );
     if (reason === null) return; // cancelled
     refund.mutate({ id: purchase.id, reason: reason || undefined });
   };
+
+  const handleSettle = () => {
+    const reference = window.prompt(
+      `Mark this ${purchase.provider} purchase as settled with the author.\n\nBank transfer / payout reference (optional):`,
+    );
+    if (reference === null) return; // cancelled
+    settle.mutate({ id: purchase.id, reference: reference || undefined });
+  };
+
+  const isPaid = purchase.status === "paid" && purchase.price_paid_cents > 0;
+  const needsManualSettle = isPaid && !purchase.settled_at && purchase.provider === "momo";
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
@@ -76,11 +93,26 @@ function PurchaseRow({ purchase }: { purchase: AdminPurchaseRow }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-sm font-semibold">
-            {formatCents(purchase.price_paid_cents)}
+            {formatPrice(purchase.price_paid_cents, purchase.currency)}
           </span>
           <StatusBadge status={purchase.status} />
+          <ProviderBadge provider={purchase.provider} />
+          {purchase.settled_at && (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700 dark:text-emerald-300"
+              title={
+                purchase.settlement_reference
+                  ? `ref: ${purchase.settlement_reference}`
+                  : undefined
+              }
+            >
+              <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+              Settled
+            </Badge>
+          )}
         </div>
         <p className="text-[11px] text-muted-foreground">
           {purchase.template_title ?? "Template"} →{" "}
@@ -90,7 +122,25 @@ function PurchaseRow({ purchase }: { purchase: AdminPurchaseRow }) {
         </p>
       </div>
 
-      {purchase.status === "paid" && purchase.price_paid_cents > 0 && (
+      {needsManualSettle && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={handleSettle}
+          disabled={settle.isPending}
+          title="Mark as paid out to the author"
+        >
+          {settle.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-3 w-3" />
+          )}
+          Mark settled
+        </Button>
+      )}
+
+      {isPaid && (
         <Button
           variant="outline"
           size="sm"
@@ -120,9 +170,10 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function formatCents(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+function ProviderBadge({ provider }: { provider: string }) {
+  return (
+    <Badge variant="outline" className="text-[10px] capitalize">
+      {provider}
+    </Badge>
+  );
 }

@@ -202,6 +202,7 @@ export function PayoutHistoryView() {
                   <th className="px-3 py-2 text-left">Buyer</th>
                   <th className="px-3 py-2 text-left">Provider</th>
                   <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-left">Payout</th>
                   <th className="px-3 py-2 text-right">Gross</th>
                   <th className="px-3 py-2 text-right">Fee</th>
                   <th className="px-3 py-2 text-right">Net</th>
@@ -230,6 +231,13 @@ export function PayoutHistoryView() {
                     <td className="px-3 py-2 capitalize">{row.provider}</td>
                     <td className="px-3 py-2">
                       <StatusBadge status={row.status} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <SettlementBadge
+                        settledAt={row.settled_at}
+                        provider={row.provider}
+                        status={row.status}
+                      />
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
                       {formatPrice(row.price_paid_cents, row.currency)}
@@ -315,6 +323,49 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge variant="outline" className={`text-[10px] ${cls}`}>
       {status}
+    </Badge>
+  );
+}
+
+function SettlementBadge({
+  settledAt,
+  provider,
+  status,
+}: {
+  settledAt: string | null;
+  provider: string;
+  status: string;
+}) {
+  // Refunded rows don't owe a payout — collapse to a dash so authors
+  // don't expect money.
+  if (status === "refunded") {
+    return <span className="text-[11px] text-muted-foreground/60">—</span>;
+  }
+  if (settledAt) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700 dark:text-emerald-300"
+        title={`Settled ${new Date(settledAt).toLocaleString()}`}
+      >
+        Settled
+      </Badge>
+    );
+  }
+  // MoMo rows wait for ops to mark — surface that explicitly so authors
+  // know what they're waiting for. Stripe rows that aren't settled yet
+  // are mid-flight (rare) so we show "pending".
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-700 dark:text-amber-300"
+      title={
+        provider === "momo"
+          ? "Awaiting manual settlement from the platform"
+          : "Stripe is processing the transfer"
+      }
+    >
+      Pending
     </Badge>
   );
 }

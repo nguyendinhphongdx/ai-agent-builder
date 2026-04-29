@@ -108,6 +108,18 @@ export function useRefundPurchase() {
   });
 }
 
+export function useSettlePurchase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reference }: { id: string; reference?: string }) =>
+      adminService.settlePurchase(id, reference),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...adminKeys.all, "purchases"] });
+      queryClient.invalidateQueries({ queryKey: adminKeys.audit({}) });
+    },
+  });
+}
+
 // ─── Stats + audit ────────────────────────────────────────────────────
 
 export function useAdminStats() {

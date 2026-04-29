@@ -20,6 +20,9 @@ export interface PayoutHistoryItem {
   status: "paid" | "refunded" | "pending" | "failed";
   purchased_at: string;
   refunded_at: string | null;
+  /** Author-side settlement. Stripe rows: stamped at payment via Connect.
+   *  MoMo rows: stays null until ops marks the manual transfer. */
+  settled_at: string | null;
 }
 
 export interface PayoutHistoryResponse {

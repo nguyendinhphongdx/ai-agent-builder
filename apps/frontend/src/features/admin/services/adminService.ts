@@ -53,6 +53,11 @@ export const adminService = {
       .post<AdminPurchaseRow>(`/admin/purchases/${id}/refund`, { reason })
       .then((r) => r.data),
 
+  settlePurchase: (id: string, reference?: string) =>
+    apiClient
+      .post<AdminPurchaseRow>(`/admin/purchases/${id}/settle`, { reference })
+      .then((r) => r.data),
+
   // Stats + audit
   stats: () =>
     apiClient.get<AdminStats>("/admin/stats").then((r) => r.data),

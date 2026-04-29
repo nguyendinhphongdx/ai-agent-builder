@@ -80,6 +80,13 @@ class PayoutSuspendRequest(BaseModel):
 # ─── Purchases ────────────────────────────────────────────────────────
 
 
+class SettlePurchaseRequest(BaseModel):
+    """Admin marks a paid purchase as settled with the author."""
+
+    reference: str | None = Field(default=None, max_length=255)
+    """Bank-transfer id / payout id / any external receipt staff want to keep."""
+
+
 class AdminPurchaseRow(BaseModel):
     id: uuid.UUID
     buyer_user_id: uuid.UUID
@@ -89,9 +96,12 @@ class AdminPurchaseRow(BaseModel):
     price_paid_cents: int
     currency: str
     status: str
+    provider: str
     provider_transaction_id: str | None
     purchased_at: datetime
     refunded_at: datetime | None
+    settled_at: datetime | None
+    settlement_reference: str | None
 
 
 class RefundRequest(BaseModel):

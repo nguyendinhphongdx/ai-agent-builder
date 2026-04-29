@@ -22,6 +22,7 @@ from app.admin.schemas import (
     GrantRoleRequest,
     PayoutSuspendRequest,
     RefundRequest,
+    SettlePurchaseRequest,
     TemplateModerationRequest,
     UserBanRequest,
 )
@@ -225,9 +226,12 @@ async def list_purchases_endpoint(
             price_paid_cents=p.price_paid_cents,
             currency=p.currency,
             status=p.status,
+            provider=p.provider,
             provider_transaction_id=p.provider_transaction_id,
             purchased_at=p.purchased_at,
             refunded_at=p.refunded_at,
+            settled_at=p.settled_at,
+            settlement_reference=p.settlement_reference,
         )
         for p, email, title in rows
     ]
@@ -253,18 +257,54 @@ async def refund_endpoint(
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     await db.commit()
+    return _purchase_row(purchase)
+
+
+@router.post(
+    "/purchases/{purchase_id}/settle",
+    response_model=AdminPurchaseRow,
+    dependencies=[Depends(require_role(UserRole.SUPPORT))],
+)
+async def settle_endpoint(
+    purchase_id: uuid.UUID,
+    body: SettlePurchaseRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a paid purchase as settled — i.e. the platform has paid the
+    author for it (Stripe transfer-id, MoMo bank transfer, etc.).
+
+    Idempotent: re-marking is a no-op except the audit log entry.
+    """
+    try:
+        purchase = await service.mark_purchase_settled(
+            db, purchase_id, reference=body.reference
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
+    return _purchase_row(purchase)
+
+
+def _purchase_row(p) -> AdminPurchaseRow:
+    """Build the response row from a Purchase ORM object — mirror of the
+    list-endpoint shape for the single-row write endpoints. Buyer email +
+    template title aren't joined here because the write endpoints don't
+    need them; consumers refetch the list after a write."""
     return AdminPurchaseRow(
-        id=purchase.id,
-        buyer_user_id=purchase.buyer_id,
+        id=p.id,
+        buyer_user_id=p.buyer_id,
         buyer_email=None,
-        template_id=purchase.template_id,
+        template_id=p.template_id,
         template_title=None,
-        price_paid_cents=purchase.price_paid_cents,
-        currency=purchase.currency,
-        status=purchase.status,
-        provider_transaction_id=purchase.provider_transaction_id,
-        purchased_at=purchase.purchased_at,
-        refunded_at=purchase.refunded_at,
+        price_paid_cents=p.price_paid_cents,
+        currency=p.currency,
+        status=p.status,
+        provider=p.provider,
+        provider_transaction_id=p.provider_transaction_id,
+        purchased_at=p.purchased_at,
+        refunded_at=p.refunded_at,
+        settled_at=p.settled_at,
+        settlement_reference=p.settlement_reference,
     )
 
 

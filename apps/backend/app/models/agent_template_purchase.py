@@ -57,3 +57,11 @@ class AgentTemplatePurchase(Base):
         TIMESTAMP(timezone=True), server_default="now()"
     )
     refunded_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    # Author-side settlement timestamp — flips when the platform actually
+    # pays out to the author. Stripe destination-charge rows are settled
+    # at payment time (Stripe routes funds directly); MoMo rows stay
+    # ``None`` until ops marks them via /admin/purchases/{id}/settle.
+    settled_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    # Free-text reference for the bank transfer / Stripe payout id, so
+    # support can match a row to a real-world remittance later.
+    settlement_reference: Mapped[str | None] = mapped_column(String(255))

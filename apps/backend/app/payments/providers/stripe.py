@@ -277,9 +277,18 @@ async def handle_checkout_completed(
         return None
 
     purchase.status = "paid"
+    # Stripe destination charges settle the author's share into the
+    # Connect account at payment time, so from our side the row is
+    # already "settled" — the bank-transfer is Stripe's job, on Stripe's
+    # payout schedule. Stamping `settled_at` here lets the dashboard
+    # treat Stripe + MoMo rows uniformly.
+    from datetime import datetime, timezone
+
+    purchase.settled_at = datetime.now(timezone.utc)
     pi_id = session.get("payment_intent")
     if isinstance(pi_id, str):
         purchase.provider_transaction_id = pi_id
+        purchase.settlement_reference = pi_id  # Stripe PaymentIntent id
     await db.flush()
 
     template_id = uuid.UUID(template_id_raw)

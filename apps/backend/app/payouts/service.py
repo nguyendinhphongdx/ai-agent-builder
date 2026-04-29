@@ -226,6 +226,9 @@ async def list_history(
                 "refunded_at": purchase.refunded_at.isoformat()
                 if purchase.refunded_at
                 else None,
+                "settled_at": purchase.settled_at.isoformat()
+                if purchase.settled_at
+                else None,
             }
         )
 
