@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Save, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImageUp, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth, useUpdateMe } from "@/features/auth/hooks/useAuth";
+import {
+  useAuth,
+  useUpdateMe,
+  useUploadAvatar,
+} from "@/features/auth/hooks/useAuth";
 import {
   SettingsCard,
   SettingsField,
@@ -22,6 +26,8 @@ import {
 export function ProfileView() {
   const { user } = useAuth();
   const update = useUpdateMe();
+  const upload = useUploadAvatar();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -30,6 +36,34 @@ export function ProfileView() {
     setFullName(user?.full_name ?? "");
     setAvatarUrl(user?.avatar_url ?? "");
   }, [user?.full_name, user?.avatar_url]);
+
+  const handleAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset so picking the same file again still fires
+    if (!file) return;
+    upload.mutate(file, {
+      onSuccess: (u) => {
+        setAvatarUrl(u.avatar_url ?? "");
+        toast.success("Avatar updated");
+      },
+      onError: (err) =>
+        toast.error(
+          err instanceof Error ? err.message : "Couldn't upload — try a smaller PNG/JPEG",
+        ),
+    });
+  };
+
+  const handleAvatarRemove = () => {
+    update.mutate(
+      { avatar_url: null },
+      {
+        onSuccess: () => {
+          setAvatarUrl("");
+          toast.success("Avatar removed");
+        },
+      },
+    );
+  };
 
   if (!user) {
     return (
@@ -79,23 +113,70 @@ export function ProfileView() {
           description="Live preview reflects what other users see."
         >
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            {/* Live avatar + identity preview */}
-            <div className="flex items-center gap-4 sm:w-48 sm:flex-col sm:items-start sm:text-left">
-              <Avatar className="h-16 w-16 border border-border">
-                {avatarUrl && <AvatarImage src={avatarUrl} />}
-                <AvatarFallback className="text-base">{initials}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {fullName || "Unnamed"}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {user.email}
-                </p>
+            {/* Live avatar + identity preview + upload trigger */}
+            <div className="flex flex-col items-start gap-3 sm:w-48">
+              <div className="flex items-center gap-4 sm:flex-col sm:items-start">
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border border-border">
+                    {avatarUrl && <AvatarImage src={avatarUrl} />}
+                    <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+                  </Avatar>
+                  {upload.isPending && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {fullName || "Unnamed"}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
               </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleAvatarPick}
+                className="hidden"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={upload.isPending}
+                  className="gap-1.5"
+                >
+                  <ImageUp className="h-3 w-3" />
+                  Upload
+                </Button>
+                {avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAvatarRemove}
+                    disabled={update.isPending || upload.isPending}
+                    className="gap-1.5 text-muted-foreground"
+                    title="Remove avatar"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">
+                PNG, JPEG, or WEBP. Up to 4 MB.
+              </p>
             </div>
 
-            {/* Editable fields */}
+            {/* Editable text fields */}
             <div className="flex-1 space-y-4">
               <SettingsField
                 label="Full name"
@@ -113,7 +194,7 @@ export function ProfileView() {
 
               <SettingsField
                 label="Avatar URL"
-                hint="Public image URL. Leave empty to fall back to initials."
+                hint="Override the uploaded image with a remote URL — useful for Gravatar / linked profiles."
                 htmlFor="profile-avatar"
               >
                 <Input

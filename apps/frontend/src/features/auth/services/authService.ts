@@ -37,6 +37,16 @@ export const authService = {
   updateMe: (data: { full_name?: string | null; avatar_url?: string | null }) =>
     apiClient.patch<User>("/auth/me", data).then((r) => r.data),
 
+  uploadAvatar: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return apiClient
+      .post<User>("/auth/me/avatar", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
+
   changePassword: (data: { current_password: string; new_password: string }) =>
     apiClient.post<void>("/auth/me/password", data).then((r) => r.data),
 

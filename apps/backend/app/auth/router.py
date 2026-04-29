@@ -1,6 +1,15 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -226,6 +235,60 @@ async def logout(response: Response):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Lấy thông tin user hiện tại đang đăng nhập."""
+    return UserResponse.model_validate(current_user).release()
+
+
+# Avatar upload limits — small enough to fit a profile thumbnail, large
+# enough to accept a phone-camera selfie. Bigger payloads return 413.
+_AVATAR_MAX_BYTES = 4 * 1024 * 1024  # 4 MiB
+_AVATAR_ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp"}
+
+
+@router.post(
+    "/me/avatar",
+    response_model=UserResponse,
+    dependencies=[_AUTH_USER_LIMIT],
+)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a profile avatar. Stores via the configured storage backend
+    (local / S3 / GCS) and writes the storage key to ``users.avatar_url``;
+    the existing ``release()`` machinery resolves it to a public URL on
+    response.
+
+    Old avatar (if any) is left in storage — orphan cleanup is a separate
+    concern handled by a periodic job, not a hot-path delete that could
+    break a still-loading client view of the previous URL.
+    """
+    if file.content_type not in _AVATAR_ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Avatar must be PNG/JPEG/WEBP — got {file.content_type or 'unknown'}",
+        )
+    content = await file.read()
+    if len(content) > _AVATAR_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Avatar exceeds {_AVATAR_MAX_BYTES // (1024 * 1024)} MiB limit",
+        )
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    from app.storage.base import generate_storage_key
+    from app.storage.factory import get_storage
+
+    storage = get_storage()
+    key = generate_storage_key(
+        "avatars", current_user.id, file.filename or "avatar.png"
+    )
+    await storage.upload(key, content, file.content_type)
+
+    current_user.avatar_url = key
+    await db.flush()
+    await db.refresh(current_user)
     return UserResponse.model_validate(current_user).release()
 
 

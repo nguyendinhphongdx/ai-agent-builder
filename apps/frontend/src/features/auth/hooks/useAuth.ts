@@ -38,6 +38,20 @@ export function useUpdateMe() {
   });
 }
 
+/** Upload a new avatar file. Backend stores it via the configured
+ *  storage backend (local / S3 / GCS) and returns the resolved URL on
+ *  the User row, which we drop into the cache so the Header + Profile
+ *  preview update without a refetch. */
+export function useUploadAvatar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: authService.uploadAvatar,
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me, user);
+    },
+  });
+}
+
 /** Self-change password while authenticated. Backend re-issues cookies
  *  in the same response so the active tab stays logged in. */
 export function useChangePassword() {
