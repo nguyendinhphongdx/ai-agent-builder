@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SettingsPageHeader } from "@/features/settings/components/SettingsPrimitives";
 
 type IntegrationStatus = "available" | "coming-soon";
 
@@ -73,43 +74,30 @@ const INTEGRATIONS: Integration[] = [
 
 export function IntegrationsHubView() {
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border px-6 py-3.5">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/settings"
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Settings
-          </Link>
-          <span className="text-muted-foreground/50">/</span>
-          <h1 className="text-sm font-semibold">Integrations</h1>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Đưa agents ra ngoài hệ thống — qua REST API, MCP, embed widget hoặc bot.
-        </p>
+    <div>
+      <SettingsPageHeader
+        title="Integrations"
+        description="Đưa agents ra ngoài hệ thống — qua REST API, MCP, embed widget hoặc bot."
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {INTEGRATIONS.map((it) => (
+          <IntegrationCard key={it.slug} integration={it} />
+        ))}
       </div>
 
-      <div className="scrollbar-thin flex-1 overflow-auto p-6">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-2">
-          {INTEGRATIONS.map((it) => (
-            <IntegrationCard key={it.slug} integration={it} />
-          ))}
-        </div>
-
-        <div className="mx-auto mt-8 max-w-4xl rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex items-start gap-3">
-            <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground">Trước khi bắt đầu</p>
-              <p>
-                Mọi integration đều cần 1 API token. Tạo token tại{" "}
-                <Link href="/settings" className="text-primary hover:underline">
-                  Settings → API Tokens
-                </Link>{" "}
-                rồi quay lại đây để cấu hình từng channel.
-              </p>
-            </div>
+      <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex items-start gap-3">
+          <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">Before you start</p>
+            <p>
+              Every integration needs an API token. Create one at{" "}
+              <Link href="/settings/api-tokens" className="text-primary hover:underline">
+                Settings → API Tokens
+              </Link>{" "}
+              then return here to wire each channel.
+            </p>
           </div>
         </div>
       </div>

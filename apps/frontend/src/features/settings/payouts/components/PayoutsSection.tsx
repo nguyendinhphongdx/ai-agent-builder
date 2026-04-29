@@ -2,15 +2,15 @@
 
 import { Banknote, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SettingsCard } from "@/features/settings/components/SettingsPrimitives";
 import {
   useDashboardLink,
   usePayoutStatus,
   useStartOnboarding,
 } from "../hooks/usePayouts";
 
-/** Settings panel for Stripe Connect onboarding. Shown to every user; we
- *  don't gate on a "creator" flag — anyone can publish a paid template,
- *  they just need to onboard first. */
+/** Stripe Connect onboarding panel. Composes a SettingsCard so it stacks
+ *  cleanly with the rest of the Payouts page sections. */
 export function PayoutsSection() {
   const { data: status, isLoading, refetch } = usePayoutStatus();
   const onboarding = useStartOnboarding();
@@ -20,31 +20,43 @@ export function PayoutsSection() {
   const partial = !!status?.connected && !ready;
 
   return (
-    <section>
-      <div className="mb-4">
-        <h2 className="text-base font-semibold">Author Payouts</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Connect a Stripe payout account to sell paid templates on the Hub.
-          Free templates don&apos;t need this.
-        </p>
-      </div>
+    <SettingsCard
+      title="Stripe Connect"
+      description="Required to receive USD/EUR/GBP sales. Free templates don't need this."
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <Banknote className="h-4 w-4 text-muted-foreground" />
+        </div>
 
-      <div className="rounded-xl border border-border bg-muted/30 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-            <Banknote className="h-4 w-4 text-muted-foreground" />
-          </div>
+        <div className="min-w-0 flex-1">
+          <PayoutStatusLabel
+            isLoading={isLoading}
+            connected={!!status?.connected}
+            ready={ready}
+            partial={partial}
+          />
 
-          <div className="flex-1">
-            <PayoutStatusLabel
-              isLoading={isLoading}
-              connected={!!status?.connected}
-              ready={ready}
-              partial={partial}
-            />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {!status?.connected && (
+              <Button
+                size="sm"
+                onClick={() => onboarding.mutate()}
+                disabled={onboarding.isPending}
+              >
+                {onboarding.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    Connect Stripe
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </>
+                )}
+              </Button>
+            )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {!status?.connected && (
+            {partial && (
+              <>
                 <Button
                   size="sm"
                   onClick={() => onboarding.mutate()}
@@ -53,68 +65,47 @@ export function PayoutsSection() {
                   {onboarding.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <>
-                      Connect Stripe
-                      <ExternalLink className="ml-1 h-3 w-3" />
-                    </>
+                    "Finish onboarding"
                   )}
                 </Button>
-              )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refetch()}
+                  disabled={isLoading}
+                >
+                  Re-check status
+                </Button>
+              </>
+            )}
 
-              {partial && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => onboarding.mutate()}
-                    disabled={onboarding.isPending}
-                  >
-                    {onboarding.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      "Finish onboarding"
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => refetch()}
-                    disabled={isLoading}
-                  >
-                    Re-check status
-                  </Button>
-                </>
-              )}
-
-              {ready && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => dashboard.mutate()}
-                    disabled={dashboard.isPending}
-                  >
-                    {dashboard.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        Open Stripe Dashboard
-                        <ExternalLink className="ml-1 h-3 w-3" />
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {(onboarding.error || dashboard.error) && (
-              <p className="mt-2 text-[11px] text-destructive">
-                {String(onboarding.error || dashboard.error)}
-              </p>
+            {ready && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => dashboard.mutate()}
+                disabled={dashboard.isPending}
+              >
+                {dashboard.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    Open Stripe Dashboard
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </>
+                )}
+              </Button>
             )}
           </div>
+
+          {(onboarding.error || dashboard.error) && (
+            <p className="mt-2 text-[11px] text-destructive">
+              {String(onboarding.error || dashboard.error)}
+            </p>
+          )}
         </div>
       </div>
-    </section>
+    </SettingsCard>
   );
 }
 
@@ -139,8 +130,8 @@ function PayoutStatusLabel({
           Ready to receive payouts
         </p>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Stripe will send sale proceeds (minus the platform fee) to your bank
-          on its standard payout schedule.
+          Stripe sends sale proceeds (minus the platform fee) to your bank on
+          its standard payout schedule.
         </p>
       </>
     );

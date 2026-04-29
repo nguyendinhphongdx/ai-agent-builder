@@ -6,6 +6,11 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/hub/lib/price";
+import {
+  SettingsCard,
+  SettingsPageHeader,
+  SettingsStack,
+} from "@/features/settings/components/SettingsPrimitives";
 import { PayoutsSection } from "../components/PayoutsSection";
 import { usePayoutHistory, usePayoutSummary } from "../hooks/usePayouts";
 import type { HistoryParams } from "../services/payoutsService";
@@ -41,70 +46,65 @@ export function PayoutHistoryView() {
   };
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="font-heading text-xl font-semibold">Author Payouts</h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Connect a Stripe payout account to receive USD/EUR/GBP sales.
-          VND (MoMo) sales are settled by the platform out-of-band — net equals gross from your side.
-        </p>
-      </header>
+    <div>
+      <SettingsPageHeader
+        title="Author Payouts"
+        description="Connect a Stripe payout account to receive USD/EUR/GBP sales. VND (MoMo) sales are settled by the platform out-of-band — net equals gross from your side."
+      />
 
-      <PayoutsSection />
+      <SettingsStack>
+        <PayoutsSection />
 
-      {/* Summary by currency */}
-      <section>
-        <h2 className="mb-3 text-xs font-semibold text-muted-foreground">Totals</h2>
-        {summaryLoading ? (
-          <div className="flex h-24 items-center justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : !summary || summary.totals.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            No paid sales yet.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {summary.totals.map((t) => (
-              <div
-                key={t.currency}
-                className="rounded-xl border border-border bg-card p-4"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {t.currency}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/70">
-                    {t.count} sale{t.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <p className="mt-2 text-2xl font-semibold tracking-tight">
-                  {formatPrice(t.net_cents, t.currency)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Gross {formatPrice(t.gross_cents, t.currency)}
-                  {t.fees_cents > 0 && (
-                    <>
-                      {" · "}
-                      Fees{" "}
-                      <span className="text-muted-foreground/70">
+        {/* Summary by currency */}
+        <SettingsCard
+          title="Totals"
+          description="Lifetime gross, fees, and net per currency."
+        >
+          {summaryLoading ? (
+            <div className="flex h-24 items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : !summary || summary.totals.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No paid sales yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {summary.totals.map((t) => (
+                <div
+                  key={t.currency}
+                  className="rounded-lg border border-border/60 bg-muted/20 p-3"
+                >
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {t.currency}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/70">
+                      {t.count} sale{t.count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xl font-semibold tracking-tight">
+                    {formatPrice(t.net_cents, t.currency)}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Gross {formatPrice(t.gross_cents, t.currency)}
+                    {t.fees_cents > 0 && (
+                      <>
+                        {" · fees "}
                         −{formatPrice(t.fees_cents, t.currency)}
-                      </span>
-                    </>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {summary && summary.by_month.length > 0 && (
-          <details className="mt-4 rounded-xl border border-border bg-card">
-            <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-              Monthly breakdown ({summary.by_month.length} rows)
-            </summary>
-            <div className="border-t border-border">
-              <table className="w-full text-xs">
+          {summary && summary.by_month.length > 0 && (
+            <details className="mt-4 rounded-lg border border-border/60 bg-muted/20">
+              <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+                Monthly breakdown ({summary.by_month.length} rows)
+              </summary>
+              <div className="border-t border-border">
+                <table className="w-full text-xs">
                 <thead className="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">Month</th>
@@ -142,55 +142,58 @@ export function PayoutHistoryView() {
             </div>
           </details>
         )}
-      </section>
+        </SettingsCard>
 
-      {/* Filters */}
-      <section className="mb-3 flex flex-wrap items-center gap-2">
-        <FilterPill
-          active={!filters.status}
-          onClick={() => setFilter("status", undefined)}
-          label="All"
-        />
-        <FilterPill
-          active={filters.status === "paid"}
-          onClick={() => setFilter("status", "paid")}
-          label="Paid"
-        />
-        <FilterPill
-          active={filters.status === "refunded"}
-          onClick={() => setFilter("status", "refunded")}
-          label="Refunded"
-        />
-        <span className="ml-2 text-[10px] text-muted-foreground/60">·</span>
-        <FilterPill
-          active={!filters.provider}
-          onClick={() => setFilter("provider", undefined)}
-          label="Any provider"
-        />
-        <FilterPill
-          active={filters.provider === "stripe"}
-          onClick={() => setFilter("provider", "stripe")}
-          label="Stripe"
-        />
-        <FilterPill
-          active={filters.provider === "momo"}
-          onClick={() => setFilter("provider", "momo")}
-          label="MoMo"
-        />
-      </section>
-
-      {/* Transactions */}
-      <section>
+        <SettingsCard
+          title="Transactions"
+          description="Per-purchase rows. Filter by status or gateway."
+          action={
+            <div className="flex flex-wrap items-center gap-1.5">
+              <FilterPill
+                active={!filters.status}
+                onClick={() => setFilter("status", undefined)}
+                label="All"
+              />
+              <FilterPill
+                active={filters.status === "paid"}
+                onClick={() => setFilter("status", "paid")}
+                label="Paid"
+              />
+              <FilterPill
+                active={filters.status === "refunded"}
+                onClick={() => setFilter("status", "refunded")}
+                label="Refunded"
+              />
+              <span className="text-[10px] text-muted-foreground/40">·</span>
+              <FilterPill
+                active={!filters.provider}
+                onClick={() => setFilter("provider", undefined)}
+                label="Any"
+              />
+              <FilterPill
+                active={filters.provider === "stripe"}
+                onClick={() => setFilter("provider", "stripe")}
+                label="Stripe"
+              />
+              <FilterPill
+                active={filters.provider === "momo"}
+                onClick={() => setFilter("provider", "momo")}
+                label="MoMo"
+              />
+            </div>
+          }
+          bodyClassName="p-0"
+        >
         {historyLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : !history || history.items.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-12 text-center text-xs text-muted-foreground">
+          <p className="px-5 py-12 text-center text-xs text-muted-foreground">
             No transactions match these filters.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -247,7 +250,7 @@ export function PayoutHistoryView() {
         )}
 
         {history && history.total > PAGE_SIZE && (
-          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between border-t border-border px-5 py-3 text-xs text-muted-foreground">
             <span>
               {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, history.total)}{" "}
               of {history.total}
@@ -272,7 +275,8 @@ export function PayoutHistoryView() {
             </div>
           </div>
         )}
-      </section>
+        </SettingsCard>
+      </SettingsStack>
     </div>
   );
 }
