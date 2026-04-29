@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.models.agent_template_purchase import AgentTemplatePurchase
+    from app.models.agent_template_purchase import AgentTemplatePurchase  # noqa: F401
 
 
 class PaymentProvider(ABC):
@@ -69,3 +69,29 @@ class PaymentProvider(ABC):
         Returns ``None`` when the txn id doesn't match any of the user's
         Purchases (caller maps to 404).
         """
+
+    @abstractmethod
+    async def refund(
+        self,
+        db: "AsyncSession",
+        purchase: "AgentTemplatePurchase",
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """Issue a refund via the gateway.
+
+        Provider-specific concerns:
+        - **Stripe**: `reverse_transfer=True` reverses the Connect
+          destination transfer so funds come back from the author's
+          account, not the platform's. `refund_application_fee=True`
+          gives the platform fee back to the buyer too (full-refund
+          semantics — the deal is off).
+        - **MoMo**: separate Refund API endpoint with its own HMAC
+          signature scheme. Requires the ``transId`` MoMo issued at
+          payment time (we store it on the Purchase row from the IPN).
+
+        Caller flips the Purchase row to ``status='refunded'`` and
+        commits after this returns. Raises ``RuntimeError`` on gateway
+        failure so the admin endpoint can surface a retryable error.
+        """
+

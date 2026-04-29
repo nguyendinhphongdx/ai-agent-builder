@@ -171,6 +171,74 @@ class MoMoProvider(PaymentProvider):
         await db.refresh(purchase)
         return data["payUrl"], purchase
 
+    async def refund(
+        self,
+        db: AsyncSession,
+        purchase: AgentTemplatePurchase,
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """Refund via MoMo's `/v2/gateway/api/refund` endpoint.
+
+        Requires the ``transId`` MoMo issued at payment time — we stash
+        it on the Purchase row when handling the IPN. A fresh ``requestId``
+        per refund call (uuid4) is needed for idempotency on MoMo's side.
+        """
+        if not self.is_configured():
+            raise RuntimeError("MoMo not configured — cannot refund")
+        if not purchase.provider_transaction_id:
+            raise ValueError("Purchase has no MoMo transaction id to refund")
+
+        # MoMo identifies the original payment by its `transId`. We replaced
+        # `provider_transaction_id` with that id when we received the IPN.
+        trans_id = purchase.provider_transaction_id
+        amount = purchase.price_paid_cents
+        request_id = str(uuid.uuid4())
+        # MoMo wants `orderId` to be a fresh value distinct from the
+        # original — pattern is to suffix the original to keep traceability.
+        refund_order_id = f"refund-{purchase.id}"
+        description = (reason or "Buyer refund")[:200]
+
+        raw = (
+            f"accessKey={settings.MOMO_ACCESS_KEY}"
+            f"&amount={amount}"
+            f"&description={description}"
+            f"&orderId={refund_order_id}"
+            f"&partnerCode={settings.MOMO_PARTNER_CODE}"
+            f"&requestId={request_id}"
+            f"&transId={trans_id}"
+        )
+        body = {
+            "partnerCode": settings.MOMO_PARTNER_CODE,
+            "accessKey": settings.MOMO_ACCESS_KEY,
+            "requestId": request_id,
+            "orderId": refund_order_id,
+            "amount": str(amount),
+            "transId": trans_id,
+            "description": description,
+            "lang": "vi",
+            "signature": _sign(settings.MOMO_SECRET_KEY, raw),
+        }
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                resp = await client.post(
+                    f"{settings.MOMO_ENDPOINT}/v2/gateway/api/refund", json=body
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            except httpx.HTTPError as exc:
+                raise RuntimeError(f"MoMo refund failed: {exc}") from exc
+
+        # MoMo returns resultCode=0 on success. Anything else is a
+        # business-level failure (already refunded, exceeds amount, etc.)
+        # — surface the message so the admin can act on it.
+        if data.get("resultCode") != 0:
+            raise RuntimeError(
+                f"MoMo refund rejected: code={data.get('resultCode')} "
+                f"msg={data.get('message')}"
+            )
+
     async def get_purchase_status(
         self, db: AsyncSession, txn_id: str
     ) -> dict[str, Any] | None:

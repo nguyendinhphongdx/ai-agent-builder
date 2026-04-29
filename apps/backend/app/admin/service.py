@@ -206,14 +206,15 @@ async def refund_purchase(
     *,
     reason: str | None,
 ) -> AgentTemplatePurchase:
-    """Issue a Stripe refund and mark the purchase refunded.
+    """Issue a refund via the originating provider and mark refunded.
 
-    For free purchases (price=0) we just flip status — no Stripe call.
-    Caller decides whether to commit.
+    Dispatches by ``Purchase.provider`` (Stripe / MoMo). Free purchases
+    (price=0) skip the gateway call — just flip status. Caller decides
+    whether to commit.
 
     Raises:
-        ValueError — purchase missing / already refunded
-        RuntimeError — Stripe refund failed (caller can retry)
+        ValueError — purchase missing / not in 'paid' state
+        RuntimeError — gateway refund failed (caller can retry)
     """
     purchase = await db.get(AgentTemplatePurchase, purchase_id)
     if purchase is None:
@@ -222,23 +223,11 @@ async def refund_purchase(
         raise ValueError(f"Purchase status is {purchase.status}, not paid")
 
     if purchase.price_paid_cents > 0 and purchase.provider_transaction_id:
-        # Real refund via Stripe.
-        from app.config import settings
+        # Real refund — delegate to the provider that issued the charge.
+        from app.payments.providers import get_provider
 
-        if not settings.STRIPE_SECRET_KEY:
-            raise RuntimeError("Stripe not configured — cannot refund paid purchases")
-
-        import stripe
-
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-        try:
-            stripe.Refund.create(
-                payment_intent=purchase.provider_transaction_id,
-                reason="requested_by_customer",
-                metadata={"reason": reason or "", "purchase_id": str(purchase_id)},
-            )
-        except stripe.StripeError as exc:
-            raise RuntimeError(f"Stripe refund failed: {exc}") from exc
+        provider = get_provider(purchase.provider)
+        await provider.refund(db, purchase, reason=reason)
 
     purchase.status = "refunded"
     purchase.refunded_at = datetime.now(timezone.utc)
@@ -251,6 +240,7 @@ async def refund_purchase(
         details={
             "reason": reason,
             "amount_cents": purchase.price_paid_cents,
+            "provider": purchase.provider,
         },
     )
     await db.flush()

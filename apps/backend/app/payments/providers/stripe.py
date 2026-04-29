@@ -171,6 +171,41 @@ class StripeProvider(PaymentProvider):
         await db.refresh(purchase)
         return session.url, purchase
 
+    async def refund(
+        self,
+        db: AsyncSession,
+        purchase: AgentTemplatePurchase,
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """Refund a Stripe destination charge.
+
+        ``reverse_transfer=True`` pulls the funds back from the author's
+        Connect account so the platform isn't carrying the loss alone.
+        ``refund_application_fee=True`` returns the platform fee to the
+        buyer too — V1 full-refund policy is "the deal is off"; tweak
+        this when partial-refund semantics matter.
+        """
+        if not purchase.provider_transaction_id:
+            raise ValueError("Purchase has no Stripe transaction id to refund")
+        if not self.is_configured():
+            raise RuntimeError("Stripe not configured — cannot refund")
+
+        stripe = _stripe()
+        try:
+            stripe.Refund.create(
+                payment_intent=purchase.provider_transaction_id,
+                reason="requested_by_customer",
+                reverse_transfer=True,
+                refund_application_fee=True,
+                metadata={
+                    "purchase_id": str(purchase.id),
+                    "reason": reason or "",
+                },
+            )
+        except stripe.StripeError as exc:
+            raise RuntimeError(f"Stripe refund failed: {exc}") from exc
+
     async def get_purchase_status(
         self, db: AsyncSession, txn_id: str
     ) -> dict[str, Any] | None:
