@@ -66,10 +66,11 @@ async def publish_agent(
 
     user = await db.get(User, user_id)
 
-    # Paid templates require an onboarded Stripe Connect account so we can
-    # actually pay the author. Free templates skip the gate — anyone can
-    # share their work without a Stripe round-trip.
-    if body.price_cents > 0:
+    # Paid templates routed through Stripe (USD/EUR/etc.) require an
+    # onboarded Connect account so we can actually pay the author.
+    # MoMo (VND) is platform-collects in V1 — no Connect equivalent —
+    # so VND publishing skips the gate. Free templates always skip.
+    if body.price_cents > 0 and body.currency.upper() != "VND":
         from app.payouts.service import can_receive_payouts
 
         if user is None or not can_receive_payouts(user):
