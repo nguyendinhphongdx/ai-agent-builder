@@ -39,9 +39,23 @@ function performRefresh(): Promise<void> {
   return refreshInFlight;
 }
 
+// Public auth-flow pages where 401 is the *expected* state (the user is
+// supposed to be signed out). Bouncing them to /login from these breaks
+// the flow — most visibly, clicking a password-reset link with no
+// active session bounced to /login before the page could render.
+const PUBLIC_AUTH_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
 function redirectToLogin(): void {
   if (typeof window === "undefined") return;
-  if (window.location.pathname.startsWith("/login")) return;
+  if (PUBLIC_AUTH_PATHS.some((p) => window.location.pathname.startsWith(p))) {
+    return;
+  }
   window.location.href = "/login";
 }
 
