@@ -97,6 +97,11 @@ docker compose exec backend python -m app.cli.seed_starter_templates \
 For production hardening (JSON logs, Sentry, Stripe Connect payouts) see
 [`docs/architecture/operations.md`](docs/architecture/operations.md).
 
+For enabling VND payments via MoMo (Vietnam), see
+[`docs/guides/momo-setup.md`](docs/guides/momo-setup.md) — covers
+merchant registration, env vars, IPN exposure, sandbox testing, and
+author payout settlement.
+
 ## Development Guide
 
 ### Using the CLI

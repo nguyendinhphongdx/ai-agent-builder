@@ -298,6 +298,8 @@ To run without Stripe (local dev, free-only deploy):
 
 ### 5.6 MoMo — VND payments (Vietnam)
 
+> **End-to-end setup playbook**: see [`guides/momo-setup.md`](../guides/momo-setup.md).
+
 VND-priced templates route through MoMo. The flow mirrors Stripe Checkout:
 
 ```env

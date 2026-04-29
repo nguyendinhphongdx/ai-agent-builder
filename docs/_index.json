@@ -1,5 +1,26 @@
 [
   {
+    "id": "guides-momo-setup",
+    "path": "guides/momo-setup.md",
+    "title": "MoMo Setup — VND payments for the Hub",
+    "domain": "guides",
+    "tags": [
+      "momo",
+      "payments",
+      "vietnam",
+      "vnd",
+      "hub",
+      "marketplace",
+      "ipn",
+      "webhook"
+    ],
+    "related": [
+      "arch-operations",
+      "api-hub-endpoints"
+    ],
+    "summary": "Step-by-step playbook to enable VND payments via MoMo on the Hub — register merchant, configure env vars, expose IPN, validate signatures, run a sandbox test, and settle author payouts."
+  },
+  {
     "id": "api-agent-endpoints",
     "path": "api/agent-endpoints.md",
     "title": "Agent API Endpoints",
