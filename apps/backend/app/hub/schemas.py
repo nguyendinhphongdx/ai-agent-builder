@@ -35,6 +35,9 @@ class KnowledgeBaseSnapshot(BaseModel):
 
 class AgentSnapshot(BaseModel):
     """Frozen agent config at publish time. No credential / share fields."""
+
+    model_config = {"protected_namespaces": ()}
+
     name: str
     description: str | None = None
     avatar_url: str | None = None

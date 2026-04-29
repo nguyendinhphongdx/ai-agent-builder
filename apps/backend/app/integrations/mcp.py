@@ -45,6 +45,8 @@ def _slugify(name: str) -> str:
 
 
 class AgentToolPreview(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     id: uuid.UUID
     name: str
     tool_name: str

@@ -18,7 +18,10 @@ class AppBaseModel(BaseModel):
 
     __storage_fields__: ClassVar[tuple[str, ...]] = ()
 
-    model_config = {"from_attributes": True}
+    # `protected_namespaces=()` opts out of Pydantic's `model_*` reservation
+    # so we can keep field names like `model_id` that mirror the LLM domain
+    # (Anthropic / OpenAI / Ollama all use "model" as the user-facing term).
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
     def release(self) -> dict:
         data = self.model_dump()

@@ -17,6 +17,8 @@ from pydantic import BaseModel
 class AgentSummary(BaseModel):
     """Public agent shape — omits internal fields like credential_id."""
 
+    model_config = {"protected_namespaces": ()}
+
     id: uuid.UUID
     name: str
     description: str | None

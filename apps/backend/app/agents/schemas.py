@@ -7,6 +7,10 @@ from app.schemas.base import AppBaseModel
 
 
 class AgentCreate(BaseModel):
+    # Opt out of Pydantic's `model_*` reservation so `model_id` (LLM
+    # provider's user-facing term) doesn't trigger a UserWarning.
+    model_config = {"protected_namespaces": ()}
+
     name: str
     description: str | None = None
     system_prompt: str
@@ -19,6 +23,8 @@ class AgentCreate(BaseModel):
 
 
 class AgentUpdate(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     name: str | None = None
     description: str | None = None
     system_prompt: str | None = None

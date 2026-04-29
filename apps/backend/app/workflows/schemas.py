@@ -10,6 +10,13 @@ from pydantic import BaseModel
 
 class NodeConfig(BaseModel):
     """Cấu hình linh hoạt cho từng loại node, truyền qua JSONB."""
+
+    # - `extra="allow"` lets node-specific fields ride along without being
+    #   declared here (each node type has its own shape).
+    # - `protected_namespaces=()` opts out of Pydantic's `model_*` reservation
+    #   so `model_id` (LLM provider's user-facing term) doesn't warn.
+    model_config = {"extra": "allow", "protected_namespaces": ()}
+
     # LLM node
     model_id: str | None = None          # "provider/model"
     credential_id: uuid.UUID | None = None
@@ -28,8 +35,6 @@ class NodeConfig(BaseModel):
     prompt_message: str | None = None  # Câu hỏi hiển thị cho user
     input_type: str | None = None      # "text", "select", "confirm"
     options: list[str] | None = None   # Lựa chọn cho input_type="select"
-
-    model_config = {"extra": "allow"}  # Cho phép thêm trường tùy ý
 
 
 class WorkflowNodeCreate(BaseModel):
