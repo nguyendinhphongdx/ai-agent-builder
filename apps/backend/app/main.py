@@ -35,6 +35,7 @@ from app.share.router import router as share_router
 from app.webhooks.router import router as webhooks_router
 from app.hub.router import public_router as hub_public_router, auth_router as hub_auth_router
 from app.hub.webhook_router import router as stripe_webhook_router
+from app.admin.router import router as admin_router
 
 
 def create_app() -> FastAPI:
@@ -189,6 +190,8 @@ def create_app() -> FastAPI:
     # /api/webhooks/stripe (separate from /api/webhooks/{wf}/... which is
     # the workflow-trigger webhook with its own URL token scheme).
     app.include_router(stripe_webhook_router, prefix=settings.API_PREFIX)
+    # Platform admin — gated by user.role hierarchy (moderator/support/admin).
+    app.include_router(admin_router, prefix=settings.API_PREFIX)
 
     # File uploads are handled by the knowledge router (document upload) and
     # the static `/uploads/` mount above. The dedicated upload router was

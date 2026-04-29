@@ -6,6 +6,7 @@ from app.models.agent_template import AgentTemplate
 from app.models.agent_template_version import AgentTemplateVersion
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_review import AgentTemplateReview
+from app.models.admin_action import AdminAction
 from app.models.tool import Tool
 from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
@@ -31,6 +32,7 @@ __all__ = [
     "AgentTemplateVersion",
     "AgentTemplatePurchase",
     "AgentTemplateReview",
+    "AdminAction",
     "Tool",
     "KnowledgeBase",
     "Document",

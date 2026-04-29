@@ -14,12 +14,15 @@ import {
   MessageSquare,
   PlusSquare,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useAgents } from "@/features/agents/hooks/useAgents";
 import { chatService } from "@/features/chat/services/chatService";
 import { chatKeys } from "@/features/chat/hooks/useChatStream";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { isStaff } from "@/features/admin/types";
 
 const AVATAR_COLORS = [
   "bg-orange-500",
@@ -80,6 +83,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentConversationId = searchParams.get("conversationId");
+  const { user } = useAuth();
+  const showAdmin = isStaff(user?.role);
   const { data: agents = [] } = useAgents();
   const { data: conversations = [] } = useQuery({
     queryKey: chatKeys.conversations(),
@@ -149,6 +154,15 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         ))}
         <NavLink href="/chat/new" icon={PlusSquare} label="New Chat"
           active={pathname === "/chat/new"} collapsed={collapsed} />
+        {showAdmin && (
+          <NavLink
+            href="/admin"
+            icon={ShieldCheck}
+            label="Admin"
+            active={pathname.startsWith("/admin")}
+            collapsed={collapsed}
+          />
+        )}
       </nav>
 
       {!collapsed && (

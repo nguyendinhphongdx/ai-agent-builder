@@ -6,6 +6,8 @@ export interface User {
   is_active: boolean;
   is_verified: boolean;
   verified_at: string | null;
+  // Platform role: 'user' (default) | 'moderator' | 'support' | 'admin'
+  role: string;
   created_at: string;
 }
 

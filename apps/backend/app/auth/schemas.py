@@ -47,6 +47,7 @@ class UserResponse(AppBaseModel):
     is_active: bool
     is_verified: bool
     verified_at: datetime | None = None
+    role: str = "user"  # platform role: user|moderator|support|admin
     created_at: datetime
 
 
