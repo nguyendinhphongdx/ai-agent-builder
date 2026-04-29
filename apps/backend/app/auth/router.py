@@ -15,6 +15,7 @@ from app.auth.schemas import (
     RegisterRequest,
     ResetPasswordRequest,
     UserResponse,
+    UserUpdateRequest,
     VerifyEmailConfirmRequest,
 )
 from app.auth.service import (
@@ -220,6 +221,24 @@ async def logout(response: Response):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Lấy thông tin user hiện tại đang đăng nhập."""
+    return UserResponse.model_validate(current_user).release()
+
+
+@router.patch("/me", response_model=UserResponse, dependencies=[_AUTH_USER_LIMIT])
+async def update_me(
+    body: UserUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Self-edit profile. Only fields the user owns — email is changed via
+    a separate flow (verification required), role / is_verified stay
+    admin-only."""
+    if body.full_name is not None:
+        current_user.full_name = body.full_name.strip() or None
+    if body.avatar_url is not None:
+        current_user.avatar_url = body.avatar_url.strip() or None
+    await db.flush()
+    await db.refresh(current_user)
     return UserResponse.model_validate(current_user).release()
 
 

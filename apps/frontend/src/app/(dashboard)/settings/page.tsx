@@ -1,10 +1,9 @@
-import { Metadata } from "next";
-import { SettingsView } from "@/features/settings/views/SettingsView";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Settings | AgentForge",
-};
+export const metadata = { title: "Settings" };
 
-export default function SettingsPage() {
-  return <SettingsView />;
+/** /settings has no content of its own — bounce to the first tab so deep
+ *  links and the sidebar entry both land somewhere meaningful. */
+export default function SettingsIndexPage() {
+  redirect("/settings/profile");
 }

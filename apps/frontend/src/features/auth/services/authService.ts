@@ -34,6 +34,9 @@ export const authService = {
 
   getMe: () => apiClient.get<User>("/auth/me").then((r) => r.data),
 
+  updateMe: (data: { full_name?: string | null; avatar_url?: string | null }) =>
+    apiClient.patch<User>("/auth/me", data).then((r) => r.data),
+
   forgotPassword: (data: ForgotPasswordInput) =>
     apiClient.post<{ sent: true }>("/auth/forgot-password", data).then((r) => r.data),
 

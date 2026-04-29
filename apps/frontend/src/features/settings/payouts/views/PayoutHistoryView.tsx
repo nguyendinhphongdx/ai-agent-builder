@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/hub/lib/price";
+import { PayoutsSection } from "../components/PayoutsSection";
 import { usePayoutHistory, usePayoutSummary } from "../hooks/usePayouts";
 import type { HistoryParams } from "../services/payoutsService";
 
@@ -40,26 +41,19 @@ export function PayoutHistoryView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <Link
-        href="/settings"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to Settings
-      </Link>
-
-      <header className="mb-6">
-        <h1 className="font-heading text-2xl font-semibold">Payment history</h1>
+    <div className="space-y-8">
+      <header>
+        <h1 className="font-heading text-xl font-semibold">Author Payouts</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Purchases of templates you&apos;ve published. Stripe deducts the platform fee
-          from your payout; MoMo (VND) settlements are handled out-of-band — net
-          equals gross from your side.
+          Connect a Stripe payout account to receive USD/EUR/GBP sales.
+          VND (MoMo) sales are settled by the platform out-of-band — net equals gross from your side.
         </p>
       </header>
 
+      <PayoutsSection />
+
       {/* Summary by currency */}
-      <section className="mb-8">
+      <section>
         <h2 className="mb-3 text-xs font-semibold text-muted-foreground">Totals</h2>
         {summaryLoading ? (
           <div className="flex h-24 items-center justify-center">

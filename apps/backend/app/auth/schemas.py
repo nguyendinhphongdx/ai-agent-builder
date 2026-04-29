@@ -51,6 +51,14 @@ class UserResponse(AppBaseModel):
     created_at: datetime
 
 
+class UserUpdateRequest(BaseModel):
+    """Self-update body for `PATCH /auth/me`. Only fields the user can edit
+    on themselves — email/role/verified flags stay admin-only."""
+
+    full_name: str | None = Field(default=None, max_length=255)
+    avatar_url: str | None = Field(default=None, max_length=512)
+
+
 class AuthResponse(AppBaseModel):
     """Schema trả về sau khi đăng ký/đăng nhập thành công."""
     user: UserResponse

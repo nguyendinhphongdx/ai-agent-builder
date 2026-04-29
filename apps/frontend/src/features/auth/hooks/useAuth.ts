@@ -26,6 +26,18 @@ export function useAuth() {
   return { user: user ?? null, isLoading, isAuthenticated: !!user, error };
 }
 
+/** Self-edit (PATCH /auth/me). On success the cached `useAuth()` user
+ *  refreshes immediately — Header avatar/name reactively follow. */
+export function useUpdateMe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: authService.updateMe,
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me, user);
+    },
+  });
+}
+
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
