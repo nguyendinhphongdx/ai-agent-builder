@@ -17,5 +17,4 @@ services:
 
 networks:
   agentforge:
-    external: true
     name: agentforge

@@ -8,7 +8,10 @@ services:
     restart: unless-stopped
     environment:
       - PORT=3011
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
+      # Shared secret for `x-internal-token`. Backend/dispatcher must use the
+      # same value. Empty in dev → guard disabled.
+      - INTERNAL_TOKEN=${MAIL_INTERNAL_TOKEN:-}
       - MAIL_DRIVER=${MAIL_DRIVER:-console}
       - MAIL_FROM=${MAIL_FROM:-noreply@agentforge.com}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-AgentForge}
@@ -38,4 +41,4 @@ services:
 
 networks:
   agentforge:
-    external: true
+    name: agentforge

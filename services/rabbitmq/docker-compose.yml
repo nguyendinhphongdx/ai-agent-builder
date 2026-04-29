@@ -22,4 +22,3 @@ volumes:
 networks:
   agentforge:
     name: agentforge
-    external: true
