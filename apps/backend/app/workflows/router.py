@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.context import current_user_id
 from app.db.session import get_db
-from app.models.user import User
 from app.workflows.schemas import (
+    NodeExecuteRequest,
     WorkflowCreate,
     WorkflowExecuteRequest,
     WorkflowListResponse,
@@ -23,39 +24,41 @@ from app.workflows.service import (
     get_workflow_run,
     list_workflow_runs,
     list_workflows,
+    rotate_webhook_token,
     save_graph,
     update_workflow,
 )
 
-router = APIRouter(prefix="/workflows", tags=["workflows"])
+router = APIRouter(
+    prefix="/workflows",
+    tags=["workflows"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=list[WorkflowListResponse])
 async def list_workflows_endpoint(  # Lấy danh sách workflow của user
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflows = await list_workflows(db, current_user.id)
+    workflows = await list_workflows(db)
     return [WorkflowListResponse.model_validate(w) for w in workflows]
 
 
 @router.post("", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED)
 async def create_workflow_endpoint(  # Tạo workflow mới
     body: WorkflowCreate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflow = await create_workflow(db, current_user.id, **body.model_dump())
+    workflow = await create_workflow(db, **body.model_dump())
     return WorkflowResponse.model_validate(workflow)
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 async def get_workflow_endpoint(  # Lấy chi tiết workflow kèm nodes + edges
     workflow_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return WorkflowResponse.model_validate(workflow)
@@ -65,10 +68,9 @@ async def get_workflow_endpoint(  # Lấy chi tiết workflow kèm nodes + edges
 async def update_workflow_endpoint(  # Cập nhật workflow, có thể lưu toàn bộ graph
     workflow_id: uuid.UUID,
     body: WorkflowUpdate,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
@@ -94,10 +96,9 @@ async def update_workflow_endpoint(  # Cập nhật workflow, có thể lưu to�
 @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow_endpoint(  # Xóa workflow
     workflow_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     await delete_workflow(db, workflow)
@@ -109,26 +110,56 @@ async def delete_workflow_endpoint(  # Xóa workflow
 async def execute_workflow_endpoint(  # Chạy workflow và trả về kết quả
     workflow_id: uuid.UUID,
     body: WorkflowExecuteRequest,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     if not workflow.nodes:
         raise HTTPException(status_code=400, detail="Workflow has no nodes")
 
-    # Import tại đây để tránh circular import
+    # Runner is reachable from background tasks (webhook _run_detached) so it
+    # keeps user_id explicit — read from context here at the boundary.
     from app.workflows.runner import WorkflowRunner
 
     runner = WorkflowRunner(db)
     run = await runner.run(
         workflow=workflow,
-        user_id=current_user.id,
+        user_id=current_user_id(),
         input_data=body.input_data,
         conversation_id=body.conversation_id,
     )
+    return WorkflowRunResponse.model_validate(run)
+
+
+@router.post(
+    "/{workflow_id}/nodes/{node_id}/execute",
+    response_model=WorkflowRunResponse,
+)
+async def execute_node_endpoint(  # NDV "Execute step" — chạy đơn lẻ một node
+    workflow_id: uuid.UUID,
+    node_id: str,
+    body: NodeExecuteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    workflow = await get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from app.workflows.runner import WorkflowRunner
+
+    runner = WorkflowRunner(db)
+    try:
+        run = await runner.run_single_node(
+            workflow=workflow,
+            user_id=current_user_id(),
+            node_id=node_id,
+            input_items=body.input_items,
+            config_overrides=body.config_overrides,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return WorkflowRunResponse.model_validate(run)
 
 
@@ -138,11 +169,10 @@ async def execute_workflow_endpoint(  # Chạy workflow và trả về kết qu�
 async def list_runs_endpoint(  # Lấy lịch sử chạy workflow
     workflow_id: uuid.UUID,
     limit: int = Query(20, le=100),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     # Kiểm tra quyền truy cập workflow
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     runs = await list_workflow_runs(db, workflow_id, limit)
@@ -153,17 +183,30 @@ async def list_runs_endpoint(  # Lấy lịch sử chạy workflow
 async def get_run_endpoint(  # Lấy chi tiết một lần chạy
     workflow_id: uuid.UUID,
     run_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Kiểm tra quyền truy cập workflow
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     run = await get_workflow_run(db, run_id, workflow_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return WorkflowRunResponse.model_validate(run)
+
+
+# ─── Webhook token ────────────────────────────────────────────────
+
+@router.post("/{workflow_id}/webhook-token/rotate", response_model=WorkflowResponse)
+async def rotate_webhook_token_endpoint(  # Tạo lại token webhook (URL cũ ngừng hoạt động)
+    workflow_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    workflow = await get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    workflow = await rotate_webhook_token(db, workflow)
+    await db.commit()
+    return WorkflowResponse.model_validate(workflow)
 
 
 # ─── NDV: Per-node execution data ─────────────────────────────────
@@ -173,11 +216,10 @@ async def get_node_execution_endpoint(
     workflow_id: uuid.UUID,
     run_id: uuid.UUID,
     node_id: str,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get per-node input/output data for NDV panels (Schema/Table/JSON views)."""
-    workflow = await get_workflow(db, workflow_id, current_user.id)
+    workflow = await get_workflow(db, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     run = await get_workflow_run(db, run_id, workflow_id)

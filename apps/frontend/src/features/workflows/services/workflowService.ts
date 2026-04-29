@@ -1,5 +1,13 @@
 import { apiClient } from "@/lib/api/client";
-import type { Workflow, WorkflowDetail, WorkflowCreateInput, WorkflowSaveInput } from "../types";
+import type {
+  Workflow,
+  WorkflowDetail,
+  WorkflowCreateInput,
+  WorkflowSaveInput,
+  WorkflowExecuteInput,
+  WorkflowRun,
+  NodeExecuteInput,
+} from "../types";
 
 export const workflowService = {
   list: () =>
@@ -17,12 +25,22 @@ export const workflowService = {
   delete: (id: string) =>
     apiClient.delete(`/workflows/${id}`),
 
-  execute: (id: string, input: Record<string, unknown>) =>
-    apiClient.post(`/workflows/${id}/execute`, input).then((r) => r.data),
+  execute: (id: string, input: WorkflowExecuteInput) =>
+    apiClient.post<WorkflowRun>(`/workflows/${id}/execute`, input).then((r) => r.data),
+
+  executeNode: (workflowId: string, nodeId: string, input: NodeExecuteInput) =>
+    apiClient
+      .post<WorkflowRun>(`/workflows/${workflowId}/nodes/${nodeId}/execute`, input)
+      .then((r) => r.data),
+
+  rotateWebhookToken: (id: string) =>
+    apiClient
+      .post<WorkflowDetail>(`/workflows/${id}/webhook-token/rotate`)
+      .then((r) => r.data),
 
   listRuns: (id: string, limit = 20) =>
-    apiClient.get(`/workflows/${id}/runs`, { params: { limit } }).then((r) => r.data),
+    apiClient.get<WorkflowRun[]>(`/workflows/${id}/runs`, { params: { limit } }).then((r) => r.data),
 
   getRun: (workflowId: string, runId: string) =>
-    apiClient.get(`/workflows/${workflowId}/runs/${runId}`).then((r) => r.data),
+    apiClient.get<WorkflowRun>(`/workflows/${workflowId}/runs/${runId}`).then((r) => r.data),
 };

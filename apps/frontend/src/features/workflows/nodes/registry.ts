@@ -91,6 +91,11 @@ import {
   NodeComponent as WebhookTriggerNode,
   PanelComponent as WebhookTriggerPanel,
 } from "./webhook-trigger";
+import {
+  definition as noteDef,
+  NodeComponent as NoteNode,
+  PanelComponent as NotePanel,
+} from "./note";
 
 // --- Registry: add new nodes here (1 import + 1 line) ---
 const REGISTRY: NodeRegistryEntry[] = [
@@ -118,6 +123,7 @@ const REGISTRY: NodeRegistryEntry[] = [
   { definition: startDef, node: StartNode, panel: StartPanel },
   { definition: endDef, node: EndNode, panel: EndPanel },
   { definition: humanInputDef, node: HumanInputNode, panel: HumanInputPanel },
+  { definition: noteDef, node: NoteNode, panel: NotePanel },
 ];
 
 // --- Lookup map (computed once) ---

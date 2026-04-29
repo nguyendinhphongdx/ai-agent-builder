@@ -1,44 +1,65 @@
 """Service layer cho Workflow CRUD - thao tác database."""
 
+import secrets
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.context import current_user_id
 from app.models.workflow import Workflow
 from app.models.workflow_node import WorkflowNode
 from app.models.workflow_edge import WorkflowEdge
 from app.models.workflow_run import WorkflowRun
 
 
-async def list_workflows(db: AsyncSession, user_id: uuid.UUID) -> list[Workflow]:
+def generate_webhook_token() -> str:
+    """URL-safe random token for embedding in webhook URLs.
+
+    32 random bytes → ~43 ASCII chars; column allows 64 to leave headroom for
+    future format changes (e.g. adding a versioned prefix like ``whsec_``).
+    """
+    return secrets.token_urlsafe(32)
+
+
+async def list_workflows(db: AsyncSession) -> list[Workflow]:
     """Lấy danh sách workflow của user, sắp xếp theo thời gian cập nhật."""
     result = await db.execute(
         select(Workflow)
-        .where(Workflow.user_id == user_id)
+        .where(Workflow.user_id == current_user_id())
         .order_by(Workflow.updated_at.desc())
     )
     return list(result.scalars().all())
 
 
 async def get_workflow(
-    db: AsyncSession, workflow_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession, workflow_id: uuid.UUID
 ) -> Workflow | None:
     """Lấy chi tiết workflow kèm nodes và edges (eager loading)."""
     result = await db.execute(
         select(Workflow)
         .options(selectinload(Workflow.nodes), selectinload(Workflow.edges))
-        .where(Workflow.id == workflow_id, Workflow.user_id == user_id)
+        .where(Workflow.id == workflow_id, Workflow.user_id == current_user_id())
     )
     return result.scalar_one_or_none()
 
 
-async def create_workflow(db: AsyncSession, user_id: uuid.UUID, **kwargs) -> Workflow:
-    """Tạo workflow mới."""
-    workflow = Workflow(user_id=user_id, **kwargs)
+async def create_workflow(db: AsyncSession, **kwargs) -> Workflow:
+    """Tạo workflow mới — auto-generate webhook_token if not provided."""
+    kwargs.setdefault("webhook_token", generate_webhook_token())
+    workflow = Workflow(user_id=current_user_id(), **kwargs)
     db.add(workflow)
     await db.flush()
+    await db.refresh(workflow, ["nodes", "edges"])
+    return workflow
+
+
+async def rotate_webhook_token(db: AsyncSession, workflow: Workflow) -> Workflow:
+    """Generate a new webhook token. Old URLs stop working immediately."""
+    workflow.webhook_token = generate_webhook_token()
+    await db.flush()
+    await db.refresh(workflow)
     await db.refresh(workflow, ["nodes", "edges"])
     return workflow
 
@@ -122,6 +143,7 @@ async def create_workflow_run(
     user_id: uuid.UUID,
     input_data: dict,
     conversation_id: uuid.UUID | None = None,
+    is_partial: bool = False,
 ) -> WorkflowRun:
     """Tạo bản ghi chạy workflow mới với trạng thái 'running'."""
     run = WorkflowRun(
@@ -130,6 +152,7 @@ async def create_workflow_run(
         input_data=input_data,
         conversation_id=conversation_id,
         status="running",
+        is_partial=is_partial,
     )
     db.add(run)
     await db.flush()

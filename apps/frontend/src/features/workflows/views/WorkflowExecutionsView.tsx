@@ -6,11 +6,10 @@ import { ReactFlowProvider } from "@xyflow/react";
 import {
   CheckCircle2, XCircle, Clock, Loader2, Play, Zap, ArrowLeft,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { workflowService } from "../services/workflowService";
-import { useWorkflow } from "../hooks/useWorkflows";
+import { useWorkflow, useWorkflowRuns } from "../hooks/useWorkflows";
+import type { NodeExecutionLog } from "../types";
 import { ExecutionCanvas } from "../components/ExecutionCanvas";
 import { ExecutionNDVModal } from "../components/ExecutionNDVModal";
 import { cn } from "@/lib/utils";
@@ -19,59 +18,27 @@ interface WorkflowExecutionsViewProps {
   workflowId: string;
 }
 
-interface NodeExecution {
-  node_id: string;
-  node_type: string;
-  label: string | null;
-  status: string;
-  input_items: unknown;
-  output_items: unknown;
-  error: string | null;
-  tokens_used: number;
-  started_at: string | null;
-  completed_at: string | null;
-}
-
-interface WorkflowRun {
-  id: string;
-  status: string;
-  input_data: Record<string, unknown>;
-  output_data: unknown;
-  error_message: string | null;
-  node_executions: NodeExecution[];
-  total_tokens: number;
-  total_cost: string;
-  started_at: string;
-  completed_at: string | null;
-}
-
 export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewProps) {
   const router = useRouter();
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [openNodeId, setOpenNodeId] = useState<string | null>(null);
 
   const { data: workflow, isLoading: loadingWorkflow } = useWorkflow(workflowId);
-
-  const { data: runs = [], isLoading: loadingRuns } = useQuery({
-    queryKey: ["workflow-runs", workflowId],
-    queryFn: () => workflowService.listRuns(workflowId),
-    refetchInterval: 5000,
-  });
+  const { data: runs = [], isLoading: loadingRuns } = useWorkflowRuns(workflowId);
 
   // Auto-select the first run
   useEffect(() => {
     if (runs.length > 0 && !selectedRunId) {
-      setSelectedRunId((runs as WorkflowRun[])[0].id);
+      setSelectedRunId(runs[0].id);
     }
   }, [runs, selectedRunId]);
 
-  const selectedRun = (runs as WorkflowRun[]).find((r) => r.id === selectedRunId);
+  const selectedRun = runs.find((r) => r.id === selectedRunId);
 
   // Build execution status map: nodeId → status
   const executionMap = useMemo(() => {
-    if (!selectedRun?.node_executions) return new Map<string, NodeExecution>();
-    const map = new Map<string, NodeExecution>();
-    for (const ne of selectedRun.node_executions) {
+    const map = new Map<string, NodeExecutionLog>();
+    for (const ne of selectedRun?.node_executions ?? []) {
       map.set(ne.node_id, ne);
     }
     return map;
@@ -161,7 +128,7 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {(runs as WorkflowRun[]).map((run) => (
+                  {runs.map((run) => (
                     <button
                       key={run.id}
                       onClick={() => {

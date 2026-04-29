@@ -14,6 +14,7 @@ interface BaseNodeProps {
   selected?: boolean;
   customHandles?: boolean;
   runStatus?: NodeRunStatus;
+  isPinned?: boolean;
   children?: ReactNode;
 }
 
@@ -29,6 +30,7 @@ export function BaseNode({
   selected,
   customHandles,
   runStatus,
+  isPinned,
   children,
 }: BaseNodeProps) {
   return (
@@ -40,6 +42,7 @@ export function BaseNode({
           label={label || definition.label}
           sublabel={definition.type}
           runStatus={runStatus}
+          isPinned={isPinned}
         />
         <NodeHandles nodeId={nodeId} definition={definition} customOutputs={customHandles} />
       </NodeShell>

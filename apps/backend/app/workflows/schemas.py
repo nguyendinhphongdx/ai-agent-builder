@@ -128,6 +128,7 @@ class WorkflowResponse(BaseModel):
     version: int
     is_active: bool
     viewport: dict
+    webhook_token: str
     nodes: list[WorkflowNodeResponse] = []
     edges: list[WorkflowEdgeResponse] = []
     created_at: datetime
@@ -158,6 +159,17 @@ class WorkflowExecuteRequest(BaseModel):
     conversation_id: uuid.UUID | None = None  # Liên kết với conversation (tùy chọn)
 
 
+class NodeExecuteRequest(BaseModel):
+    """Schema yêu cầu chạy đơn lẻ một node (NDV "Execute Step").
+
+    `input_items` thay cho output của upstream node. Nếu rỗng thì node sẽ
+    nhận list rỗng — phù hợp với nodes không phụ thuộc input (vd. webhook
+    trigger, set-variable). `config_overrides` cho phép test config chưa save.
+    """
+    input_items: list[dict] = []
+    config_overrides: dict | None = None
+
+
 class NodeExecutionLog(BaseModel):
     """Log thực thi của một node.
 
@@ -183,6 +195,7 @@ class WorkflowRunResponse(BaseModel):
     user_id: uuid.UUID
     conversation_id: uuid.UUID | None
     status: str
+    is_partial: bool = False
     input_data: dict
     # Workflow output follows n8n's item model: a list of item dicts. Kept as
     # `dict | list | None` so legacy runs that stored a single dict still load.

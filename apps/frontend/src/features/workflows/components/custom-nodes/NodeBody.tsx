@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, Pin, X } from "lucide-react";
 import type { NodeRunStatus } from "../../stores/workflowEditorStore";
 
 interface NodeBodyProps {
@@ -10,14 +10,32 @@ interface NodeBodyProps {
   label: string;
   sublabel: string;
   runStatus?: NodeRunStatus;
+  isPinned?: boolean;
 }
 
 /**
  * Visual content of a node: icon, label, run status badge.
  */
-export function NodeBody({ icon: Icon, color, label, sublabel, runStatus }: NodeBodyProps) {
+export function NodeBody({
+  icon: Icon,
+  color,
+  label,
+  sublabel,
+  runStatus,
+  isPinned,
+}: NodeBodyProps) {
   return (
     <>
+      {/* Pin indicator — output frozen, executor will be skipped on full runs */}
+      {isPinned && (
+        <div
+          className="absolute -top-2 -left-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm"
+          title="Output pinned"
+        >
+          <Pin className="h-3 w-3" />
+        </div>
+      )}
+
       {/* Run status indicator badge */}
       {runStatus && (
         <div className="absolute -top-2 -right-2 z-10">

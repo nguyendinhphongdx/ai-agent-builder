@@ -7,15 +7,16 @@ import {
   Plus, GitBranch, MoreHorizontal, Trash2, Search, Play,
   CheckCircle2, XCircle, Clock, Copy, Download, Zap,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useWorkflows, useCreateWorkflow, useDeleteWorkflow } from "../hooks/useWorkflows";
-import { workflowService } from "../services/workflowService";
+import {
+  useWorkflows, useCreateWorkflow, useDeleteWorkflow, useWorkflowRuns,
+} from "../hooks/useWorkflows";
+import type { Workflow } from "../types";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = ["all", "active", "draft"] as const;
@@ -64,7 +65,7 @@ export function WorkflowListView() {
     createWorkflow.mutate({ name: `Workflow ${(workflows?.length ?? 0) + 1}` });
   };
 
-  const handleDuplicate = (wf: typeof workflows extends (infer T)[] | undefined ? T : never) => {
+  const handleDuplicate = (wf: Workflow) => {
     createWorkflow.mutate({ name: `${wf.name} (copy)`, description: wf.description ?? undefined });
   };
 
@@ -179,18 +180,14 @@ function WorkflowRow({
   onDelete,
   onDuplicate,
 }: {
-  workflow: any;
+  workflow: Workflow;
   onDelete: () => void;
   onDuplicate: () => void;
 }) {
-  // Fetch last run for this workflow
-  const { data: runs } = useQuery({
-    queryKey: ["workflow-runs", wf.id, "latest"],
-    queryFn: () => workflowService.listRuns(wf.id, 1),
-    staleTime: 30000,
-  });
-
-  const lastRun = (runs as any[])?.[0];
+  // N+1 by design until the list endpoint includes `last_run` — keyed off
+  // the shared runs cache so any execute() invalidation flows here.
+  const { data: runs } = useWorkflowRuns(wf.id, 1);
+  const lastRun = runs?.[0];
 
   return (
     <Link

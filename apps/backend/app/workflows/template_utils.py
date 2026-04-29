@@ -1,34 +1,24 @@
-"""Template rendering for workflow node configs.
+"""Legacy template renderer — preserved as a thin shim over `expression.py`.
 
-Supports {{key}} and {{key.nested.path}} substitution.
+New code should call ``evaluate_template`` directly with a richer context
+(items, vars, upstream). This shim only knows about the current item, which
+matches the original ``render_template(template, data)`` contract.
 """
 
 from __future__ import annotations
 
-import re
 from typing import Any
+
+from app.workflows.expression import evaluate_template
 
 
 def render_template(template: str, data: dict[str, Any]) -> str:
-    """Replace {{key}} and {{key.nested}} with values from data dict.
+    """Backward-compatible single-dict template render.
 
-    Examples:
-        >>> render_template("Hello {{name}}", {"name": "Alice"})
-        'Hello Alice'
-        >>> render_template("{{user.email}}", {"user": {"email": "a@b.com"}})
-        'a@b.com'
+    Equivalent to ``evaluate_template(template, item=data)`` but always
+    coerces the result to ``str`` (the legacy callers expected strings).
     """
-    if "{{" not in template:
-        return template
-
-    def replacer(match: re.Match) -> str:
-        path = match.group(1).strip()
-        value: Any = data
-        for key in path.split("."):
-            if isinstance(value, dict):
-                value = value.get(key, "")
-            else:
-                return ""
-        return str(value)
-
-    return re.sub(r"\{\{(.+?)\}\}", replacer, template)
+    result = evaluate_template(template, item=data, items=[data] if data else [])
+    if result is None:
+        return ""
+    return result if isinstance(result, str) else str(result)

@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { TextField, TextareaField, SelectField } from "../../components/node-inspector/fields";
+import {
+  ExpressionField,
+  SelectField,
+  TextField,
+} from "../../components/node-inspector/fields";
 import { useNodeConfig } from "../../hooks/useNodeConfig";
 import {
   aiCredentialService,
@@ -73,17 +77,22 @@ export default function LLMPanel({ id }: PanelProps) {
           trang Agent editor hoặc Settings.
         </p>
       )}
-      <TextareaField
+      <ExpressionField
+        nodeId={id}
         label="System Prompt"
         value={(config.system_prompt as string) || ""}
         onChange={(v) => updateConfig("system_prompt", v)}
         placeholder="You are a helpful assistant..."
+        height={80}
       />
-      <TextareaField
+      <ExpressionField
+        nodeId={id}
         label="Prompt Template"
         value={(config.user_prompt_template as string) || ""}
         onChange={(v) => updateConfig("user_prompt_template", v)}
-        placeholder="Process this: {input}"
+        placeholder="Process this: {{ json.input }}"
+        height={120}
+        hint="Reference upstream output via {{ nodes['NodeLabel'][0].field }}."
       />
       <TextField
         label="Output Variable"

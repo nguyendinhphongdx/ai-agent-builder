@@ -1,4 +1,8 @@
-import { TextField, TextareaField, SelectField } from "../../components/node-inspector/fields";
+import {
+  ExpressionField,
+  SelectField,
+  TextField,
+} from "../../components/node-inspector/fields";
 import { useNodeConfig } from "../../hooks/useNodeConfig";
 import type { PanelProps } from "../types";
 
@@ -21,25 +25,29 @@ export default function HttpRequestPanel({ id }: PanelProps) {
         options={METHOD_OPTIONS}
         onChange={(v) => updateConfig("method", v)}
       />
-      <TextField
+      <ExpressionField
+        nodeId={id}
         label="URL"
         value={(config.url as string) || ""}
         onChange={(v) => updateConfig("url", v)}
-        placeholder="https://api.example.com/data"
+        placeholder="https://api.example.com/data/{{ json.id }}"
+        multiline={false}
       />
-      <TextareaField
+      <ExpressionField
+        nodeId={id}
         label="Headers (JSON)"
         value={(config.headers as string) || ""}
         onChange={(v) => updateConfig("headers", v)}
-        placeholder='{"Authorization": "Bearer ..."}'
-        mono
+        placeholder={'{"Authorization": "Bearer {{ vars.token }}"}'}
+        height={80}
       />
-      <TextareaField
+      <ExpressionField
+        nodeId={id}
         label="Body"
         value={(config.body as string) || ""}
         onChange={(v) => updateConfig("body", v)}
-        placeholder='{"key": "value"}'
-        mono
+        placeholder={'{"key": "{{ json.value }}"}'}
+        height={120}
       />
       <TextField
         label="Output Variable"

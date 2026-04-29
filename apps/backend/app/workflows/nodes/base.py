@@ -26,6 +26,9 @@ class ExecutionContext:
     db: AsyncSession
     variables: dict[str, Any] = field(default_factory=dict)
     initial_input: dict[str, Any] = field(default_factory=dict)
+    # Output items of upstream nodes, keyed by label (preferred) or node_id.
+    # Lets executors render `{{ nodes["LLM"].text }}` without re-walking the graph.
+    upstream_outputs: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 # ─── Node Result ──────────────────────────────────────────────────

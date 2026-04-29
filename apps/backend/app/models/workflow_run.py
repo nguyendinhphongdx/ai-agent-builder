@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, TIMESTAMP
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, TIMESTAMP
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +31,8 @@ class WorkflowRun(Base, UUIDMixin):
 
     # Trạng thái thực thi: "running" -> "completed" / "failed"
     status: Mapped[str] = mapped_column(String(20), default="running", index=True)
+    # True khi chỉ chạy 1 node (Execute Step trong NDV) — không phải full workflow.
+    is_partial: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     input_data: Mapped[dict] = mapped_column(JSONB, nullable=False)  # Dữ liệu đầu vào
     output_data: Mapped[dict | None] = mapped_column(JSONB)  # Kết quả đầu ra
     error_message: Mapped[str | None] = mapped_column(Text)

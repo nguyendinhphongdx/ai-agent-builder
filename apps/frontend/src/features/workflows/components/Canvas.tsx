@@ -54,6 +54,12 @@ export function Canvas() {
     selectNode,
     editNode,
     removeNode,
+    duplicateNode,
+    undo,
+    redo,
+    selectAll,
+    copySelection,
+    pasteFromClipboard,
     selectedNodeId,
     closeNodePalette,
   } = useWorkflowEditorStore();
@@ -95,31 +101,102 @@ export function Canvas() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const isEditable =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (e.target as HTMLElement).isContentEditable;
+      if (isEditable) return;
+
+      const cmd = e.metaKey || e.ctrlKey;
 
       if (e.key === "Escape") {
         selectNode(null);
         editNode(null);
         closeNodePalette();
+        return;
       }
+
+      if (cmd && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+
+      if (cmd && (e.key === "y" || e.key === "Y")) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      if (cmd && (e.key === "d" || e.key === "D")) {
+        if (selectedNodeId) {
+          e.preventDefault();
+          duplicateNode(selectedNodeId);
+        }
+        return;
+      }
+
+      if (cmd && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        selectAll();
+        return;
+      }
+
+      if (cmd && (e.key === "c" || e.key === "C")) {
+        // Don't fight system copy when there's a real text selection.
+        if (window.getSelection()?.toString()) return;
+        e.preventDefault();
+        copySelection();
+        return;
+      }
+
+      if (cmd && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        pasteFromClipboard();
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
+        const state = useWorkflowEditorStore.getState();
+        const selectedNodes = state.nodes.filter((n) => n.selected);
+        const selectedEdges = state.edges.filter((edge) => edge.selected);
+
+        // Multi-select delete: drop nodes via onNodesChange so xyflow keeps
+        // its internal selection state in sync with the store.
+        if (selectedNodes.length > 1) {
+          state.onNodesChange(
+            selectedNodes.map((n) => ({ id: n.id, type: "remove" as const })),
+          );
+          return;
+        }
         if (selectedNodeId) {
           removeNode(selectedNodeId);
           return;
         }
-        // Delete selected edges
-        const state = useWorkflowEditorStore.getState();
-        const selectedEdges = state.edges.filter((edge) => edge.selected);
         if (selectedEdges.length > 0) {
           state.onEdgesChange(
-            selectedEdges.map((edge) => ({ id: edge.id, type: "remove" as const }))
+            selectedEdges.map((edge) => ({ id: edge.id, type: "remove" as const })),
           );
         }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedNodeId, selectNode, editNode, removeNode, closeNodePalette]);
+  }, [
+    selectedNodeId,
+    selectNode,
+    editNode,
+    removeNode,
+    duplicateNode,
+    undo,
+    redo,
+    selectAll,
+    copySelection,
+    pasteFromClipboard,
+    closeNodePalette,
+  ]);
 
   return (
     <div className="h-full w-full" onDrop={handleDrop} onDragOver={handleDragOver}>

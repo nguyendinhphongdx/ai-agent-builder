@@ -1,59 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2, XCircle, Clock, Loader2, ChevronRight,
   Play, Zap, ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { workflowService } from "../services/workflowService";
+import { useWorkflowRuns } from "../hooks/useWorkflows";
+import type { WorkflowRun, NodeExecutionLog } from "../types";
 import { cn } from "@/lib/utils";
 
 interface ExecutionsPanelProps {
   workflowId: string;
 }
 
-interface NodeExecution {
-  node_id: string;
-  node_type: string;
-  label: string | null;
-  status: string;
-  input_items: unknown;
-  output_items: unknown;
-  error: string | null;
-  tokens_used: number;
-  started_at: string | null;
-  completed_at: string | null;
-}
-
-interface WorkflowRun {
-  id: string;
-  status: string;
-  input_data: Record<string, unknown>;
-  output_data: unknown;
-  error_message: string | null;
-  node_executions: NodeExecution[];
-  total_tokens: number;
-  total_cost: string;
-  started_at: string;
-  completed_at: string | null;
-}
-
 export function ExecutionsPanel({ workflowId }: ExecutionsPanelProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  const { data: runs = [], isLoading } = useQuery({
-    queryKey: ["workflow-runs", workflowId],
-    queryFn: () => workflowService.listRuns(workflowId),
-    refetchInterval: 5000,
-  });
+  const { data: runs = [], isLoading } = useWorkflowRuns(workflowId);
 
-  const selectedRun = runs.find((r: WorkflowRun) => r.id === selectedRunId) as WorkflowRun | undefined;
+  const selectedRun = runs.find((r) => r.id === selectedRunId);
   const selectedNode = selectedRun?.node_executions?.find(
-    (n: NodeExecution) => n.node_id === selectedNodeId
+    (n) => n.node_id === selectedNodeId,
   );
 
   if (isLoading) {
@@ -82,7 +52,7 @@ export function ExecutionsPanel({ workflowId }: ExecutionsPanelProps) {
             </div>
           ) : (
             <div className="space-y-0.5">
-              {(runs as WorkflowRun[]).map((run) => (
+              {runs.map((run) => (
                 <button
                   key={run.id}
                   onClick={() => {
@@ -213,7 +183,7 @@ function RunDetailView({
           <p className="p-4 text-xs text-muted-foreground text-center">No node executions recorded</p>
         ) : (
           <div className="space-y-1">
-            {nodes.map((node: NodeExecution, i: number) => (
+            {nodes.map((node, i) => (
               <button
                 key={node.node_id + i}
                 onClick={() => onSelectNode(node.node_id)}
@@ -269,7 +239,7 @@ function NodeDetailView({
   node,
   onBack,
 }: {
-  node: NodeExecution;
+  node: NodeExecutionLog;
   onBack: () => void;
 }) {
   return (
