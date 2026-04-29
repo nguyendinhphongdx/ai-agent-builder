@@ -37,55 +37,58 @@ class KnowledgeRetriever:
         if not knowledge_base_ids:
             return []
 
-        # Load KB configs to get embedding settings and retrieval params
         result = await self.db.execute(
             select(KnowledgeBase).where(KnowledgeBase.id.in_(knowledge_base_ids))
         )
-        kbs = result.scalars().all()
+        kbs = list(result.scalars().all())
         if not kbs:
             return []
 
-        # Use first KB's config for embedding
-        kb = kbs[0]
-        effective_top_k = top_k or kb.retrieval_top_k or 5
-        effective_threshold = score_threshold if score_threshold is not None else kb.retrieval_score_threshold
+        # Group KBs by embedding signature — querying across mismatched models
+        # produces meaningless distances (different vector spaces / dimensions).
+        groups: dict[tuple[str, str, int], list[KnowledgeBase]] = {}
+        for kb in kbs:
+            key = (kb.embedding_provider, kb.embedding_model, kb.embedding_dimensions)
+            groups.setdefault(key, []).append(kb)
 
-        # Build embeddings from KB's snapshotted config
-        embeddings = build_for_kb(kb)
-
-        # Embed the query
-        query_embedding = await embeddings.aembed_query(query)
-
-        # pgvector cosine distance search
-        db_result = await self.db.execute(
-            select(
-                DocumentChunk.content,
-                DocumentChunk.data,
-                DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
-            )
-            .where(DocumentChunk.knowledge_base_id.in_(knowledge_base_ids))
-            .where(DocumentChunk.embedding.isnot(None))
-            .order_by("distance")
-            .limit(effective_top_k)
+        # Take top_k / threshold from the first KB if caller didn't override.
+        first = kbs[0]
+        effective_top_k = top_k or first.retrieval_top_k or 5
+        effective_threshold = (
+            score_threshold if score_threshold is not None else first.retrieval_score_threshold
         )
 
-        chunks = []
-        for row in db_result.all():
-            similarity = 1.0 - (row.distance or 0)
+        all_chunks: list[RetrievedChunk] = []
+        for group_kbs in groups.values():
+            embeddings = build_for_kb(group_kbs[0])
+            query_embedding = await embeddings.aembed_query(query)
 
-            # Filter by score threshold
-            if effective_threshold is not None and similarity < effective_threshold:
-                continue
-
-            metadata = row.data or {}
-            chunks.append(
-                RetrievedChunk(
-                    content=row.content,
-                    metadata=metadata,
-                    score=similarity,
-                    source_document=metadata.get("source"),
-                    chunk_index=metadata.get("chunk_index"),
+            db_result = await self.db.execute(
+                select(
+                    DocumentChunk.content,
+                    DocumentChunk.data,
+                    DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
                 )
+                .where(DocumentChunk.knowledge_base_id.in_([k.id for k in group_kbs]))
+                .where(DocumentChunk.embedding.isnot(None))
+                .order_by("distance")
+                .limit(effective_top_k)
             )
 
-        return chunks
+            for row in db_result.all():
+                similarity = 1.0 - (row.distance or 0)
+                if effective_threshold is not None and similarity < effective_threshold:
+                    continue
+                metadata = row.data or {}
+                all_chunks.append(
+                    RetrievedChunk(
+                        content=row.content,
+                        metadata=metadata,
+                        score=similarity,
+                        source_document=metadata.get("source"),
+                        chunk_index=metadata.get("chunk_index"),
+                    )
+                )
+
+        all_chunks.sort(key=lambda c: c.score or 0, reverse=True)
+        return all_chunks[:effective_top_k]
