@@ -5,13 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.auth.emails import (
+    send_email_change_code,
     send_password_reset_email,
     send_verification_email,
 )
 from app.auth.schemas import (
     AuthResponse,
+    EmailChangeConfirmRequest,
+    EmailChangeRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    PasswordChangeRequest,
     RegisterRequest,
     ResetPasswordRequest,
     UserResponse,
@@ -29,6 +33,7 @@ from app.auth.service import (
     verify_password,
 )
 from app.auth.tokens import (
+    PURPOSE_EMAIL_CHANGE,
     PURPOSE_EMAIL_VERIFICATION,
     PURPOSE_PASSWORD_RESET,
     create_and_store,
@@ -240,6 +245,150 @@ async def update_me(
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user).release()
+
+
+def _set_auth_cookies(response: Response, user_id: str, token_version: int) -> None:
+    """Re-issue access + refresh cookies on the same response. Used by
+    self-change endpoints that bump `token_version` so the active session
+    isn't accidentally logged out."""
+    access = create_access_token(user_id)
+    refresh = create_refresh_token(user_id, token_version=token_version)
+    secure = not settings.DEBUG
+    response.set_cookie(
+        "access_token",
+        access,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        "refresh_token",
+        refresh,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path=f"{settings.API_PREFIX}/auth",
+    )
+
+
+@router.post(
+    "/me/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[_AUTH_PUBLIC_LIMIT],
+)
+async def change_password(
+    body: PasswordChangeRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Self-change password while authenticated.
+
+    OAuth-only users (no `hashed_password`) get 400 — they should use
+    the forgot-password flow first to set one. Bumps `token_version` so
+    every other refresh session is invalidated immediately; the active
+    tab gets fresh cookies in the same response so it doesn't log out.
+    """
+    if not current_user.hashed_password:
+        raise HTTPException(
+            status_code=400,
+            detail="No password set on this account — use the forgot-password flow first",
+        )
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=400, detail="New password must differ from current"
+        )
+
+    current_user.hashed_password = hash_password(body.new_password)
+    current_user.token_version = (current_user.token_version or 0) + 1
+    await db.flush()
+
+    _set_auth_cookies(response, str(current_user.id), current_user.token_version)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/email", dependencies=[_AUTH_USER_LIMIT])
+async def request_email_change(
+    body: EmailChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Step 1: stage `pending_email`, mail a verification code to the new
+    address. The actual swap happens in `confirm_email_change`.
+
+    Requires the current password to defend against a hijacked session
+    silently moving the account to an attacker-controlled inbox.
+    """
+    if not current_user.hashed_password:
+        raise HTTPException(
+            status_code=400,
+            detail="No password set on this account — set one via the forgot-password flow first",
+        )
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    new_email = body.new_email.strip().lower()
+    if new_email == current_user.email.lower():
+        raise HTTPException(status_code=400, detail="That's already your email")
+
+    existing = await get_user_by_email(db, new_email)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="That email is already in use")
+
+    current_user.pending_email = new_email
+    code = await create_numeric_code(
+        db,
+        current_user.id,
+        PURPOSE_EMAIL_CHANGE,
+        timedelta(minutes=settings.EMAIL_VERIFICATION_TTL_MINUTES),
+    )
+    await db.flush()
+    # Send to the *new* address — only the legit owner of the new inbox
+    # sees the code, defeating typo + prankster scenarios.
+    await send_email_change_code(new_email, current_user.full_name, code)
+    return {"sent": True, "to": new_email}
+
+
+@router.post("/me/email/confirm", dependencies=[_AUTH_USER_LIMIT])
+async def confirm_email_change(
+    body: EmailChangeConfirmRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Step 2: redeem the code, swap email, bump token_version, re-issue
+    cookies on this session so the user stays logged in."""
+    if not current_user.pending_email:
+        raise HTTPException(
+            status_code=400,
+            detail="No email change in progress — request one first",
+        )
+
+    redeemed_user_id = await redeem(db, body.code, PURPOSE_EMAIL_CHANGE)
+    if redeemed_user_id != current_user.id:
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
+
+    new_email = current_user.pending_email
+
+    # Race: someone else snapped up the address between request + confirm.
+    other = await get_user_by_email(db, new_email)
+    if other is not None and other.id != current_user.id:
+        current_user.pending_email = None
+        await db.flush()
+        raise HTTPException(status_code=409, detail="That email is already in use")
+
+    current_user.email = new_email
+    current_user.pending_email = None
+    current_user.token_version = (current_user.token_version or 0) + 1
+    await db.flush()
+
+    _set_auth_cookies(response, str(current_user.id), current_user.token_version)
+    return {"email": new_email}
 
 
 # ─── Email verification ───────────────────────────────────────────

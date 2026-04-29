@@ -84,6 +84,23 @@ async def send_verification_email(to: str, full_name: str | None, code: str) -> 
     )
 
 
+async def send_email_change_code(to: str, full_name: str | None, code: str) -> None:
+    """Queue a verification code for self-change-email — sent to the *new*
+    address (the one the user wants to switch to)."""
+    await dispatcher.enqueue(
+        "mail",
+        "/mail/send",
+        event="email.change",
+        body={
+            "to": to,
+            "subject": "Confirm your new AgentForge email",
+            "template": "general",
+            "data": _verify_content(code, full_name),
+        },
+        retry={"maxAttempts": 5, "backoffMs": 5_000, "backoffMultiplier": 2},
+    )
+
+
 async def send_password_reset_email(to: str, full_name: str | None, token: str) -> None:
     """Queue a password-reset email — durable + retry via dispatcher."""
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"

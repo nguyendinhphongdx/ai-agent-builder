@@ -12,6 +12,9 @@ from app.db.base import Base, UUIDMixin
 # Purpose values persisted in auth_tokens.purpose
 PURPOSE_EMAIL_VERIFICATION = "email_verification"
 PURPOSE_PASSWORD_RESET = "password_reset"
+# Self-change-email — code emailed to the *new* address; the requested
+# address is staged on `users.pending_email` between request and confirm.
+PURPOSE_EMAIL_CHANGE = "email_change"
 
 
 class AuthToken(Base, UUIDMixin):

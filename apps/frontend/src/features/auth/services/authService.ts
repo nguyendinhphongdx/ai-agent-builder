@@ -37,6 +37,19 @@ export const authService = {
   updateMe: (data: { full_name?: string | null; avatar_url?: string | null }) =>
     apiClient.patch<User>("/auth/me", data).then((r) => r.data),
 
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    apiClient.post<void>("/auth/me/password", data).then((r) => r.data),
+
+  requestEmailChange: (data: { new_email: string; current_password: string }) =>
+    apiClient
+      .post<{ sent: true; to: string }>("/auth/me/email", data)
+      .then((r) => r.data),
+
+  confirmEmailChange: (data: { code: string }) =>
+    apiClient
+      .post<{ email: string }>("/auth/me/email/confirm", data)
+      .then((r) => r.data),
+
   forgotPassword: (data: ForgotPasswordInput) =>
     apiClient.post<{ sent: true }>("/auth/forgot-password", data).then((r) => r.data),
 

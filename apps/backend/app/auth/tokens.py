@@ -18,12 +18,14 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.auth_token import (
+    PURPOSE_EMAIL_CHANGE,
     PURPOSE_EMAIL_VERIFICATION,
     PURPOSE_PASSWORD_RESET,
     AuthToken,
 )
 
 __all__ = [
+    "PURPOSE_EMAIL_CHANGE",
     "PURPOSE_EMAIL_VERIFICATION",
     "PURPOSE_PASSWORD_RESET",
     "create_and_store",

@@ -38,6 +38,34 @@ export function useUpdateMe() {
   });
 }
 
+/** Self-change password while authenticated. Backend re-issues cookies
+ *  in the same response so the active tab stays logged in. */
+export function useChangePassword() {
+  return useMutation({ mutationFn: authService.changePassword });
+}
+
+/** Step 1 — request a code emailed to the new address. Returns the
+ *  target so the UI can confirm "code sent to …@example.com". */
+export function useRequestEmailChange() {
+  return useMutation({ mutationFn: authService.requestEmailChange });
+}
+
+/** Step 2 — submit the code. On success the cached user updates with
+ *  the new email so Profile + Header reflect it immediately. */
+export function useConfirmEmailChange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: authService.confirmEmailChange,
+    onSuccess: (data) => {
+      // Patch the cached user — only the email changes.
+      queryClient.setQueryData<{ email: string } | undefined>(
+        authKeys.me,
+        (prev) => (prev ? { ...prev, email: data.email } : prev),
+      );
+    },
+  });
+}
+
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();

@@ -59,6 +59,31 @@ class UserUpdateRequest(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=512)
 
 
+class PasswordChangeRequest(BaseModel):
+    """Self-change password while authenticated.
+
+    OAuth-only users (no `hashed_password`) can't use this — they should
+    set a password via the forgot-password / reset flow first.
+    """
+
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
+
+class EmailChangeRequest(BaseModel):
+    """Step 1 of self-change email — request a verification code emailed
+    to the *new* address. Caller confirms with `EmailChangeConfirmRequest`."""
+
+    new_email: EmailStr
+    current_password: str = Field(min_length=1)
+
+
+class EmailChangeConfirmRequest(BaseModel):
+    """Step 2 — submit the verification code from the new address."""
+
+    code: str = Field(min_length=4, max_length=12)
+
+
 class AuthResponse(AppBaseModel):
     """Schema trả về sau khi đăng ký/đăng nhập thành công."""
     user: UserResponse

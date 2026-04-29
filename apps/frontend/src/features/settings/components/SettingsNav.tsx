@@ -7,6 +7,7 @@ import {
   Key,
   KeyRound,
   Plug,
+  ShieldCheck,
   SlidersHorizontal,
   User as UserIcon,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const GROUPS: NavGroup[] = [
     title: "Account",
     items: [
       { href: "/settings/profile", label: "Profile", icon: UserIcon },
+      { href: "/settings/security", label: "Security", icon: ShieldCheck },
       { href: "/settings/preferences", label: "Preferences", icon: SlidersHorizontal },
     ],
   },

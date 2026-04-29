@@ -13,6 +13,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     # Nullable: OAuth-only users never set a password.
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Holds the *requested new* email during a self-change-email flow.
+    # NULL outside that brief request → confirm window. See auth/router
+    # `change_email` + `confirm_email_change`.
+    pending_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(String(512))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
