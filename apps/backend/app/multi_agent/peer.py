@@ -22,7 +22,6 @@ from app.agents.executor import build_agent_tools
 from app.llm.provider import build_llm_from_agent
 from app.models.agent import Agent
 
-
 # ─── State ─────────────────────────────────────────────────────────
 
 class PeerState(TypedDict, total=False):

@@ -10,7 +10,6 @@ import uuid
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.context import current_user_id
 from app.hub.schemas import ReviewCreate

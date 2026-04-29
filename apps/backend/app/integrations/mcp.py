@@ -5,8 +5,8 @@ register on the host (Claude Desktop / Cursor).
 from __future__ import annotations
 
 import re
-import uuid
 import unicodedata
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel

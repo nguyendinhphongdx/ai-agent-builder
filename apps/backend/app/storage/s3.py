@@ -1,7 +1,6 @@
 """AWS S3 / MinIO storage."""
 
 import boto3
-from botocore.config import Config
 
 from app.config import settings
 from app.storage.base import StorageBackend

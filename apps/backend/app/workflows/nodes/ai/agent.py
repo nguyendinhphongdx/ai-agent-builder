@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -9,6 +10,7 @@ from app.agents.executor import _auto_retrieve_context, _build_system_prompt, bu
 from app.ai_credentials.service import get_plaintext_key_by_id
 from app.llm.provider import build_llm_from_agent
 from app.models.agent import Agent as AgentModel
+
 from ..base import ExecutionContext, NodeExecutor, NodeResult
 
 

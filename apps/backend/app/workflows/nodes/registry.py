@@ -1,19 +1,27 @@
 """Executor registry — maps node_type strings to executor instances."""
 
+from app.workflows.nodes.ai import AgentExecutor, LLMExecutor
 from app.workflows.nodes.core import (
     EndExecutor,
     NoteExecutor,
     StartExecutor,
     WebhookTriggerExecutor,
 )
-from app.workflows.nodes.ai import LLMExecutor, AgentExecutor
+from app.workflows.nodes.data import (
+    CodeExecutor,
+    KnowledgeRetrievalExecutor,
+    SetVariableExecutor,
+    TemplateExecutor,
+)
 from app.workflows.nodes.integration import HTTPRequestExecutor, ToolExecutor
 from app.workflows.nodes.logic import (
-    ConditionExecutor, SwitchExecutor, FilterExecutor,
-    MergeExecutor, LoopExecutor, DelayExecutor, HumanInputExecutor,
-)
-from app.workflows.nodes.data import (
-    TemplateExecutor, SetVariableExecutor, CodeExecutor, KnowledgeRetrievalExecutor,
+    ConditionExecutor,
+    DelayExecutor,
+    FilterExecutor,
+    HumanInputExecutor,
+    LoopExecutor,
+    MergeExecutor,
+    SwitchExecutor,
 )
 
 EXECUTORS: dict = {

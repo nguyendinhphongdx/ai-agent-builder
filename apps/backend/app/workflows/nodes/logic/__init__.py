@@ -1,10 +1,10 @@
 from .condition import ConditionExecutor
-from .switch import SwitchExecutor
-from .filter import FilterExecutor
-from .merge import MergeExecutor
-from .loop import LoopExecutor
 from .delay import DelayExecutor
+from .filter import FilterExecutor
 from .human_input import HumanInputExecutor
+from .loop import LoopExecutor
+from .merge import MergeExecutor
+from .switch import SwitchExecutor
 
 __all__ = [
     "ConditionExecutor", "SwitchExecutor", "FilterExecutor",

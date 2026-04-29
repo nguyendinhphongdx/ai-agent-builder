@@ -30,7 +30,6 @@ from simpleeval import (
     NameNotDefined,
 )
 
-
 _EXPR_RE = re.compile(r"\{\{(.+?)\}\}", re.DOTALL)
 # Pure expression = exactly one {{ ... }} block with only whitespace around it.
 # The negative lookahead inside prevents matching across multiple blocks

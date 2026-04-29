@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import secrets
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

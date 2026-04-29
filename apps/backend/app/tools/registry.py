@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import uuid
 from typing import Any
 
 import httpx
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, create_model
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.config import settings
 from app.models.tool import Tool
@@ -60,7 +57,6 @@ def json_schema_to_pydantic(schema: dict) -> type[BaseModel]:
 
     for name, prop in properties.items():
         field_type = type_map.get(prop.get("type", "string"), str)
-        description = prop.get("description", "")
         default = prop.get("default", ...)
 
         if name not in required and default is ...:

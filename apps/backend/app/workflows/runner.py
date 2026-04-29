@@ -28,9 +28,9 @@ from app.workflows.nodes.base import (
 from app.workflows.nodes.registry import get_executor
 from app.workflows.service import create_workflow_run, update_workflow_run
 from app.workflows.socket_emitter import (
-    emit_node_running,
     emit_node_completed,
     emit_node_failed,
+    emit_node_running,
     emit_workflow_completed,
     emit_workflow_failed,
 )
@@ -445,6 +445,7 @@ class WorkflowRunner:
         dict when the workflow has never run.
         """
         from sqlalchemy import select as _select
+
         from app.models.workflow_run import WorkflowRun
 
         result = await self.db.execute(

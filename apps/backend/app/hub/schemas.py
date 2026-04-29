@@ -7,7 +7,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-
 # ─── Snapshot shapes (frozen at publish time) ─────────────────────────
 
 

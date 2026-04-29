@@ -37,7 +37,7 @@ from app.knowledge.service import (
     update_knowledge_base,
 )
 from app.models.document import Document
-from app.storage import get_storage, generate_storage_key
+from app.storage import generate_storage_key, get_storage
 
 router = APIRouter(
     prefix="/knowledge-bases",

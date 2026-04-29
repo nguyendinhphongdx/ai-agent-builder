@@ -17,8 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.extractors import (
-    Extractor,
     ExtractionError,
+    Extractor,
     UnsupportedFormatError,
 )
 from app.models.document import Document

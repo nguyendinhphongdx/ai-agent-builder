@@ -3,12 +3,11 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String, TIMESTAMP
+from sqlalchemy import TIMESTAMP, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDMixin
-
 
 # Purpose values persisted in auth_tokens.purpose
 PURPOSE_EMAIL_VERIFICATION = "email_verification"

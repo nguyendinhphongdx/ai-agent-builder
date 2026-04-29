@@ -9,18 +9,15 @@ Sử dụng LangGraph StateGraph để quản lý luồng điều phối.
 
 from __future__ import annotations
 
-import uuid
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.executor import build_agent_tools
-from app.agents.service import get_agent
 from app.llm.provider import build_llm_from_agent
 from app.models.agent import Agent
-
 
 # ─── State ─────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import secrets
 import uuid
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +22,6 @@ from app.models.agent_template import AgentTemplate
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_version import AgentTemplateVersion
 from app.models.user import User
-
 
 # ─── Publish ──────────────────────────────────────────────────────────
 

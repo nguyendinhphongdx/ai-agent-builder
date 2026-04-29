@@ -1,12 +1,14 @@
 from __future__ import annotations
-from typing import Any
+
 import uuid
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.ai_credentials.service import get_plaintext_key_by_id
 from app.llm.provider import build_llm
 from app.workflows.expression import evaluate_template
+
 from ..base import ExecutionContext, NodeExecutor, NodeResult
 
 

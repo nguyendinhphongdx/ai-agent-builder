@@ -29,7 +29,6 @@ from app.models.agent import Agent, AgentKnowledgeBase, AgentTool
 from app.models.knowledge_base import KnowledgeBase
 from app.models.tool import Tool
 
-
 # ─── Build snapshot from a live agent ─────────────────────────────────
 
 

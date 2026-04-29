@@ -24,8 +24,8 @@ import logging
 from typing import Any, Iterable
 
 from app.extractors import (
-    Extractor,
     ExtractionError,
+    Extractor,
     UnsupportedFormatError,
 )
 from app.models.file import File as FileModel

@@ -37,7 +37,6 @@ from app.auth.tokens import (
 from app.config import settings
 from app.db.session import get_db
 from app.models.user import User
-
 from app.rate_limit import make_limit
 
 # Public auth endpoints are the most-attacked surface — keep per-IP limits

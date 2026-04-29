@@ -10,7 +10,6 @@ import socket
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-
 _BLOCKED_HOSTS = {"metadata.google.internal", "metadata.goog"}
 
 

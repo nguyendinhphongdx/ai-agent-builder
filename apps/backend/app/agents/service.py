@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.context import current_user_id
-from app.models.agent import Agent, AgentTool, AgentKnowledgeBase
-from app.models.tool import Tool
+from app.models.agent import Agent, AgentKnowledgeBase, AgentTool
 from app.models.knowledge_base import KnowledgeBase
+from app.models.tool import Tool
 
 
 async def list_agents(db: AsyncSession) -> list[Agent]:

@@ -30,7 +30,6 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlparse
 
-
 # ─── Result + errors ─────────────────────────────────────────────────────
 
 @dataclass(frozen=True)

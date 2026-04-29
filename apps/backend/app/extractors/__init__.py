@@ -22,8 +22,8 @@ for call-sites that already pass paths around as strings.
 """
 
 from .base import (
-    Extractor,
     ExtractionError,
+    Extractor,
     ExtractResult,
     FormatExtractor,
     UnsupportedFormatError,

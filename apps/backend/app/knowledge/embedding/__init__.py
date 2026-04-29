@@ -12,7 +12,6 @@ Usage:
 
 # Import providers to trigger registration
 from . import providers  # noqa: F401
-
 from .factory import build_default, build_for_kb
 from .registry import build, register
 
