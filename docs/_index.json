@@ -203,6 +203,28 @@
     "summary": "Docker Compose orchestration. Services extend from services/ dir. Backend port 8000, frontend 3000, postgres 5432, redis 6379, rabbitmq 5672/15672."
   },
   {
+    "id": "arch-operations",
+    "path": "architecture/operations.md",
+    "title": "Operations - Observability, Payouts, Bootstrap",
+    "domain": "architecture",
+    "tags": [
+      "ops",
+      "observability",
+      "sentry",
+      "healthcheck",
+      "logging",
+      "stripe",
+      "connect",
+      "payouts",
+      "cli"
+    ],
+    "related": [
+      "arch-deployment",
+      "arch-system-overview"
+    ],
+    "summary": "Production runbook — JSON access logs, Sentry SDK, /healthz + /readyz, Stripe Connect onboarding, operator CLIs (seed_admin, seed_starter_templates)."
+  },
+  {
     "id": "arch-project-structure",
     "path": "architecture/project-structure.md",
     "title": "Project Structure - Monorepo Layout",

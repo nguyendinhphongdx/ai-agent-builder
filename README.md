@@ -59,12 +59,43 @@ docker compose up -d
 
 # 4. Run database migrations
 docker compose exec backend alembic upgrade head
+
+# 5. Bootstrap a root admin (idempotent — promotes if email exists)
+docker compose exec backend python -m app.cli.seed_admin \
+    --email admin@example.com --password 'ChangeMe!'
+
+# 6. Seed the 5 official starter templates (used by the /welcome wizard)
+docker compose exec backend python -m app.cli.seed_starter_templates \
+    --owner-email admin@example.com
 ```
 
 Open:
 - **Frontend**: http://localhost:3000
 - **API Docs**: http://localhost:8000/api/docs
 - **RabbitMQ UI**: http://localhost:15672
+
+### Operational endpoints
+
+| Path | Purpose |
+|---|---|
+| `GET /healthz` | Liveness — always 200, no deps. Use as k8s `livenessProbe`. |
+| `GET /readyz` | Readiness — pings Postgres + Redis. 503 when degraded. |
+| `GET /api/openapi.json` | Full OpenAPI spec for client codegen. |
+
+### Operator CLIs
+
+```bash
+# Promote an existing user to admin without resetting their password
+docker compose exec backend python -m app.cli.seed_admin \
+    --email user@example.com --promote-only
+
+# Refresh the seeded starter templates after editing _starter_templates.py
+docker compose exec backend python -m app.cli.seed_starter_templates \
+    --owner-email admin@example.com
+```
+
+For production hardening (JSON logs, Sentry, Stripe Connect payouts) see
+[`docs/architecture/operations.md`](docs/architecture/operations.md).
 
 ## Development Guide
 
