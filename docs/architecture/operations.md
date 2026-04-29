@@ -121,26 +121,75 @@ needed.
 
 ## 4. Error tracking — Sentry
 
-Empty `SENTRY_DSN` keeps the SDK fully dormant (no module-level
-breadcrumbs, no network). When set:
+Wired on three runtimes — backend (FastAPI), Next.js server (Node + Edge),
+and the browser. Empty DSNs keep each SDK fully dormant; no network, no
+module-level side effects.
+
+### 4.1 Backend (`apps/backend`)
 
 ```env
-SENTRY_DSN=https://abc123@o123456.ingest.sentry.io/789
+SENTRY_DSN=https://abc@o123456.ingest.sentry.io/789
 ENVIRONMENT=production              # or staging | development
-RELEASE=$(git rev-parse --short HEAD)  # injected by CI/CD
-SENTRY_TRACES_SAMPLE_RATE=0.0       # 0..1; bump when you want perf data
+RELEASE=$(git rev-parse --short HEAD)  # inject from CI/CD
+SENTRY_TRACES_SAMPLE_RATE=0.0       # 0..1; bump for perf data
 ```
 
-Defaults are conservative on purpose:
+Conservative defaults:
 
-- `send_default_pii=False` — request bodies, cookies, and headers stay
+- `send_default_pii=False` — request bodies / cookies / headers stay
   local. Tool configs and KB content can carry secrets.
-- `traces_sample_rate=0.0` — errors only. Bump deliberately when you
-  want performance traces, with sampling tuned to your quota.
-- Logging integration: `WARNING` becomes a breadcrumb, `ERROR` becomes
-  a captured event.
+- `traces_sample_rate=0.0` — errors only.
+- Logging integration: `WARNING` → breadcrumb, `ERROR` → captured event.
 
-Frontend Sentry is not yet wired; track in the operations TODO list.
+### 4.2 Frontend (`apps/frontend`)
+
+Two SDKs share the project:
+
+- **Server SDK** (`SENTRY_DSN`) — Node + Edge runtimes. Init via
+  `src/instrumentation.ts`'s `register()`. Captures Server Component
+  crashes, Route Handler errors, middleware exceptions.
+- **Browser SDK** (`NEXT_PUBLIC_SENTRY_DSN`) — exposed to the bundle.
+  Init via `src/instrumentation-client.ts`. Captures React render errors,
+  unhandled rejections, and event-handler throws.
+
+```env
+# browser
+NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
+NEXT_PUBLIC_SENTRY_RELEASE=$GIT_SHA
+NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0
+# server
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+SENTRY_RELEASE=$GIT_SHA
+SENTRY_TRACES_SAMPLE_RATE=0
+```
+
+Set the **same DSN** as the backend for unified issue grouping — browser
+errors, Next server crashes, and FastAPI exceptions land in the same
+project. The backend's `X-Request-ID` response header (see §3) lets you
+pivot from a browser issue to the matching backend log line.
+
+Defaults: `tracesSampleRate=0`, `replaysSessionSampleRate=0`,
+`replaysOnErrorSampleRate=0`, `sendDefaultPii=false` (matches backend).
+
+### 4.3 Source map upload (CI/CD)
+
+`next.config.ts` is wrapped with `withSentryConfig`. Source maps upload
+during `pnpm build` only when these are set in the build environment:
+
+```env
+SENTRY_ORG=your-org-slug
+SENTRY_PROJECT=your-project-slug
+SENTRY_AUTH_TOKEN=sntrys_...   # scope: project:releases
+```
+
+Get a token at *Sentry → Settings → Account → API → Auth Tokens*. Without
+the token the plugin is a no-op — local builds aren't affected, you just
+get minified function names in stack traces.
+
+Source maps are deleted from the client bundle after upload
+(`sourcemaps.deleteSourcemapsAfterUpload`) so they don't ship to users.
 
 ---
 
@@ -247,8 +296,6 @@ Adding a new CLI: drop `apps/backend/app/cli/<name>.py`, expose a
 
 Tracked in the operations backlog:
 
-- Frontend Sentry (`@sentry/nextjs` + `instrumentation.ts` + source map
-  upload via `withSentryConfig`).
 - OpenTelemetry distributed traces (FastAPI → dispatcher → sandbox).
 - Per-author payout history page + admin refund flow.
 - Author abuse handling (suspend `stripe_charges_enabled` from admin
