@@ -6,21 +6,42 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '../auth/jwt.service';
 import { ConnectionsService } from '../connections/connections.service';
 
-@WebSocketGateway({ cors: { origin: true, credentials: true } })
+@WebSocketGateway({
+  cors: {
+    // Resolved at request time against the allowlist populated in the gateway's
+    // constructor (DI runs before any client connects).
+    origin: (origin, cb) => {
+      if (!origin || SocketGateway.allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Origin not allowed'), false);
+      }
+    },
+    credentials: true,
+  },
+})
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
+
+  static allowedOrigins: string[] = [];
 
   private readonly logger = new Logger(SocketGateway.name);
 
   constructor(
     private readonly jwt: JwtService,
     private readonly connections: ConnectionsService,
-  ) {}
+    config: ConfigService,
+  ) {
+    // Decorator runs before DI — capture origins on first instantiation so the
+    // dynamic CORS callback can use them.
+    SocketGateway.allowedOrigins = config.get<string[]>('app.corsOrigins') ?? [];
+  }
 
   private short(id: string): string {
     return id.slice(0, 8);
@@ -34,17 +55,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const payload = this.jwt.verify(token);
       const userId = payload.sub;
 
-      // Store userId on socket for later use
       client.data.userId = userId;
-
-      // Join personal room
-      client.join(`user:${userId}`);
-
-      // Join rooms from token claims
-      if (payload.rooms?.length) {
-        for (const room of payload.rooms) {
-          client.join(room);
-        }
+      // Authoritative room set comes from the signed JWT — not from the client.
+      const allowed = new Set<string>([`user:${userId}`, ...(payload.rooms ?? [])]);
+      client.data.allowedRooms = allowed;
+      for (const room of allowed) {
+        client.join(room);
       }
 
       this.connections.add(userId, client.id);
@@ -68,12 +84,18 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('join')
   handleJoin(client: Socket, data: { room: string }) {
-    if (data?.room) {
-      client.join(data.room);
-      this.logger.log(
-        `JOIN      user=${this.short(client.data.userId)} room=${data.room}`,
+    if (!data?.room) return;
+    const allowed: Set<string> | undefined = client.data.allowedRooms;
+    if (!allowed?.has(data.room)) {
+      this.logger.warn(
+        `JOIN-DENY user=${this.short(client.data.userId)} room=${data.room}`,
       );
+      return;
     }
+    client.join(data.room);
+    this.logger.log(
+      `JOIN      user=${this.short(client.data.userId)} room=${data.room}`,
+    );
   }
 
   @SubscribeMessage('leave')

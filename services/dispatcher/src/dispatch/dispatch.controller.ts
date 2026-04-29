@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Body,
@@ -21,6 +22,7 @@ import {
   StreamRequest,
 } from './dispatch.types';
 import { DispatchLogger } from '../utils/dispatch-logger';
+import { assertSafeUrl } from '../utils/url-guard';
 
 /**
  * Dispatch Controller
@@ -197,6 +199,14 @@ export class DispatchController {
     @Headers('x-source-service') sourceHeader?: string,
   ): Promise<WebhookResponse> {
     request.source = sourceHeader || request.source;
+
+    try {
+      await assertSafeUrl(request.url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid URL';
+      throw new BadRequestException(message);
+    }
+
     const messageId = uuid();
 
     this.logger.queued({

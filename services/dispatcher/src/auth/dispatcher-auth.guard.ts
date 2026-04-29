@@ -27,8 +27,15 @@ export class DispatcherAuthGuard implements CanActivate {
 
   constructor(private readonly configService: ConfigService) {
     this.secret = this.configService.get<string>('DISPATCHER_SECRET');
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
 
     if (!this.secret) {
+      if (isProd) {
+        this.logger.error(
+          'DISPATCHER_SECRET is not set. Refusing to start in production.',
+        );
+        throw new Error('DISPATCHER_SECRET must be set when NODE_ENV=production');
+      }
       this.logger.warn(
         'DISPATCHER_SECRET is not set — auth guard is disabled. Set it in production.',
       );
