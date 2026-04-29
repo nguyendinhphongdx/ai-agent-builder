@@ -71,9 +71,9 @@ async def oauth_start(
         value=signed_state,
         max_age=STATE_TTL_SECONDS,
         httponly=True,
-        secure=True,
+        secure=not settings.DEBUG,
         samesite="lax",
-        path="/api/auth/oauth",
+        path=f"{settings.API_PREFIX}/auth/oauth",
     )
     return response
 
@@ -140,7 +140,7 @@ async def oauth_callback(
         status_code=status.HTTP_302_FOUND,
     )
     # Clear state cookie
-    resp.delete_cookie(STATE_COOKIE, path="/api/auth/oauth")
+    resp.delete_cookie(STATE_COOKIE, path=f"{settings.API_PREFIX}/auth/oauth")
     _set_auth_cookies(
         resp,
         str(user.id),
@@ -152,7 +152,7 @@ async def oauth_callback(
 
 def _fail(url: str) -> RedirectResponse:
     resp = RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
-    resp.delete_cookie(STATE_COOKIE, path="/api/auth/oauth")
+    resp.delete_cookie(STATE_COOKIE, path=f"{settings.API_PREFIX}/auth/oauth")
     return resp
 
 
