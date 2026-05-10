@@ -65,6 +65,11 @@ async def _seed(
             )
             session.add(user)
             await session.flush()
+            # Admins still get a personal workspace — they need somewhere
+            # to land when they hit the dashboard, same as any user. Their
+            # platform-level admin role is orthogonal to workspace tenancy.
+            from app.workspaces.service import ensure_personal_workspace
+            await ensure_personal_workspace(session, user)
             print(f"✓ Created admin {email} (id={user.id})")
 
         await session.commit()

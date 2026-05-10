@@ -15,7 +15,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.service import decode_token, get_user_by_id
-from app.context import set_current_user_id
+from app.context import set_current_user_id, set_current_workspace_id
 from app.db.session import get_db
 from app.models.user import User
 from app.personal_tokens.service import verify_plaintext
@@ -35,9 +35,17 @@ async def get_current_user(
     request: Request,
     access_token: str | None = Cookie(default=None),
     authorization: str | None = Header(default=None),
+    x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Resolve the current user from API token (header) or cookie session."""
+    """Resolve the current user from API token (header) or cookie session.
+
+    Also seeds the ``current_workspace_id`` ContextVar from
+    ``X-Workspace-Id`` header when present, falling back to
+    ``user.default_workspace_id``. Membership enforcement happens
+    later in workspace-scoped routers — this dependency just plumbs
+    the value through so service queries can read it.
+    """
     # ── 1. Bearer API token ──────────────────────────────────────────
     bearer = _bearer_token(authorization)
     if bearer:
@@ -51,6 +59,7 @@ async def get_current_user(
         # Stash for require_scope + rate-limit middleware downstream.
         request.state.api_token = token
         set_current_user_id(user.id)
+        _seed_workspace_context(user, x_workspace_id)
         return user
 
     # ── 2. Cookie session ────────────────────────────────────────────
@@ -84,7 +93,38 @@ async def get_current_user(
         )
 
     set_current_user_id(user.id)
+    _seed_workspace_context(user, x_workspace_id)
     return user
+
+
+def _seed_workspace_context(user: User, header_value: str | None) -> None:
+    """Pick the active workspace for this request and stash it in the
+    ContextVar.
+
+    Resolution order:
+      1. ``X-Workspace-Id`` header — explicit override from the client.
+         Membership/permission enforcement is the responsibility of
+         workspace-scoped routers; this dep just propagates the value.
+      2. ``user.default_workspace_id`` — set during ``ensure_personal_
+         workspace`` at signup / first login.
+      3. ``None`` — pre-multi-tenancy users that haven't been backfilled
+         yet. Service queries during the transition treat this as
+         "no workspace scope".
+
+    Bad header values silently fall back to the default rather than
+    erroring — same forgiveness model as Accept-Language.
+    """
+    import uuid as _uuid  # local import keeps the module's public surface tight
+
+    chosen: _uuid.UUID | None = None
+    if header_value:
+        try:
+            chosen = _uuid.UUID(header_value)
+        except ValueError:
+            chosen = None
+    if chosen is None:
+        chosen = user.default_workspace_id
+    set_current_workspace_id(chosen)
 
 
 def require_scope(scope: str):

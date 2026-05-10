@@ -45,6 +45,11 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "ruff>=0.8",
+    # Integration test infrastructure (opt-in via -m integration).
+    # testcontainers spins up a real Postgres+pgvector for migration / DB
+    # tests so we don't ship migrations that only pass on SQLite.
+    "testcontainers[postgres]>=4.8",
+    "factory-boy>=3.3",
 ]
 
 [tool.setuptools.packages.find]

@@ -4,34 +4,56 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
 from app.models.agent import Agent, AgentKnowledgeBase, AgentTool
 from app.models.knowledge_base import KnowledgeBase
 from app.models.tool import Tool
 
 
 async def list_agents(db: AsyncSession) -> list[Agent]:
-    """Lấy danh sách agent của user, sắp xếp theo thời gian cập nhật mới nhất."""
-    result = await db.execute(
-        select(Agent)
-        .where(Agent.user_id == current_user_id())
-        .order_by(Agent.updated_at.desc())
-    )
+    """Lấy danh sách agent của user, sắp xếp theo thời gian cập nhật mới nhất.
+
+    Phase 1.1: filter dual-keyed on user_id (legacy) and workspace_id
+    (new). Legacy rows have ``workspace_id IS NULL`` so we keep showing
+    them; new rows are scoped to the active workspace. Once backfill
+    sets every row's ``workspace_id`` and the column flips to NOT NULL
+    we can drop the legacy branch.
+    """
+    workspace_id = current_workspace_id_or_none()
+    stmt = select(Agent).where(Agent.user_id == current_user_id())
+    if workspace_id is not None:
+        stmt = stmt.where(
+            (Agent.workspace_id == workspace_id) | (Agent.workspace_id.is_(None))
+        )
+    result = await db.execute(stmt.order_by(Agent.updated_at.desc()))
     return list(result.scalars().all())
 
 
 async def get_agent(db: AsyncSession, agent_id: uuid.UUID) -> Agent | None:
     """Lấy chi tiết agent kèm danh sách tools và knowledge bases đã gắn."""
-    result = await db.execute(
+    workspace_id = current_workspace_id_or_none()
+    stmt = (
         select(Agent)
         .options(selectinload(Agent.tools), selectinload(Agent.knowledge_bases))
         .where(Agent.id == agent_id, Agent.user_id == current_user_id())
     )
+    if workspace_id is not None:
+        stmt = stmt.where(
+            (Agent.workspace_id == workspace_id) | (Agent.workspace_id.is_(None))
+        )
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def create_agent(db: AsyncSession, **kwargs) -> Agent:
-    """Tạo agent mới và tải sẵn quan hệ tools, knowledge_bases."""
+    """Tạo agent mới và tải sẵn quan hệ tools, knowledge_bases.
+
+    ``workspace_id`` is auto-filled from the active workspace context
+    if the caller didn't provide one. New rows always get a tenant tag
+    when one is in scope; only background tasks without a request
+    context produce ``workspace_id IS NULL`` rows after this point.
+    """
+    kwargs.setdefault("workspace_id", current_workspace_id_or_none())
     agent = Agent(user_id=current_user_id(), **kwargs)
     db.add(agent)
     await db.flush()

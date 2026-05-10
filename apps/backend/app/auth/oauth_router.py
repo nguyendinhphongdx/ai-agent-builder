@@ -212,6 +212,11 @@ async def _match_or_create_user(db: AsyncSession, profile) -> User | None:
         )
     )
     await db.flush()
+    # Same provisioning the password-signup path gets — see
+    # ``auth.service.create_user``. Has to run after the user row
+    # exists so the workspace owner FK has something to point at.
+    from app.workspaces.service import ensure_personal_workspace
+    await ensure_personal_workspace(db, user)
     return user
 
 

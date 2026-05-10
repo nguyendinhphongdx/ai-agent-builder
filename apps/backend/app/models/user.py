@@ -1,6 +1,8 @@
+import uuid
 from datetime import datetime
 
-from sqlalchemy import TIMESTAMP, Boolean, Integer, String, Text
+from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -29,6 +31,20 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Refresh JWTs carry `ver`; mismatch → reject.
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+
+    # ── Multi-tenancy ──────────────────────────────────────────────────
+    # Where the user lands when they open the app — auto-pointed at
+    # their personal workspace at signup, then updated to the last
+    # workspace they were viewing. NULL only between user creation and
+    # the first ``ensure_personal_workspace`` call (and for legacy rows
+    # backfilled before that service exists). Workspace deletion nulls
+    # this out via ``ON DELETE SET NULL`` rather than dropping the user.
+    default_workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # ── Stripe Connect (Hub paid template payouts) ──────────────────────
     # Express account id, populated when the author starts onboarding.
@@ -66,4 +82,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     )
     personal_access_tokens: Mapped[list["PersonalAccessToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+
+    # Pointer at the user's home workspace (no back_populates — Workspace
+    # has many things pointing at it; this is just a UX shortcut, not a
+    # navigation edge in the workspace graph).
+    default_workspace: Mapped["Workspace | None"] = relationship(
+        foreign_keys=[default_workspace_id], lazy="joined"
     )

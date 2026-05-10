@@ -14,6 +14,7 @@ from app.models.file import File
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
 from app.models.oauth_account import OAuthAccount
+from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.tool import Tool
 from app.models.user import User
@@ -21,11 +22,18 @@ from app.models.workflow import Workflow
 from app.models.workflow_edge import WorkflowEdge
 from app.models.workflow_node import WorkflowNode
 from app.models.workflow_run import WorkflowRun
+from app.models.workspace import Workspace
+from app.models.workspace_invitation import WorkspaceInvitation
+from app.models.workspace_member import WorkspaceMember
 
 __all__ = [
     "User",
     "AuthToken",
     "OAuthAccount",
+    "Organization",
+    "Workspace",
+    "WorkspaceMember",
+    "WorkspaceInvitation",
     "Agent",
     "AgentTool",
     "AgentKnowledgeBase",

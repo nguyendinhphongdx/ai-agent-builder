@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.user import User
+from app.workspaces.service import ensure_personal_workspace
 
 # Cấu hình mã hóa mật khẩu sử dụng bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -96,8 +97,15 @@ async def create_user(
     full_name: str | None,
     *,
     is_verified: bool = False,
+    provision_workspace: bool = True,
 ) -> User:
-    """Tạo user mới. ``password`` có thể ``None`` cho OAuth-only accounts."""
+    """Tạo user mới. ``password`` có thể ``None`` cho OAuth-only accounts.
+
+    ``provision_workspace=True`` (default) auto-creates a personal
+    Org+Workspace+owner-Member and points ``user.default_workspace_id``
+    at it. CLIs that bootstrap admin / system users without a personal
+    tenant context can pass ``False``.
+    """
     user = User(
         email=email,
         hashed_password=hash_password(password) if password else None,
@@ -107,5 +115,7 @@ async def create_user(
     )
     db.add(user)
     await db.flush()
+    if provision_workspace:
+        await ensure_personal_workspace(db, user)
     await db.refresh(user)
     return user

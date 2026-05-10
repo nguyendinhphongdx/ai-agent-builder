@@ -1,26 +1,5 @@
 [
   {
-    "id": "guides-momo-setup",
-    "path": "guides/momo-setup.md",
-    "title": "MoMo Setup — VND payments for the Hub",
-    "domain": "guides",
-    "tags": [
-      "momo",
-      "payments",
-      "vietnam",
-      "vnd",
-      "hub",
-      "marketplace",
-      "ipn",
-      "webhook"
-    ],
-    "related": [
-      "arch-operations",
-      "api-hub-endpoints"
-    ],
-    "summary": "Step-by-step playbook to enable VND payments via MoMo on the Hub — register merchant, configure env vars, expose IPN, validate signatures, run a sandbox test, and settle author payouts."
-  },
-  {
     "id": "api-agent-endpoints",
     "path": "api/agent-endpoints.md",
     "title": "Agent API Endpoints",
@@ -174,15 +153,6 @@
     "summary": "Documents Workflow CRUD, graph save, execute, and run history endpoints with request/response examples."
   },
   {
-    "id": "architecture-socket-service",
-    "path": "architecture/socket-service.md",
-    "title": "Socket Service (NestJS)",
-    "domain": "architecture",
-    "tags": ["socket", "websocket", "realtime", "nestjs", "socket.io", "events", "rooms"],
-    "related": ["api-websocket-protocol", "frontend-websocket-client"],
-    "summary": "Documents the NestJS Socket Service — architecture, rooms, emit API, frontend integration, and event conventions."
-  },
-  {
     "id": "arch-dependencies",
     "path": "architecture/dependencies.md",
     "title": "Dependencies - All Packages & Version Policy",
@@ -224,6 +194,52 @@
     "summary": "Docker Compose orchestration. Services extend from services/ dir. Backend port 8000, frontend 3000, postgres 5432, redis 6379, rabbitmq 5672/15672."
   },
   {
+    "id": "arch-enterprise-roadmap",
+    "path": "architecture/enterprise-roadmap.md",
+    "title": "Enterprise Roadmap — 12-Month Implementation Plan",
+    "domain": "architecture",
+    "tags": [
+      "roadmap",
+      "enterprise",
+      "planning",
+      "multi-tenancy",
+      "workspace",
+      "organization",
+      "sso",
+      "saml",
+      "scim",
+      "oidc",
+      "mfa",
+      "queue",
+      "rabbitmq",
+      "jobs",
+      "observability",
+      "opentelemetry",
+      "langfuse",
+      "billing",
+      "usage-metering",
+      "soc2",
+      "helm",
+      "kubernetes",
+      "on-prem",
+      "white-label",
+      "plugins",
+      "rag",
+      "hybrid-search",
+      "reranker",
+      "i18n",
+      "e2e-tests"
+    ],
+    "related": [
+      "arch-system-overview",
+      "arch-operations",
+      "arch-deployment",
+      "arch-dependencies",
+      "guides-momo-setup"
+    ],
+    "summary": "12-month plan to evolve AgentForge from MVP to enterprise SaaS. Four phases — Phase 0 prerequisites (CI, tests); Phase 1 multi-tenancy + queue + SSO + audit; Phase 2 hybrid RAG + OTEL/Langfuse + usage-based billing + cron triggers; Phase 3 plugin system + LLM/vector breadth + i18n + E2E tests + notifications; Phase 4 Helm + Terraform + on-prem + SOC2 + white-label. Includes schema DDL, code touchpoints, acceptance criteria, effort estimates, risks, team sizing, and budget."
+  },
+  {
     "id": "arch-operations",
     "path": "architecture/operations.md",
     "title": "Operations - Observability, Payouts, Bootstrap",
@@ -244,6 +260,30 @@
       "arch-system-overview"
     ],
     "summary": "Production runbook — JSON access logs, Sentry SDK, /healthz + /readyz, Stripe Connect onboarding, operator CLIs (seed_admin, seed_starter_templates)."
+  },
+  {
+    "id": "arch-phase-1-progress",
+    "path": "architecture/phase-1-progress.md",
+    "title": "Phase 1 Progress Log — Multi-tenancy Rollout Status",
+    "domain": "architecture",
+    "tags": [
+      "progress",
+      "status",
+      "multi-tenancy",
+      "workspace",
+      "organization",
+      "phase-1",
+      "rollout",
+      "log",
+      "session-handoff",
+      "agent-handoff"
+    ],
+    "related": [
+      "arch-enterprise-roadmap",
+      "arch-system-overview",
+      "arch-operations"
+    ],
+    "summary": "Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrations, models, services, and tests are done, which are pending, what decisions have been made, and where the next session should resume. Read this BEFORE re-reading the full roadmap when picking up the project — it's the single source of truth for progress."
   },
   {
     "id": "arch-project-structure",
@@ -289,13 +329,24 @@
     "summary": "High-level system architecture. FastAPI backend + Next.js 16 frontend + PostgreSQL/pgvector. LangGraph for agent orchestration. JWT httpOnly cookies for auth."
   },
   {
-    "id": "backend-workflow-execution-redesign",
-    "path": "backend/workflow-execution-redesign.md",
-    "title": "Workflow Execution Engine Redesign",
-    "domain": "backend",
-    "tags": ["workflows", "execution", "langgraph", "nodes", "state", "redesign"],
-    "related": ["frontend-workflow-editor-architecture-research"],
-    "summary": "Redesign of workflow execution engine — structured per-node I/O, items-based data flow, N-way branching, merge waiting, and new node executors."
+    "id": "architecture-socket-service",
+    "path": "architecture/socket-service.md",
+    "title": "Socket Service (NestJS)",
+    "domain": "architecture",
+    "tags": [
+      "socket",
+      "websocket",
+      "realtime",
+      "nestjs",
+      "socket.io",
+      "events",
+      "rooms"
+    ],
+    "related": [
+      "api-websocket-protocol",
+      "frontend-websocket-client"
+    ],
+    "summary": "Documents the NestJS Socket Service — architecture, rooms, emit API, frontend integration, and event conventions for real-time features."
   },
   {
     "id": "agent-executor",
@@ -466,6 +517,24 @@
       "backend-config"
     ],
     "summary": "Tool model, ToolRegistry with builder pattern, four built-in builders (HTTP, CodeExec, WebScrape, DBQuery), JSON Schema to Pydantic conversion, and CRUD endpoints."
+  },
+  {
+    "id": "backend-workflow-execution-redesign",
+    "path": "backend/workflow-execution-redesign.md",
+    "title": "Workflow Execution Engine Redesign",
+    "domain": "backend",
+    "tags": [
+      "workflows",
+      "execution",
+      "runner",
+      "nodes",
+      "state",
+      "redesign"
+    ],
+    "related": [
+      "frontend-workflow-editor-architecture-research"
+    ],
+    "summary": "Custom stack-based workflow runner replacing LangGraph StateGraph. LangGraph only used inside Agent node for ReAct loops."
   },
   {
     "id": "multi-agent",
@@ -807,6 +876,48 @@
     "summary": "End-to-end flow from creating an agent through configuring LLM, attaching tools and knowledge bases, to testing via the preview chat."
   },
   {
+    "id": "flows-auth-system-plan",
+    "path": "flows/auth-system-plan.md",
+    "title": "Auth System — Full BA Spec & Implementation Plan",
+    "domain": "flows",
+    "tags": [
+      "auth",
+      "plan",
+      "register",
+      "login",
+      "oauth",
+      "email-verification",
+      "password-reset",
+      "specification"
+    ],
+    "related": [
+      "flows-user-registration",
+      "api-auth-endpoints",
+      "frontend-feature-auth"
+    ],
+    "summary": "End-to-end target design for signup + email verification + login (with remember-me) + password reset + OAuth (GitHub / Google). Status, data model, API contracts, FE routes, security rules, decision points, phased rollout."
+  },
+  {
+    "id": "flows-chat-attachments-plan",
+    "path": "flows/chat-attachments-plan.md",
+    "title": "Chat Attachments — Plan",
+    "domain": "flows",
+    "tags": [
+      "chat",
+      "attachments",
+      "upload",
+      "multimodal",
+      "vision",
+      "plan"
+    ],
+    "related": [
+      "api-uploads",
+      "flows-chat-with-agent",
+      "frontend-feature-chat"
+    ],
+    "summary": "Users attach images + documents (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX) to chat messages. Backend ingests & extracts text; images flow through to multimodal LLMs. Send button stays disabled while files are still processing."
+  },
+  {
     "id": "flows-chat-with-agent",
     "path": "flows/chat-with-agent.md",
     "title": "Chat with Agent Flow",
@@ -1094,7 +1205,7 @@
       "api-tool-endpoints",
       "frontend-feature-agents-editor"
     ],
-    "summary": "Documents the tools feature types (including TOOL_TYPE_META), service, hooks, ToolListView, ToolCreateDialog, and ToolDetailSheet."
+    "summary": "Documents the tools feature types (including TOOL_TYPE_META), service, hooks, ToolListView, ToolCreateView, and ToolDetailView in the new page-based flow."
   },
   {
     "id": "frontend-feature-workflows",
@@ -1127,54 +1238,34 @@
       "react-flow",
       "canvas",
       "palette",
-      "inspector",
+      "ndv",
       "toolbar"
     ],
     "related": [
       "frontend-feature-workflows",
       "frontend-feature-workflows-nodes"
     ],
-    "summary": "Documents WorkflowEditorView layout, Canvas with React Flow setup, NodePalette drag-and-drop, NodeInspector config editing, and WorkflowToolbar controls."
+    "summary": "Documents WorkflowEditorView layout, Canvas with React Flow setup, floating NodePalette, NDVModal (full-screen 3-panel node editor), handle-based node addition, and WorkflowToolbar controls."
   },
   {
     "id": "frontend-feature-workflows-nodes",
     "path": "frontend/feature-workflows-nodes.md",
-    "title": "Workflow Node Types and BaseNode Component",
+    "title": "Workflow Node Types and Node Registry",
     "domain": "frontend",
     "tags": [
       "workflows",
       "nodes",
       "react-flow",
+      "registry",
       "handles",
-      "config-fields",
-      "constants"
+      "base-node",
+      "custom-node"
     ],
     "related": [
       "frontend-feature-workflows",
       "frontend-feature-workflows-editor"
     ],
-    "summary": "Documents all 8 node types with their handles, config fields, icon/color mapping, and the BaseNode React Flow component."
-  },
-  {
-    "id": "frontend-workflow-editor-architecture-research",
-    "path": "frontend/workflow-editor-architecture-research.md",
-    "title": "Workflow Editor Architecture Research (n8n & Dify)",
-    "domain": "frontend",
-    "tags": [
-      "workflows",
-      "architecture",
-      "research",
-      "n8n",
-      "dify",
-      "design-patterns",
-      "node-registry",
-      "handles"
-    ],
-    "related": [
-      "frontend-feature-workflows-editor",
-      "frontend-feature-workflows-nodes"
-    ],
-    "summary": "Research into n8n and Dify workflow editor architectures — design patterns, folder structures, node type systems, handle/output patterns, and proposed architecture for AgentForge."
+    "summary": "Documents the node registry pattern, per-node folder structure, BaseNode and CustomNode composition, HandlePort arrays, all 18 node types across 6 categories, and the deprecation of configFields in favour of per-node panel components."
   },
   {
     "id": "frontend-layout",
@@ -1230,5 +1321,89 @@
       "api-websocket-protocol"
     ],
     "summary": "Documents the createChatWS() factory function, WSMessage discriminated union types, and the handler callback interface."
+  },
+  {
+    "id": "frontend-workflow-editor-architecture-research",
+    "path": "frontend/workflow-editor-architecture-research.md",
+    "title": "Workflow Editor Architecture Research (n8n & Dify)",
+    "domain": "frontend",
+    "tags": [
+      "workflows",
+      "architecture",
+      "research",
+      "n8n",
+      "dify",
+      "design-patterns"
+    ],
+    "related": [
+      "frontend-feature-workflows-editor",
+      "frontend-feature-workflows-nodes"
+    ],
+    "summary": "Research into n8n and Dify workflow editor architectures — design patterns, folder structures, node systems, handle/output patterns, and proposed architecture for AgentForge."
+  },
+  {
+    "id": "guides-momo-setup",
+    "path": "guides/momo-setup.md",
+    "title": "MoMo Setup — VND payments for the Hub",
+    "domain": "guides",
+    "tags": [
+      "momo",
+      "payments",
+      "vietnam",
+      "vnd",
+      "hub",
+      "marketplace",
+      "ipn",
+      "webhook"
+    ],
+    "related": [
+      "arch-operations",
+      "api-hub-endpoints"
+    ],
+    "summary": "Step-by-step playbook to enable VND payments via MoMo on the Hub — register merchant, configure env vars, expose IPN, validate signatures, run a sandbox test, and settle author payouts."
+  },
+  {
+    "id": "service-dispatcher",
+    "path": "service/dispatcher/dispatcher-service.md",
+    "title": "Dispatcher Service",
+    "domain": "service",
+    "tags": [
+      "dispatcher",
+      "api-gateway",
+      "rabbitmq",
+      "microservice",
+      "service-discovery",
+      "sse",
+      "retry",
+      "nestjs"
+    ],
+    "related": [
+      "service-mail",
+      "backend-auth"
+    ],
+    "summary": "Internal API gateway on port 3010 that routes service-to-service calls. Supports sync HTTP proxy, async via RabbitMQ (mail / heavy / webhook / default queues with TTL-based reliable retry), and SSE stream proxy. Auth via shared secret."
+  },
+  {
+    "id": "service-mail",
+    "path": "service/mail/mail-service.md",
+    "title": "Mail Service",
+    "domain": "service",
+    "tags": [
+      "mail",
+      "email",
+      "sendgrid",
+      "smtp",
+      "nodemailer",
+      "nestjs",
+      "microservice",
+      "handlebars",
+      "templates",
+      "multi-provider"
+    ],
+    "related": [
+      "backend-auth",
+      "flows-user-registration"
+    ],
+    "summary": "Standalone NestJS microservice on port 3011 that sends emails via pluggable providers (SendGrid, SMTP, Console) selected by MAIL_DRIVER env var. Exposes POST /mail/send with a single AgentForge-branded Handlebars template."
   }
 ]

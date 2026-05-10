@@ -46,6 +46,16 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Multi-tenancy boundary. Nullable during the Phase 1.1 transition —
+    # set ``NOT NULL`` once every existing row is backfilled. Service
+    # queries that scope by tenant should filter on this column, NOT on
+    # ``user_id`` (which only identifies the creator within a workspace).
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     avatar_url: Mapped[str | None] = mapped_column(String(512))
@@ -88,6 +98,7 @@ class Agent(Base, UUIDMixin, TimestampMixin):
 
     # Quan hệ
     user: Mapped["User"] = relationship(back_populates="agents")
+    workspace: Mapped["Workspace | None"] = relationship(foreign_keys=[workspace_id])
     credential: Mapped["AICredential | None"] = relationship(lazy="joined")
     tools: Mapped[list["Tool"]] = relationship(secondary="agent_tools", lazy="selectin")
     knowledge_bases: Mapped[list["KnowledgeBase"]] = relationship(
