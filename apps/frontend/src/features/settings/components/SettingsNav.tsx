@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Banknote,
+  Building2,
   Key,
   KeyRound,
   Plug,
@@ -42,6 +43,7 @@ const GROUPS: NavGroup[] = [
   {
     title: "Workspace",
     items: [
+      { href: "/settings/workspace", label: "Workspace", icon: Building2 },
       { href: "/settings/credentials", label: "AI Credentials", icon: Key },
       { href: "/settings/api-tokens", label: "API Tokens", icon: KeyRound },
       { href: "/settings/integrations", label: "Integrations", icon: Plug },

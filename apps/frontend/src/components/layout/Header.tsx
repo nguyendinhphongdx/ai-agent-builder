@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, useLogout } from "@/features/auth/hooks/useAuth";
+import { WorkspaceSwitcher } from "@/features/workspaces/components/WorkspaceSwitcher";
 
 interface HeaderProps {
   sidebarOpen?: boolean;
@@ -60,6 +61,8 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
           )}
         </Button>
       )}
+
+      <WorkspaceSwitcher />
 
       <div className="flex-1" />
 
