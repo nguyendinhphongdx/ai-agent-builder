@@ -14,7 +14,7 @@ from app.billing.quota import (
     enforce_tokens,
     get_quota_state,
 )
-from app.context import set_current_workspace_id, reset_current_workspace_id
+from app.context import reset_current_workspace_id, set_current_workspace_id
 from app.models.organization import Organization
 from app.models.usage_event import EVENT_KB_QUERY, EVENT_LLM_CALL, UsageEvent
 from app.models.workspace import Workspace

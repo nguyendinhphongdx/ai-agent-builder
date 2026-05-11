@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing import service as billing_service
-from app.billing.plans import Plan, get_plan
+from app.billing.plans import Plan
 from app.config import settings
 from app.models.organization import Organization
 

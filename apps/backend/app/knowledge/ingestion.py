@@ -304,8 +304,8 @@ async def _notify_inbox(
     happened. Fire-and-forget; never break ingestion.
     """
     try:
-        from app.notifications import inbox as inbox_service
         from app.models.notification import TYPE_KB_FAILED, TYPE_KB_PROCESSED
+        from app.notifications import inbox as inbox_service
 
         title = (
             f"“{document.title or document.file_path}” added to {kb.name}"

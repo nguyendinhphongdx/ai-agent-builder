@@ -534,7 +534,7 @@ async def accept_invitation(
                 type=TYPE_MEMBER_INVITED,
                 title=f"{user.full_name or user.email} joined {ws.name if ws else 'the workspace'}",
                 body=None,
-                link_url=f"/settings/workspace",
+                link_url="/settings/workspace",
                 workspace_id=invitation.workspace_id,
                 extra={"user_id": str(user.id), "role": invitation.role},
             )

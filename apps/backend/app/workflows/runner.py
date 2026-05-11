@@ -142,11 +142,11 @@ class WorkflowRunner:
         even if they weren't watching.
         """
         try:
-            from app.notifications import inbox as inbox_service
             from app.models.notification import (
                 TYPE_WORKFLOW_FAILED,
                 TYPE_WORKFLOW_SUCCEEDED,
             )
+            from app.notifications import inbox as inbox_service
 
             if status == "completed":
                 type_ = TYPE_WORKFLOW_SUCCEEDED

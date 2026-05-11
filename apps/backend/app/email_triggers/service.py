@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.context import current_user_id, current_workspace_id_or_none
+from app.context import current_workspace_id_or_none
 from app.email_triggers.schemas import EmailTriggerCreate, EmailTriggerUpdate
 from app.jobs import types as job_types
 from app.jobs.producer import enqueue as enqueue_job

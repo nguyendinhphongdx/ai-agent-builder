@@ -33,9 +33,9 @@ from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
 from app.ai_credentials.router import router as ai_credentials_router
 from app.audit.router import org_router as org_audit_router
-from app.billing.router import router as billing_router
 from app.auth.oauth_router import router as oauth_router
 from app.auth.router import router as auth_router
+from app.billing.router import router as billing_router
 from app.config import settings
 from app.conversations.router import router as conversations_router
 from app.dashboard.router import router as dashboard_router
@@ -62,10 +62,10 @@ from app.scim.router import router as scim_router
 from app.share.router import router as share_router
 from app.slack_triggers.router import events_router as slack_events_router
 from app.slack_triggers.router import router as slack_triggers_router
-from app.teams_triggers.router import events_router as teams_events_router
-from app.teams_triggers.router import router as teams_triggers_router
 from app.sso.oidc_router import router as sso_oidc_router
 from app.sso.router import router as sso_admin_router
+from app.teams_triggers.router import events_router as teams_events_router
+from app.teams_triggers.router import router as teams_triggers_router
 from app.tools.router import router as tools_router
 from app.usage.router import router as usage_router
 from app.webhooks.router import router as webhooks_router

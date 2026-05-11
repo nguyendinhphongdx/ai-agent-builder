@@ -42,7 +42,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing import stripe_client
-from app.config import settings
 from app.db.session import async_session_factory
 from app.models.org_subscription import LIVE_STATUSES, OrgSubscription
 from app.models.usage_event import EVENT_LLM_CALL, UsageEvent
