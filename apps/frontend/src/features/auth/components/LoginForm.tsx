@@ -18,7 +18,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useLogin } from "../hooks/useAuth";
+import { useLogin, useVerifyMfaLogin } from "../hooks/useAuth";
+import { isMfaChallenge } from "../services/authService";
 import { SocialAuthButtons } from "./SocialAuthButtons";
 
 const LAST_EMAIL_KEY = "auth:lastEmail";
@@ -33,9 +34,15 @@ type FormValues = z.infer<typeof schema>;
 
 export function LoginForm() {
   const login = useLogin();
+  const verifyMfa = useVerifyMfaLogin();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [shake, setShake] = useState(false);
+  // Holds the MFA challenge state between password-step and code-step.
+  // Cleared back to null on successful verify (handled by useVerifyMfaLogin
+  // routing away).
+  const [mfaChallenge, setMfaChallenge] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm<FormValues>({
@@ -84,12 +91,87 @@ export function LoginForm() {
         localStorage.removeItem(REMEMBER_ME_KEY);
       }
     }
-    login.mutate({ ...data, remember_me: rememberMe });
+    login.mutate(
+      { ...data, remember_me: rememberMe },
+      {
+        onSuccess: (res) => {
+          if (isMfaChallenge(res)) {
+            setMfaChallenge(res.mfa_token);
+            setMfaCode("");
+          }
+        },
+      },
+    );
+  };
+
+  const submitMfa = () => {
+    if (!mfaChallenge || !mfaCode.trim()) return;
+    verifyMfa.mutate({
+      mfa_token: mfaChallenge,
+      code: mfaCode.trim(),
+      remember_me: rememberMe,
+    });
   };
 
   const handleDemo = () => {
     toast.info("Demo mode is coming soon");
   };
+
+  if (mfaChallenge) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h2 className="text-lg font-semibold">Two-factor authentication</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Enter the 6-digit code from your authenticator app, or a backup
+            code if you've lost access.
+          </p>
+        </div>
+        <Input
+          autoFocus
+          value={mfaCode}
+          onChange={(e) => setMfaCode(e.target.value)}
+          placeholder="000000 or backup code"
+          className="font-mono tracking-widest text-center text-lg"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submitMfa();
+            }
+          }}
+        />
+        {verifyMfa.error && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            Invalid code — try again.
+          </div>
+        )}
+        <Button
+          className="w-full gap-2"
+          onClick={submitMfa}
+          disabled={verifyMfa.isPending || !mfaCode.trim()}
+        >
+          {verifyMfa.isPending ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Verifying...
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </Button>
+        <button
+          type="button"
+          onClick={() => {
+            setMfaChallenge(null);
+            setMfaCode("");
+          }}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← Back to password
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

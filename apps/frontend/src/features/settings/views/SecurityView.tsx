@@ -11,6 +11,7 @@ import {
   useConfirmEmailChange,
   useRequestEmailChange,
 } from "@/features/auth/hooks/useAuth";
+import { MfaSection } from "../components/MfaSection";
 import {
   SettingsCard,
   SettingsField,
@@ -43,6 +44,7 @@ export function SecurityView() {
       <SettingsStack>
         <PasswordSection />
         <EmailSection />
+        <MfaSection />
       </SettingsStack>
     </div>
   );

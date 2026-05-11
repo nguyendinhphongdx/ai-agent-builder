@@ -23,9 +23,32 @@ export function oauthStartUrl(
   return `${base}${qs}`;
 }
 
+export interface MfaChallenge {
+  mfa_required: true;
+  mfa_token: string;
+}
+
+/** Server-side login response is either AuthResponse (cookies set) or
+ *  MfaChallenge (no cookies; needs second step). The discriminator
+ *  is the ``mfa_required`` field — present + true means challenge. */
+export type LoginResult = AuthResponse | MfaChallenge;
+
+export function isMfaChallenge(r: LoginResult): r is MfaChallenge {
+  return (r as MfaChallenge).mfa_required === true;
+}
+
 export const authService = {
   login: (data: LoginInput) =>
-    apiClient.post<AuthResponse>("/auth/login", data).then((r) => r.data),
+    apiClient.post<LoginResult>("/auth/login", data).then((r) => r.data),
+
+  verifyMfaLogin: (data: {
+    mfa_token: string;
+    code: string;
+    remember_me?: boolean;
+  }) =>
+    apiClient
+      .post<AuthResponse>("/auth/mfa/verify-login", data)
+      .then((r) => r.data),
 
   register: (data: RegisterInput) =>
     apiClient.post<AuthResponse>("/auth/register", data).then((r) => r.data),

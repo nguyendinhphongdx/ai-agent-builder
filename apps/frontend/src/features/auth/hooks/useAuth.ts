@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { authService } from "../services/authService";
+import { authService, isMfaChallenge } from "../services/authService";
 import type {
   ForgotPasswordInput,
   LoginInput,
@@ -86,6 +86,23 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginInput) => authService.login(data),
+    onSuccess: (res) => {
+      // MfaChallenge response — leave routing/UI to the caller (the
+      // login form catches it and renders the second-step prompt).
+      if (isMfaChallenge(res)) return;
+      queryClient.setQueryData(authKeys.me, res.user);
+      router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
+    },
+  });
+}
+
+export function useVerifyMfaLogin() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: (data: { mfa_token: string; code: string; remember_me?: boolean }) =>
+      authService.verifyMfaLogin(data),
     onSuccess: (res) => {
       queryClient.setQueryData(authKeys.me, res.user);
       router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
