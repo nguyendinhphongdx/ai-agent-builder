@@ -37,6 +37,16 @@ class KnowledgeBase(Base, UUIDMixin, TimestampMixin):
     # Cấu hình truy xuất (retrieval)
     retrieval_top_k: Mapped[int] = mapped_column(Integer, default=5)  # Số chunk trả về khi tìm kiếm
     retrieval_score_threshold: Mapped[float] = mapped_column(Float, default=0.7)  # Ngưỡng điểm tương đồng tối thiểu
+    # "vector" = pgvector cosine-distance only (old behavior).
+    # "hybrid" = BM25 ∪ vector fused via Reciprocal Rank Fusion.
+    #   - Better recall for short / keyword-heavy queries (vector
+    #     embeddings often miss literal token matches).
+    #   - One extra index scan per query — negligible vs the
+    #     embedding compute on the query side.
+    # Default is "hybrid" — existing KBs improve on the next query.
+    search_mode: Mapped[str] = mapped_column(
+        String(20), default="hybrid", server_default="hybrid", nullable=False
+    )
 
     # Bộ đếm thống kê
     total_documents: Mapped[int] = mapped_column(Integer, default=0)

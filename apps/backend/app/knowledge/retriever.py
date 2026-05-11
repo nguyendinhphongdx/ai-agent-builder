@@ -1,15 +1,43 @@
-"""Vector similarity search across knowledge bases using pgvector."""
+"""Similarity search across knowledge bases.
+
+Supports two retrieval modes selected per-KB via ``KnowledgeBase.search_mode``:
+
+  ``vector``  pgvector cosine-distance only (the original behaviour).
+  ``hybrid``  Reciprocal Rank Fusion of vector + BM25. Better recall
+              for keyword-heavy queries that pure embeddings miss
+              (proper nouns, code identifiers, exact terms).
+
+RRF score for chunk ``c``::
+
+    score(c) = sum over ranking r ∈ {vector, bm25}:
+                 1 / (k + rank_r(c))
+
+with k=60 (the de-facto constant from the original RRF paper).
+Chunks that appear in only one ranking still get a score from that
+side — RRF is robust to either backend returning nothing.
+"""
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.embedding import build_for_kb
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
+
+
+# Reciprocal Rank Fusion constant. Lower k → top ranks dominate
+# harder; 60 is the original Cormack/Clarke/Buettcher value and
+# what every public hybrid-search impl ships with.
+_RRF_K = 60
+
+# Each leg of the hybrid pull oversamples vs the final top_k so RRF
+# has something to fuse — otherwise both legs converge on the same
+# rows and fusion adds little value.
+_LEG_OVERSAMPLE = 5
 
 
 @dataclass
@@ -44,51 +72,181 @@ class KnowledgeRetriever:
         if not kbs:
             return []
 
-        # Group KBs by embedding signature — querying across mismatched models
-        # produces meaningless distances (different vector spaces / dimensions).
+        # Vector searches across embedding-mismatched KBs are nonsense
+        # (different vector spaces). BM25 doesn't care — same tsvector
+        # dictionary — but we still group by embedding signature so
+        # the vector leg stays sane.
         groups: dict[tuple[str, str, int], list[KnowledgeBase]] = {}
         for kb in kbs:
             key = (kb.embedding_provider, kb.embedding_model, kb.embedding_dimensions)
             groups.setdefault(key, []).append(kb)
 
-        # Take top_k / threshold from the first KB if caller didn't override.
         first = kbs[0]
         effective_top_k = top_k or first.retrieval_top_k or 5
         effective_threshold = (
             score_threshold if score_threshold is not None else first.retrieval_score_threshold
         )
+        # The 0.7 default threshold is calibrated for cosine similarity
+        # (0..1). RRF scores live on a different scale (typically
+        # 0..0.04 at top_k=5), so applying the same threshold would
+        # drop everything. Skip the threshold for hybrid mode and rely
+        # on the rank cutoff instead — same trade-off every public
+        # hybrid impl makes.
+        hybrid_mode = any(getattr(kb, "search_mode", "vector") == "hybrid" for kb in kbs)
 
         all_chunks: list[RetrievedChunk] = []
         for group_kbs in groups.values():
-            embeddings = build_for_kb(group_kbs[0])
-            query_embedding = await embeddings.aembed_query(query)
-
-            db_result = await self.db.execute(
-                select(
-                    DocumentChunk.content,
-                    DocumentChunk.data,
-                    DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
+            kb_ids = [k.id for k in group_kbs]
+            if hybrid_mode:
+                chunks = await self._hybrid(query, group_kbs[0], kb_ids, effective_top_k)
+            else:
+                chunks = await self._vector_only(
+                    query,
+                    group_kbs[0],
+                    kb_ids,
+                    effective_top_k,
+                    effective_threshold,
                 )
-                .where(DocumentChunk.knowledge_base_id.in_([k.id for k in group_kbs]))
-                .where(DocumentChunk.embedding.isnot(None))
-                .order_by("distance")
-                .limit(effective_top_k)
-            )
-
-            for row in db_result.all():
-                similarity = 1.0 - (row.distance or 0)
-                if effective_threshold is not None and similarity < effective_threshold:
-                    continue
-                metadata = row.data or {}
-                all_chunks.append(
-                    RetrievedChunk(
-                        content=row.content,
-                        metadata=metadata,
-                        score=similarity,
-                        source_document=metadata.get("source"),
-                        chunk_index=metadata.get("chunk_index"),
-                    )
-                )
+            all_chunks.extend(chunks)
 
         all_chunks.sort(key=lambda c: c.score or 0, reverse=True)
         return all_chunks[:effective_top_k]
+
+    # ── Vector-only ──────────────────────────────────────────────
+
+    async def _vector_only(
+        self,
+        query: str,
+        sample_kb: KnowledgeBase,
+        kb_ids: list[uuid.UUID],
+        top_k: int,
+        threshold: float | None,
+    ) -> list[RetrievedChunk]:
+        embeddings = build_for_kb(sample_kb)
+        query_embedding = await embeddings.aembed_query(query)
+        db_result = await self.db.execute(
+            select(
+                DocumentChunk.content,
+                DocumentChunk.data,
+                DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
+            )
+            .where(DocumentChunk.knowledge_base_id.in_(kb_ids))
+            .where(DocumentChunk.embedding.isnot(None))
+            .order_by("distance")
+            .limit(top_k)
+        )
+        out: list[RetrievedChunk] = []
+        for row in db_result.all():
+            similarity = 1.0 - (row.distance or 0)
+            if threshold is not None and similarity < threshold:
+                continue
+            metadata = row.data or {}
+            out.append(
+                RetrievedChunk(
+                    content=row.content,
+                    metadata=metadata,
+                    score=similarity,
+                    source_document=metadata.get("source"),
+                    chunk_index=metadata.get("chunk_index"),
+                )
+            )
+        return out
+
+    # ── Hybrid (BM25 ∪ vector via RRF) ───────────────────────────
+
+    async def _hybrid(
+        self,
+        query: str,
+        sample_kb: KnowledgeBase,
+        kb_ids: list[uuid.UUID],
+        top_k: int,
+    ) -> list[RetrievedChunk]:
+        leg_size = top_k * _LEG_OVERSAMPLE
+
+        # ── Vector leg
+        embeddings = build_for_kb(sample_kb)
+        query_embedding = await embeddings.aembed_query(query)
+        vector_stmt = (
+            select(
+                DocumentChunk.id,
+                DocumentChunk.content,
+                DocumentChunk.data,
+                DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
+            )
+            .where(DocumentChunk.knowledge_base_id.in_(kb_ids))
+            .where(DocumentChunk.embedding.isnot(None))
+            .order_by("distance")
+            .limit(leg_size)
+        )
+
+        # ── BM25 leg via Postgres FTS.
+        # ``plainto_tsquery('simple', :q)`` parses unquoted user input
+        # safely (no operator injection); ``ts_rank_cd`` is the cover-
+        # density ranking — best-in-class for short queries.
+        bm25_stmt = text(
+            """
+            SELECT
+              id,
+              content,
+              metadata AS data,
+              ts_rank_cd(content_tsv, plainto_tsquery('simple', :q)) AS rank
+            FROM document_chunks
+            WHERE knowledge_base_id = ANY(:kb_ids)
+              AND content_tsv @@ plainto_tsquery('simple', :q)
+            ORDER BY rank DESC
+            LIMIT :limit
+            """
+        )
+
+        vector_rows = (await self.db.execute(vector_stmt)).all()
+        bm25_rows = (
+            await self.db.execute(
+                bm25_stmt,
+                {
+                    "q": query,
+                    "kb_ids": [str(i) for i in kb_ids],
+                    "limit": leg_size,
+                },
+            )
+        ).mappings().all()
+
+        # Per-leg rank maps + remember each chunk's row for the final
+        # response shape.
+        vector_rank: dict[uuid.UUID, int] = {}
+        bm25_rank: dict[uuid.UUID, int] = {}
+        rows_by_id: dict[uuid.UUID, tuple[str, dict]] = {}
+
+        for i, row in enumerate(vector_rows):
+            cid = row.id
+            vector_rank[cid] = i + 1
+            rows_by_id.setdefault(cid, (row.content, row.data or {}))
+        for i, row in enumerate(bm25_rows):
+            raw_id = row["id"]
+            cid = raw_id if isinstance(raw_id, uuid.UUID) else uuid.UUID(str(raw_id))
+            bm25_rank[cid] = i + 1
+            rows_by_id.setdefault(cid, (row["content"], row["data"] or {}))
+
+        # Reciprocal Rank Fusion across both legs.
+        fused: list[tuple[float, uuid.UUID]] = []
+        for cid in rows_by_id:
+            score = 0.0
+            if cid in vector_rank:
+                score += 1.0 / (_RRF_K + vector_rank[cid])
+            if cid in bm25_rank:
+                score += 1.0 / (_RRF_K + bm25_rank[cid])
+            fused.append((score, cid))
+        fused.sort(reverse=True)
+
+        out: list[RetrievedChunk] = []
+        for score, cid in fused[:top_k]:
+            content, metadata = rows_by_id[cid]
+            out.append(
+                RetrievedChunk(
+                    content=content,
+                    metadata=metadata,
+                    score=score,
+                    source_document=metadata.get("source"),
+                    chunk_index=metadata.get("chunk_index"),
+                )
+            )
+        return out

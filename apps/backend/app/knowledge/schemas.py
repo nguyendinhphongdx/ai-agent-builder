@@ -14,6 +14,9 @@ class KnowledgeBaseCreate(BaseModel):
     chunk_strategy: str = "recursive"
     retrieval_top_k: int = 5
     retrieval_score_threshold: float = 0.7
+    # "vector" = legacy cosine-only. "hybrid" = BM25 ∪ vector via RRF
+    # (default — better recall for keyword-heavy queries).
+    search_mode: str = "hybrid"
 
 
 class KnowledgeBaseUpdate(BaseModel):
@@ -23,6 +26,7 @@ class KnowledgeBaseUpdate(BaseModel):
     chunk_overlap: int | None = None
     retrieval_top_k: int | None = None
     retrieval_score_threshold: float | None = None
+    search_mode: str | None = None
 
 
 class KnowledgeBaseResponse(AppBaseModel):
@@ -37,6 +41,7 @@ class KnowledgeBaseResponse(AppBaseModel):
     chunk_strategy: str
     retrieval_top_k: int
     retrieval_score_threshold: float
+    search_mode: str
     total_documents: int
     total_chunks: int
     status: str
