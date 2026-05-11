@@ -12,7 +12,7 @@ Build AI agents, visual workflows, RAG pipelines, and multi-agent systems — se
 [![PostgreSQL + pgvector](https://img.shields.io/badge/Postgres-pgvector-336791.svg)](https://github.com/pgvector/pgvector)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
-[Quick Start](#quick-start) · [Features](#features) · [Why AgentForge?](#why-agentforge) · [Development](DEVELOPMENT.md) · [Documentation](docs/)
+[Quick Start](#-quick-start) · [Features](#-features) · [Why AgentForge?](#why-agentforge) · [Development](DEVELOPMENT.md) · [Documentation](docs/)
 
 </div>
 
@@ -119,37 +119,12 @@ Then open **<http://localhost:3000>** and sign in. That's it.
 
 ## 🏗️ Tech Stack
 
-<table>
-<tr>
-<td>
-
-**Backend**
-- Python 3.12
-- FastAPI (async)
-- LangChain · LangGraph
-- SQLAlchemy 2.0
-
-</td>
-<td>
-
-**Frontend**
-- Next.js 16 · React 19
-- TypeScript · Tailwind
-- shadcn/ui (radix-ui)
-- TanStack Query · Zustand
-
-</td>
-<td>
-
-**Infrastructure**
-- PostgreSQL 16 + pgvector
-- Redis · RabbitMQ
-- Docker Compose
-- Self-hosted, anywhere
-
-</td>
-</tr>
-</table>
+| Backend                  | Frontend                         | Infrastructure              |
+| ------------------------ | -------------------------------- | --------------------------- |
+| Python 3.12              | Next.js 16 · React 19            | PostgreSQL 16 + pgvector    |
+| FastAPI (async)          | TypeScript · Tailwind            | Redis · RabbitMQ            |
+| LangChain · LangGraph    | shadcn/ui (radix-ui)             | Docker Compose              |
+| SQLAlchemy 2.0           | TanStack Query · Zustand         | Self-hosted, anywhere       |
 
 ---
 
