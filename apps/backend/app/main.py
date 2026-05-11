@@ -39,6 +39,8 @@ from app.auth.router import router as auth_router
 from app.config import settings
 from app.conversations.router import router as conversations_router
 from app.dashboard.router import router as dashboard_router
+from app.discord_triggers.router import events_router as discord_events_router
+from app.discord_triggers.router import router as discord_triggers_router
 from app.email_triggers.router import router as email_triggers_router
 from app.external.router import router as external_router
 from app.hub.router import auth_router as hub_auth_router
@@ -60,6 +62,8 @@ from app.scim.router import router as scim_router
 from app.share.router import router as share_router
 from app.slack_triggers.router import events_router as slack_events_router
 from app.slack_triggers.router import router as slack_triggers_router
+from app.teams_triggers.router import events_router as teams_events_router
+from app.teams_triggers.router import router as teams_triggers_router
 from app.sso.oidc_router import router as sso_oidc_router
 from app.sso.router import router as sso_admin_router
 from app.tools.router import router as tools_router
@@ -267,6 +271,10 @@ def create_app() -> FastAPI:
     app.include_router(email_triggers_router, prefix=settings.API_PREFIX)
     app.include_router(slack_triggers_router, prefix=settings.API_PREFIX)
     app.include_router(slack_events_router, prefix=settings.API_PREFIX)
+    app.include_router(teams_triggers_router, prefix=settings.API_PREFIX)
+    app.include_router(teams_events_router, prefix=settings.API_PREFIX)
+    app.include_router(discord_triggers_router, prefix=settings.API_PREFIX)
+    app.include_router(discord_events_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)

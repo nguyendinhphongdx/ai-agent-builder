@@ -10,6 +10,7 @@ from app.models.audit_log import AuditLog
 from app.models.auth_token import AuthToken
 from app.models.conversation import Conversation
 from app.models.custom_role import CustomRole
+from app.models.discord_trigger import DiscordTrigger
 from app.models.document import Document
 from app.models.email_trigger import EmailTrigger
 from app.models.document_chunk import DocumentChunk
@@ -25,6 +26,7 @@ from app.models.personal_access_token import PersonalAccessToken
 from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.scim_token import SCIMToken
 from app.models.slack_trigger import SlackTrigger
+from app.models.teams_trigger import TeamsTrigger
 from app.models.sso_configuration import SSOConfiguration
 from app.models.tool import Tool
 from app.models.usage_event import UsageEvent
@@ -59,8 +61,10 @@ __all__ = [
     "AdminAction",
     "AuditLog",
     "CustomRole",
+    "DiscordTrigger",
     "EmailTrigger",
     "KBConnector",
+    "TeamsTrigger",
     "UsageEvent",
     "Tool",
     "KnowledgeBase",
