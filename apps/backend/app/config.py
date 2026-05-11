@@ -150,6 +150,28 @@ class Settings(BaseSettings):
     STRIPE_CONNECT_RETURN_URL: str = ""  # e.g. https://app.example.com/settings/payouts?ok=1
     STRIPE_CONNECT_REFRESH_URL: str = "" # e.g. https://app.example.com/settings/payouts?refresh=1
 
+    # ── Phase 2.3 platform subscriptions ───────────────────────────────
+    # Recurring SaaS plans the PLATFORM bills its tenants on (distinct
+    # from the marketplace destination-charge prices above). Each plan
+    # has up to two prices:
+    #   STRIPE_PRICE_<TIER>          – monthly recurring base fee
+    #   STRIPE_PRICE_<TIER>_METERED  – per-1k-token overage (Stripe
+    #                                  "usage" pricing). Empty = base
+    #                                  fee only, no overage line item.
+    # Leaving STRIPE_PRICE_<TIER> empty hides that tier from the
+    # self-serve picker. Enterprise is typically empty (sales-led).
+    # Where Stripe redirects after a billing Checkout finishes/cancels.
+    # Distinct from STRIPE_SUCCESS_URL/CANCEL_URL which are for the
+    # marketplace template purchase flow.
+    STRIPE_BILLING_SUCCESS_URL: str = ""  # e.g. https://app.example.com/settings/billing?ok=1
+    STRIPE_BILLING_CANCEL_URL: str = ""   # e.g. https://app.example.com/settings/billing?cancel=1
+    STRIPE_PRICE_STARTER: str = ""
+    STRIPE_PRICE_STARTER_METERED: str = ""
+    STRIPE_PRICE_PRO: str = ""
+    STRIPE_PRICE_PRO_METERED: str = ""
+    STRIPE_PRICE_ENTERPRISE: str = ""
+    STRIPE_PRICE_ENTERPRISE_METERED: str = ""
+
     # ── MoMo (VND payments — Vietnam) ─────────────────────────────────
     # Vietnamese e-wallet. Currency-locked to VND. Empty MOMO_PARTNER_CODE
     # disables VND checkout entirely (POST /purchase on a VND template

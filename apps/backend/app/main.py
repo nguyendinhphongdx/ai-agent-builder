@@ -33,6 +33,7 @@ from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
 from app.ai_credentials.router import router as ai_credentials_router
 from app.audit.router import org_router as org_audit_router
+from app.billing.router import router as billing_router
 from app.auth.oauth_router import router as oauth_router
 from app.auth.router import router as auth_router
 from app.config import settings
@@ -247,6 +248,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_router, prefix=settings.API_PREFIX)
     app.include_router(tools_router, prefix=settings.API_PREFIX)
     app.include_router(usage_router, prefix=settings.API_PREFIX)
+    app.include_router(billing_router, prefix=settings.API_PREFIX)
     app.include_router(knowledge_router, prefix=settings.API_PREFIX)
     app.include_router(kb_connectors_router, prefix=settings.API_PREFIX)
     app.include_router(conversations_router, prefix=settings.API_PREFIX)

@@ -18,6 +18,7 @@ from app.models.kb_connector import KBConnector
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
 from app.models.oauth_account import OAuthAccount
+from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.scheduled_trigger import ScheduledTrigger
@@ -40,6 +41,7 @@ __all__ = [
     "AuthToken",
     "OAuthAccount",
     "Organization",
+    "OrgSubscription",
     "Workspace",
     "WorkspaceMember",
     "WorkspaceInvitation",

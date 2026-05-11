@@ -300,12 +300,38 @@ async def workspace_by_model(
     ]
 
 
+async def workspace_event_count(
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    event_type: str,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> int:
+    """Count events of one type in a window. Used by billing quota
+    guards — token quota lives on workspace_totals, but KB-query
+    quota is a row count not a token sum, so it needs its own
+    helper.
+    """
+    if since is None:
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+    stmt = select(func.count(UsageEvent.id)).where(
+        UsageEvent.workspace_id == workspace_id,
+        UsageEvent.event_type == event_type,
+        UsageEvent.created_at >= since,
+    )
+    if until is not None:
+        stmt = stmt.where(UsageEvent.created_at < until)
+    return int((await db.scalar(stmt)) or 0)
+
+
 __all__ = [
     "log_llm_call",
     "log_tool_call",
     "workspace_totals",
     "workspace_daily",
     "workspace_by_model",
+    "workspace_event_count",
     "EVENT_LLM_CALL",
     "EVENT_KB_QUERY",
     "EVENT_TOOL_CALL",
