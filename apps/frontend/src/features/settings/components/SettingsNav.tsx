@@ -12,6 +12,7 @@ import {
   Plug,
   ShieldCheck,
   SlidersHorizontal,
+  Zap,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const GROUPS: NavGroup[] = [
       { href: "/settings/credentials", label: "AI Credentials", icon: Key },
       { href: "/settings/api-tokens", label: "API Tokens", icon: KeyRound },
       { href: "/settings/integrations", label: "Integrations", icon: Plug },
+      { href: "/settings/triggers", label: "Triggers", icon: Zap },
       { href: "/settings/usage", label: "Usage & Cost", icon: BarChart3 },
       { href: "/settings/billing", label: "Billing & Plan", icon: CreditCard },
     ],
