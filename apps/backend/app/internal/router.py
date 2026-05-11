@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 
 from app.internal.guard import require_dispatcher
 from app.internal.knowledge import router as knowledge_router
+from app.internal.workflows import router as workflows_router
 
 router = APIRouter(
     prefix="/internal",
@@ -16,3 +17,4 @@ router = APIRouter(
 )
 
 router.include_router(knowledge_router)
+router.include_router(workflows_router)

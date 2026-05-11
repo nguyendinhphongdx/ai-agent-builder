@@ -13,7 +13,6 @@ the supported ``response_mode`` values.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import secrets
 import uuid
@@ -25,7 +24,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import async_session_factory, get_db
+from app.config import settings
+from app.db.session import get_db
+from app.jobs import types as job_types
+from app.jobs.producer import enqueue as enqueue_job
 from app.models.workflow import Workflow
 from app.models.workflow_node import WorkflowNode
 
@@ -109,34 +111,9 @@ def _build_response(
     )
 
 
-async def _run_detached(
-    workflow_id: uuid.UUID,
-    user_id: uuid.UUID,
-    input_data: dict[str, Any],
-) -> None:
-    """Execute the workflow on a fresh DB session — used by `immediately` mode."""
-    try:
-        async with async_session_factory() as db:
-            result = await db.execute(
-                select(Workflow)
-                .options(selectinload(Workflow.nodes), selectinload(Workflow.edges))
-                .where(Workflow.id == workflow_id)
-            )
-            workflow = result.scalar_one_or_none()
-            if not workflow:
-                return
-
-            from app.workflows.runner import WorkflowRunner
-
-            runner = WorkflowRunner(db)
-            await runner.run(
-                workflow=workflow,
-                user_id=user_id,
-                input_data=input_data,
-            )
-            await db.commit()
-    except Exception:
-        logger.exception("Background webhook execution failed")
+# _run_detached previously executed workflows via `asyncio.create_task`.
+# Replaced by `enqueue_job(JOB_WORKFLOW_RUN)` in the request handler —
+# RabbitMQ-backed, persistent, retryable, surfaces in /admin/jobs.
 
 
 @router.post("/{workflow_id}/{webhook_token}/{path:path}")
@@ -179,10 +156,27 @@ async def receive_webhook(
         mode = config.get("response_mode", "immediately")
 
         if mode == "immediately":
-            # Fire-and-forget: start execution on a fresh session and respond now.
-            asyncio.create_task(
-                _run_detached(workflow.id, workflow.user_id, input_data)
+            # Persistent fire-and-forget via the jobs queue. Earlier
+            # this used asyncio.create_task; that worked but lost the
+            # task on process restart and had no retry. Now it lands
+            # in /admin/jobs and survives crashes.
+            await enqueue_job(
+                db,
+                job_type=job_types.JOB_WORKFLOW_RUN,
+                target="backend",
+                path=f"{settings.API_PREFIX}/internal/workflows/run",
+                payload={
+                    "workflow_id": str(workflow.id),
+                    "user_id": str(workflow.user_id),
+                    "input_data": input_data,
+                },
+                workspace_id=workflow.workspace_id,
+                user_id=workflow.user_id,
+                priority="normal",
+                retry={"maxAttempts": 3, "backoffMs": 5_000, "backoffMultiplier": 2},
+                timeout_ms=300_000,
             )
+            await db.commit()
             return _build_response(config, run=None)
 
         # lastNode: execute inline and return the final output.

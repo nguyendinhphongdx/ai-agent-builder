@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.config import settings
 from app.db.session import get_db
-from app.dispatcher_client import dispatcher
+from app.jobs import types as job_types
+from app.jobs.producer import enqueue as enqueue_job
 from app.knowledge.retriever import KnowledgeRetriever
 
 logger = logging.getLogger("agentforge")
@@ -150,19 +151,23 @@ async def upload_document_endpoint(
     await db.refresh(doc)
     await db.commit()  # persist before background task picks it up
 
-    # Enqueue ingestion via dispatcher — persistent + retry + DLQ.
-    # Dispatcher consumer will POST to /api/internal/knowledge/ingest.
-    # Progress is surfaced via `document:progress` socket events.
-    await dispatcher.enqueue(
-        "backend",
-        f"{settings.API_PREFIX}/internal/knowledge/ingest",
-        event="document.ingest",
-        body={"kb_id": str(kb_id), "doc_id": str(doc.id)},
+    # Track + enqueue via the Jobs producer (writes a Job row, then
+    # publishes through the dispatcher). Idempotency key keyed on the
+    # doc id so repeat-clicks from the upload UI don't double-ingest.
+    # Progress is surfaced via `document:progress` socket events;
+    # terminal status lands in the Job row.
+    await enqueue_job(
+        db,
+        job_type=job_types.JOB_KB_INGEST_DOCUMENT,
+        target="backend",
+        path=f"{settings.API_PREFIX}/internal/knowledge/ingest",
+        payload={"kb_id": str(kb_id), "doc_id": str(doc.id)},
         priority="normal",
         retry={"maxAttempts": 3, "backoffMs": 3_000, "backoffMultiplier": 2},
-        correlation_id=str(doc.id),
-        timeout_ms=600_000,  # ingestion can be long (large PDF + embed)
+        idempotency_key=f"kb.ingest:{doc.id}",
+        timeout_ms=600_000,
     )
+    await db.commit()
 
     return DocumentResponse.model_validate(doc).release()
 
@@ -277,16 +282,21 @@ async def reprocess_document_endpoint(
     doc = await reset_document_for_reprocess(db, doc)
     await db.commit()
 
-    await dispatcher.enqueue(
-        "backend",
-        f"{settings.API_PREFIX}/internal/knowledge/ingest",
-        event="document.reprocess",
-        body={"kb_id": str(kb_id), "doc_id": str(doc.id)},
+    # No idempotency_key on reprocess — each click is an explicit
+    # admin action that should re-run even if a prior attempt is
+    # still in DLQ. The Doc row's processing_phase column is the
+    # user-visible "this is already in flight" signal.
+    await enqueue_job(
+        db,
+        job_type=job_types.JOB_KB_INGEST_DOCUMENT,
+        target="backend",
+        path=f"{settings.API_PREFIX}/internal/knowledge/ingest",
+        payload={"kb_id": str(kb_id), "doc_id": str(doc.id), "reprocess": True},
         priority="normal",
         retry={"maxAttempts": 3, "backoffMs": 3_000, "backoffMultiplier": 2},
-        correlation_id=str(doc.id),
         timeout_ms=600_000,
     )
+    await db.commit()
 
     return DocumentResponse.model_validate(doc).release()
 
