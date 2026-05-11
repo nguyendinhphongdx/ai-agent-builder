@@ -64,6 +64,13 @@ class KnowledgeRetriever:
     ) -> list[RetrievedChunk]:
         if not knowledge_base_ids:
             return []
+        # Quota guard — 402s if the org is over its KB-query cap and
+        # lacks a metered overage price. Runs before the embedding
+        # call so we don't burn LLM credit on a query we'll block.
+        from app.billing.quota import enforce_kb_queries
+
+        await enforce_kb_queries(self.db)
+
         # Wall-clock timing covers the entire retrieve path (embed +
         # SQL + RRF + rerank). One observation per call, labelled
         # after we determine the mode below.

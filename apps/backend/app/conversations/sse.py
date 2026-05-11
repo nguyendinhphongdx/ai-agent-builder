@@ -95,6 +95,13 @@ async def chat_sse(
             ),
         )
 
+    # Enforce token quota before saving the user turn. Done after
+    # agent/api-key checks so a misconfigured agent still 400s with
+    # the right message rather than a misleading 402.
+    from app.billing.quota import enforce_tokens
+
+    await enforce_tokens(db, workspace_id=None)  # ContextVar resolves it
+
     attachments = await _load_user_attachments(db, attachment_ids or [], user_id)
 
     # Persist user turn with attachment metadata — history UI reads this to
