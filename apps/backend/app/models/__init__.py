@@ -17,6 +17,7 @@ from app.models.message import Message
 from app.models.oauth_account import OAuthAccount
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
+from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.tool import Tool
 from app.models.user import User
 from app.models.workflow import Workflow
@@ -59,4 +60,5 @@ __all__ = [
     "File",
     "Job",
     "PersonalAccessToken",
+    "ScheduledTrigger",
 ]

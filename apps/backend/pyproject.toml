@@ -37,6 +37,9 @@ dependencies = [
     "redis[hiredis]>=5.0",
     "stripe>=11.0",
     "sentry-sdk[fastapi]>=2.0",
+    # Cron expression parser for the workflow scheduled-trigger node.
+    # Lightweight, no native deps — pure Python.
+    "croniter>=2.0",
 ]
 
 [project.optional-dependencies]

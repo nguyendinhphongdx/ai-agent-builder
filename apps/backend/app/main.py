@@ -1,5 +1,6 @@
 import logging
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -56,12 +57,27 @@ from app.workflows.router import router as workflows_router
 from app.workspaces.router import router as workspaces_router
 
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """App-wide startup/shutdown hooks. Currently boots the
+    ``scheduled_triggers`` ticker — adds future background services
+    here as they land (e.g. usage-event flusher in P2.3)."""
+    from app.scheduled_triggers import scheduler
+
+    scheduler.start()
+    try:
+        yield
+    finally:
+        await scheduler.stop()
+
+
 def create_app() -> FastAPI:
     """Khởi tạo ứng dụng FastAPI với middleware, router và các endpoint."""
     app = FastAPI(
         title=settings.APP_NAME,
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
     )
 
     # Request id + structured access log. Order matters: RequestId runs first

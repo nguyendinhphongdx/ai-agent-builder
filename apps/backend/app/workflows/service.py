@@ -149,6 +149,13 @@ async def save_graph(
     workflow.version = (workflow.version or 0) + 1
     await db.flush()
     await db.refresh(workflow, ["nodes", "edges"])
+
+    # Reconcile scheduled_triggers — pick up new cron_trigger nodes,
+    # drop deleted ones. Done in the same transaction as the graph
+    # save so the schedule never out-of-sync with the workflow.
+    from app.scheduled_triggers.service import sync_from_workflow
+
+    await sync_from_workflow(db, workflow, created_by=workflow.user_id)
     return workflow
 
 

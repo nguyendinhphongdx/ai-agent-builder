@@ -2,6 +2,7 @@
 
 from app.workflows.nodes.ai import AgentExecutor, LLMExecutor
 from app.workflows.nodes.core import (
+    CronTriggerExecutor,
     EndExecutor,
     NoteExecutor,
     StartExecutor,
@@ -33,6 +34,7 @@ EXECUTORS: dict = {
     "note": NoteExecutor(),
     # Triggers
     "webhook_trigger": WebhookTriggerExecutor(),
+    "cron_trigger": CronTriggerExecutor(),
     # AI
     "llm": LLMExecutor(),
     "agent": AgentExecutor(),
