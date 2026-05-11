@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -47,6 +47,23 @@ class User(Base, UUIDMixin, TimestampMixin):
         ForeignKey("workspaces.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+
+    # ── MFA ───────────────────────────────────────────────────────────
+    # Fernet-encrypted TOTP secret (base32 plaintext). NULL = TOTP not
+    # enrolled. Use ``security.crypto.decrypt_secret`` at verify time;
+    # never persist or log plaintext.
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSONB array of SHA-256-hashed single-use backup codes. A consumed
+    # code is removed from the array on use, so the array length doubles
+    # as "remaining codes" for the UI.
+    mfa_backup_codes: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    # Convenience flag — true iff any factor is set up. Lets login flow
+    # check a single bool instead of inspecting multiple columns.
+    mfa_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
 
     # ── Stripe Connect (Hub paid template payouts) ──────────────────────

@@ -18,6 +18,8 @@ from app.models.oauth_account import OAuthAccount
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.scheduled_trigger import ScheduledTrigger
+from app.models.scim_token import SCIMToken
+from app.models.sso_configuration import SSOConfiguration
 from app.models.tool import Tool
 from app.models.user import User
 from app.models.workflow import Workflow
@@ -26,6 +28,7 @@ from app.models.workflow_node import WorkflowNode
 from app.models.workflow_run import WorkflowRun
 from app.models.workspace import Workspace
 from app.models.workspace_invitation import WorkspaceInvitation
+from app.models.workspace_ip_rule import WorkspaceIPRule
 from app.models.workspace_member import WorkspaceMember
 
 __all__ = [
@@ -61,4 +64,7 @@ __all__ = [
     "Job",
     "PersonalAccessToken",
     "ScheduledTrigger",
+    "SCIMToken",
+    "SSOConfiguration",
+    "WorkspaceIPRule",
 ]

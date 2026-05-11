@@ -44,6 +44,12 @@ class Workspace(Base, UUIDMixin, TimestampMixin):
     # Workspace-level overrides on top of org settings (theme, default
     # role for invitees, feature flags…).
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}", nullable=False)
+    # Enforce MFA on every login to this workspace. When true, users
+    # without ``mfa_enabled=True`` are blocked at the auth dep with
+    # a 403 + "must enrol MFA" detail — UI redirects to the setup page.
+    force_mfa: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     organization: Mapped["Organization"] = relationship(back_populates="workspaces")
     members: Mapped[list["WorkspaceMember"]] = relationship(
