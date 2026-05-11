@@ -51,6 +51,7 @@ from app.payments.webhooks import momo_router as momo_webhook_router
 from app.payments.webhooks import stripe_router as stripe_webhook_router
 from app.payouts.router import router as payouts_router
 from app.personal_tokens.router import router as personal_tokens_router
+from app.audit.router import org_router as org_audit_router
 from app.scim.router import router as scim_router
 from app.share.router import router as share_router
 from app.sso.oidc_router import router as sso_oidc_router
@@ -235,6 +236,7 @@ def create_app() -> FastAPI:
     app.include_router(sso_admin_router, prefix=settings.API_PREFIX)
     app.include_router(scim_router, prefix=settings.API_PREFIX)
     app.include_router(mfa_router, prefix=settings.API_PREFIX)
+    app.include_router(org_audit_router, prefix=settings.API_PREFIX)
     app.include_router(workspaces_router, prefix=settings.API_PREFIX)
     # Hub: public browse + detail, then authenticated fork/publish/edit on the
     # same /templates prefix. Order matters — public routes are defined before

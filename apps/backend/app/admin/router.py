@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import service
 from app.admin.jobs import router as admin_jobs_router
+from app.audit.router import admin_router as admin_audit_router
 from app.admin.schemas import (
     AdminActionRow,
     AdminPurchaseRow,
@@ -45,6 +46,9 @@ router = APIRouter(
 
 # Jobs DLQ inspector — inherits the moderator+ gate from the parent.
 router.include_router(admin_jobs_router)
+
+# Audit log query surface — same gate.
+router.include_router(admin_audit_router)
 
 
 # ─── Templates (moderator+) ───────────────────────────────────────────
