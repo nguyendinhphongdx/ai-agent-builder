@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Activity,
   BarChart3,
   ClipboardList,
   CreditCard,
@@ -19,13 +20,15 @@ import { UsersTab } from "../components/UsersTab";
 import { PurchasesTab } from "../components/PurchasesTab";
 import { StatsTab } from "../components/StatsTab";
 import { AuditTab } from "../components/AuditTab";
+import { ActivityTab } from "../components/ActivityTab";
 
 const TABS = [
   { id: "stats", label: "Stats", icon: BarChart3, minRole: "moderator" as UserRole },
   { id: "templates", label: "Templates", icon: Sparkles, minRole: "moderator" as UserRole },
   { id: "users", label: "Users", icon: Users, minRole: "support" as UserRole },
   { id: "purchases", label: "Purchases", icon: CreditCard, minRole: "support" as UserRole },
-  { id: "audit", label: "Audit log", icon: ClipboardList, minRole: "moderator" as UserRole },
+  { id: "audit", label: "Admin actions", icon: ClipboardList, minRole: "moderator" as UserRole },
+  { id: "activity", label: "Activity log", icon: Activity, minRole: "moderator" as UserRole },
 ];
 
 export function AdminView() {
@@ -96,6 +99,9 @@ export function AdminView() {
         )}
         <TabsContent value="audit">
           <AuditTab />
+        </TabsContent>
+        <TabsContent value="activity">
+          <ActivityTab />
         </TabsContent>
       </Tabs>
     </div>
