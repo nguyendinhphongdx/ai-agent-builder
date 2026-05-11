@@ -114,6 +114,7 @@ async def get_current_user(
     set_current_user_id(user.id)
     _seed_workspace_context(user, x_workspace_id)
     await _enforce_workspace_mfa(request, user, db)
+    await _enforce_workspace_ip_allowlist(request, db)
     return user
 
 
@@ -154,6 +155,48 @@ async def _enforce_workspace_mfa(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="mfa_required",
         )
+
+
+async def _enforce_workspace_ip_allowlist(
+    request: Request, db: AsyncSession
+) -> None:
+    """Block requests whose client IP isn't in the active workspace's
+    CIDR allowlist.
+
+    Empty allowlist → no restriction (the common case). Non-empty
+    list + no match → 403 ``ip_not_allowed``. API-token requests
+    bypass — those are typically programmatic clients from CI
+    runners where IP allowlisting is enforced at the network layer."""
+    if getattr(request.state, "api_token", None) is not None:
+        return
+
+    from app.context import current_workspace_id_or_none
+    from app.sso.service import ip_matches_any, list_ip_rules
+
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return
+
+    rules = await list_ip_rules(db, workspace_id)
+    if not rules:
+        return  # no restriction configured
+
+    client_ip = _client_ip(request)
+    if not ip_matches_any(client_ip, rules):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ip_not_allowed",
+        )
+
+
+def _client_ip(request: Request) -> str:
+    """Resolve caller IP — first hop of X-Forwarded-For, else
+    request.client.host. Same heuristic as the share-channel rate
+    limiter."""
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",", 1)[0].strip()
+    return request.client.host if request.client else ""
 
 
 def _seed_workspace_context(user: User, header_value: str | None) -> None:
