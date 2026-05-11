@@ -58,6 +58,8 @@ from app.permissions.router import router as permissions_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.scim.router import router as scim_router
 from app.share.router import router as share_router
+from app.slack_triggers.router import events_router as slack_events_router
+from app.slack_triggers.router import router as slack_triggers_router
 from app.sso.oidc_router import router as sso_oidc_router
 from app.sso.router import router as sso_admin_router
 from app.tools.router import router as tools_router
@@ -263,6 +265,8 @@ def create_app() -> FastAPI:
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
     app.include_router(email_triggers_router, prefix=settings.API_PREFIX)
+    app.include_router(slack_triggers_router, prefix=settings.API_PREFIX)
+    app.include_router(slack_events_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)

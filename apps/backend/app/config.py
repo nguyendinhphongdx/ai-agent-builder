@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     GCS_SA_JSON: str = ""
     GCS_SA_FILE: str = ""
 
+    # Slack inbound trigger (Phase 2.4 Block 3). V1 uses one platform
+    # Slack app distributed to orgs; signing secret is platform-level.
+    # Per-app secrets land later when self-serve Slack-app install
+    # ships. Empty → /api/slack/events returns 503.
+    SLACK_SIGNING_SECRET: str = ""
+    # Replay window. Slack defaults to 5 minutes server-side; mirror
+    # that here unless an integrator explicitly relaxes.
+    SLACK_REPLAY_WINDOW_SECONDS: int = 300
+
     # Socket service — public URL for frontend handshake, API secret for /emit auth.
     # SOCKET_API_SECRET must match the socket service's API_SECRET env. Dispatcher
     # doesn't inject this header; backend forwards it via `headers={}` param.

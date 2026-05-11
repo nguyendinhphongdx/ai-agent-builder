@@ -24,6 +24,7 @@ from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.scim_token import SCIMToken
+from app.models.slack_trigger import SlackTrigger
 from app.models.sso_configuration import SSOConfiguration
 from app.models.tool import Tool
 from app.models.usage_event import UsageEvent
@@ -77,6 +78,7 @@ __all__ = [
     "PersonalAccessToken",
     "ScheduledTrigger",
     "SCIMToken",
+    "SlackTrigger",
     "SSOConfiguration",
     "WorkspaceIPRule",
 ]
