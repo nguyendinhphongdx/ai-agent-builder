@@ -11,6 +11,7 @@ from app.models.auth_token import AuthToken
 from app.models.conversation import Conversation
 from app.models.custom_role import CustomRole
 from app.models.document import Document
+from app.models.email_trigger import EmailTrigger
 from app.models.document_chunk import DocumentChunk
 from app.models.file import File
 from app.models.job import Job
@@ -57,6 +58,7 @@ __all__ = [
     "AdminAction",
     "AuditLog",
     "CustomRole",
+    "EmailTrigger",
     "KBConnector",
     "UsageEvent",
     "Tool",

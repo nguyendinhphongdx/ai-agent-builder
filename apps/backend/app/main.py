@@ -39,6 +39,7 @@ from app.auth.router import router as auth_router
 from app.config import settings
 from app.conversations.router import router as conversations_router
 from app.dashboard.router import router as dashboard_router
+from app.email_triggers.router import router as email_triggers_router
 from app.external.router import router as external_router
 from app.hub.router import auth_router as hub_auth_router
 from app.hub.router import public_router as hub_public_router
@@ -72,6 +73,7 @@ async def _lifespan(_app: FastAPI):
     that share the API process; add new ones here as they land."""
     from app.audit import purge as audit_purge
     from app.billing import usage_reporter as billing_reporter
+    from app.email_triggers import scheduler as email_scheduler
     from app.knowledge.connectors import scheduler as connector_scheduler
     from app.scheduled_triggers import scheduler
 
@@ -79,9 +81,11 @@ async def _lifespan(_app: FastAPI):
     audit_purge.start()
     connector_scheduler.start()
     billing_reporter.start()
+    email_scheduler.start()
     try:
         yield
     finally:
+        await email_scheduler.stop()
         await billing_reporter.stop()
         await connector_scheduler.stop()
         await audit_purge.stop()
@@ -258,6 +262,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix=settings.API_PREFIX)
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
+    app.include_router(email_triggers_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
