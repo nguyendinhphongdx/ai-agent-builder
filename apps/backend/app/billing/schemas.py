@@ -50,3 +50,26 @@ class BillingOverview(BaseModel):
     subscription: SubscriptionInfo
     tokens: QuotaUsage
     kb_queries: QuotaUsage
+
+
+class CheckoutRequest(BaseModel):
+    """Body for POST /api/billing/checkout — pick which plan to switch to."""
+
+    plan_code: str
+    # FE can override the post-checkout redirect for embed scenarios
+    # (e.g. opening Checkout inside a modal that needs to close on
+    # success). Optional — falls back to settings.STRIPE_BILLING_*.
+    success_url: str | None = None
+    cancel_url: str | None = None
+
+
+class CheckoutSessionInfo(BaseModel):
+    url: str
+
+
+class PortalRequest(BaseModel):
+    return_url: str | None = None
+
+
+class PortalSessionInfo(BaseModel):
+    url: str

@@ -16,13 +16,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing import service as billing_service
+from app.billing import stripe_client
 from app.billing.plans import PLAN_FREE, get_plan, self_serve_plans
 from app.billing.schemas import (
     BillingOverview,
+    CheckoutRequest,
+    CheckoutSessionInfo,
     PlanInfo,
+    PortalRequest,
+    PortalSessionInfo,
     QuotaUsage,
     SubscriptionInfo,
 )
+from app.models.organization import Organization
 from app.context import current_workspace_id_or_none
 from app.db.session import get_db
 from app.models.workspace import Workspace
@@ -153,3 +159,74 @@ async def get_subscription(
         tokens=_quota(tokens_used, plan.monthly_llm_tokens),
         kb_queries=_quota(kb_used, plan.monthly_kb_queries),
     )
+
+
+# ─── Stripe Checkout / Portal (Block 2) ────────────────────────────
+
+
+async def _resolve_org(db: AsyncSession) -> Organization:
+    org_id = await _resolve_org_id(db)
+    org = await db.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="organization_not_found")
+    return org
+
+
+@router.post("/checkout", response_model=CheckoutSessionInfo)
+async def create_checkout(
+    body: CheckoutRequest,
+    _: Any = Depends(require_active_permission(P.BILLING_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mint a Stripe Checkout URL for switching to ``plan_code``.
+
+    Stripe handles the redirect → /settings/billing?ok=1. The
+    actual subscription record arrives via the webhook in Block 4;
+    the FE polls the subscription endpoint until status flips to
+    active.
+    """
+    if not stripe_client.is_configured():
+        raise HTTPException(status_code=503, detail="billing_unavailable")
+    plan = get_plan(body.plan_code)
+    if plan.code == PLAN_FREE:
+        # Free-tier "checkout" is just a downgrade; route through the
+        # portal (or the cancel flow once Block 4 wires it).
+        raise HTTPException(status_code=400, detail="cannot_checkout_free_plan")
+    if not plan.is_self_serve():
+        raise HTTPException(status_code=400, detail="plan_not_self_serve")
+
+    org = await _resolve_org(db)
+    try:
+        url = await stripe_client.create_checkout_session(
+            db,
+            organization=org,
+            plan=plan,
+            success_url=body.success_url,
+            cancel_url=body.cancel_url,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await db.commit()
+    return CheckoutSessionInfo(url=url)
+
+
+@router.post("/portal", response_model=PortalSessionInfo)
+async def create_portal(
+    body: PortalRequest,
+    _: Any = Depends(require_active_permission(P.BILLING_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mint a Stripe Billing Portal URL.
+
+    The portal owns: cancel, swap card, view invoices, change plan
+    via Stripe-hosted plan-update flow. Means we don't have to
+    build any of those routes ourselves.
+    """
+    if not stripe_client.is_configured():
+        raise HTTPException(status_code=503, detail="billing_unavailable")
+    org = await _resolve_org(db)
+    url = await stripe_client.create_portal_session(
+        db, organization=org, return_url=body.return_url
+    )
+    await db.commit()
+    return PortalSessionInfo(url=url)
