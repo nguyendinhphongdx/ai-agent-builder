@@ -43,6 +43,7 @@ from app.hub.router import public_router as hub_public_router
 from app.integrations.router import router as integrations_router
 from app.internal.router import router as internal_router
 from app.jobs.router import router as jobs_router
+from app.knowledge.connectors.router import router as kb_connectors_router
 from app.knowledge.router import router as knowledge_router
 from app.mfa.router import router as mfa_router
 from app.llm.router import router as llm_router
@@ -68,13 +69,16 @@ async def _lifespan(_app: FastAPI):
     """App-wide startup/shutdown hooks. Boots background services
     that share the API process; add new ones here as they land."""
     from app.audit import purge as audit_purge
+    from app.knowledge.connectors import scheduler as connector_scheduler
     from app.scheduled_triggers import scheduler
 
     scheduler.start()
     audit_purge.start()
+    connector_scheduler.start()
     try:
         yield
     finally:
+        await connector_scheduler.stop()
         await audit_purge.stop()
         await scheduler.stop()
 
@@ -225,6 +229,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_router, prefix=settings.API_PREFIX)
     app.include_router(tools_router, prefix=settings.API_PREFIX)
     app.include_router(knowledge_router, prefix=settings.API_PREFIX)
+    app.include_router(kb_connectors_router, prefix=settings.API_PREFIX)
     app.include_router(conversations_router, prefix=settings.API_PREFIX)
     app.include_router(workflows_router, prefix=settings.API_PREFIX)
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
