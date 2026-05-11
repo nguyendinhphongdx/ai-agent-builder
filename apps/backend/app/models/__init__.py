@@ -6,6 +6,7 @@ from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_review import AgentTemplateReview
 from app.models.agent_template_version import AgentTemplateVersion
 from app.models.ai_credential import AICredential
+from app.models.audit_log import AuditLog
 from app.models.auth_token import AuthToken
 from app.models.conversation import Conversation
 from app.models.document import Document
@@ -49,6 +50,7 @@ __all__ = [
     "AgentTemplateKbDocument",
     "AgentTemplateKbChunk",
     "AdminAction",
+    "AuditLog",
     "Tool",
     "KnowledgeBase",
     "Document",
