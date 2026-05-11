@@ -28,9 +28,9 @@ from app.billing.schemas import (
     QuotaUsage,
     SubscriptionInfo,
 )
-from app.models.organization import Organization
 from app.context import current_workspace_id_or_none
 from app.db.session import get_db
+from app.models.organization import Organization
 from app.models.workspace import Workspace
 from app.permissions import catalogue as P
 from app.usage import service as usage_service
