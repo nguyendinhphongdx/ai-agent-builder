@@ -25,12 +25,13 @@ class DocumentChunk(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
-    # Multi-tenancy boundary (Phase 1.1). Same denormalisation logic
-    # as knowledge_base_id — avoid a JOIN on the hot RAG path.
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. Same denormalisation logic as
+    # knowledge_base_id — avoid a JOIN on the hot RAG path.
+    # NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)  # Thứ tự chunk trong tài liệu

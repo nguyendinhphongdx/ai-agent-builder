@@ -11,21 +11,23 @@ from app.models.tool import Tool
 
 
 async def list_agents(db: AsyncSession) -> list[Agent]:
-    """Lấy danh sách agent của user, sắp xếp theo thời gian cập nhật mới nhất.
+    """Lấy danh sách agent trong workspace hiện tại, sắp xếp theo updated_at.
 
-    Phase 1.1: filter dual-keyed on user_id (legacy) and workspace_id
-    (new). Legacy rows have ``workspace_id IS NULL`` so we keep showing
-    them; new rows are scoped to the active workspace. Once backfill
-    sets every row's ``workspace_id`` and the column flips to NOT NULL
-    we can drop the legacy branch.
+    Phase 1.1 step 4 is locked: ``workspace_id`` is NOT NULL on every
+    row, so we filter strictly. ``current_user_id`` is kept as a
+    secondary filter so each user only sees agents they personally
+    created within the workspace (workspace membership is enforced
+    at the auth dep level).
     """
     workspace_id = current_workspace_id_or_none()
-    stmt = select(Agent).where(Agent.user_id == current_user_id())
+    stmt = (
+        select(Agent)
+        .where(Agent.user_id == current_user_id())
+        .order_by(Agent.updated_at.desc())
+    )
     if workspace_id is not None:
-        stmt = stmt.where(
-            (Agent.workspace_id == workspace_id) | (Agent.workspace_id.is_(None))
-        )
-    result = await db.execute(stmt.order_by(Agent.updated_at.desc()))
+        stmt = stmt.where(Agent.workspace_id == workspace_id)
+    result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -38,9 +40,7 @@ async def get_agent(db: AsyncSession, agent_id: uuid.UUID) -> Agent | None:
         .where(Agent.id == agent_id, Agent.user_id == current_user_id())
     )
     if workspace_id is not None:
-        stmt = stmt.where(
-            (Agent.workspace_id == workspace_id) | (Agent.workspace_id.is_(None))
-        )
+        stmt = stmt.where(Agent.workspace_id == workspace_id)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 

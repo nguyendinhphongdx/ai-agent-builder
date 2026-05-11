@@ -37,16 +37,12 @@ def _to_response(cred: AICredential, plaintext: str) -> AICredentialResponse:
 # ── CRUD ──────────────────────────────────────────────────────────────
 
 def _scope_filter(stmt):
-    """Apply Phase 1.1 dual-filter: rows in the current workspace
-    + legacy NULL rows (still visible until backfill stamps them).
-    No-op when no workspace is in context (background tasks).
-    """
+    """Restrict to rows in the current workspace. No-op when no
+    workspace is in context (background tasks)."""
     workspace_id = current_workspace_id_or_none()
     if workspace_id is None:
         return stmt
-    return stmt.where(
-        (AICredential.workspace_id == workspace_id) | (AICredential.workspace_id.is_(None))
-    )
+    return stmt.where(AICredential.workspace_id == workspace_id)
 
 
 async def list_ai_credentials(db: AsyncSession) -> list[AICredentialResponse]:

@@ -37,8 +37,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     # their personal workspace at signup, then updated to the last
     # workspace they were viewing. NULL only between user creation and
     # the first ``ensure_personal_workspace`` call (and for legacy rows
-    # backfilled before that service exists). Workspace deletion nulls
-    # this out via ``ON DELETE SET NULL`` rather than dropping the user.
+    # Every user gets a personal workspace at signup; backfill phase A
+    # heals legacy rows. Kept NULLABLE on purpose: ``ON DELETE SET NULL``
+    # would otherwise conflict with NOT NULL if the pointed-to workspace
+    # is deleted. NULL is the brief recovery state that the auth dep
+    # heals on the next request via ``ensure_personal_workspace``.
     default_workspace_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="SET NULL"),

@@ -12,14 +12,11 @@ from app.models.knowledge_base import KnowledgeBase
 
 
 def _scope_filter(stmt):
-    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    """Restrict to KBs in the current workspace."""
     workspace_id = current_workspace_id_or_none()
     if workspace_id is None:
         return stmt
-    return stmt.where(
-        (KnowledgeBase.workspace_id == workspace_id)
-        | (KnowledgeBase.workspace_id.is_(None))
-    )
+    return stmt.where(KnowledgeBase.workspace_id == workspace_id)
 
 
 async def list_knowledge_bases(db: AsyncSession) -> list[KnowledgeBase]:

@@ -17,13 +17,13 @@ class Message(Base, UUIDMixin):
         ForeignKey("conversations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # Multi-tenancy boundary (Phase 1.1). Denormalised from parent
-    # conversation for fast scan-free tenant filtering on hot paths
-    # (cost dashboards, audit log queries).
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. Denormalised from parent conversation
+    # for fast scan-free tenant filtering on hot paths (cost dashboards,
+    # audit log queries). NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     parent_message_id: Mapped[uuid.UUID | None] = mapped_column(  # Hỗ trợ cấu trúc cây tin nhắn (branching)

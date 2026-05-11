@@ -18,11 +18,12 @@ class WorkflowNode(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
-    # Multi-tenancy boundary (Phase 1.1). Denormalised from parent workflow.
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. Denormalised from parent workflow.
+    # NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     node_type: Mapped[str] = mapped_column(String(50), nullable=False)  # "llm", "tool", "condition", "input", "output"

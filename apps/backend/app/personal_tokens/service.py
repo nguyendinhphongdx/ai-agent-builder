@@ -37,14 +37,11 @@ def _generate_plaintext() -> str:
 
 
 def _scope_filter(stmt):
-    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    """Restrict to tokens minted in the current workspace."""
     workspace_id = current_workspace_id_or_none()
     if workspace_id is None:
         return stmt
-    return stmt.where(
-        (PersonalAccessToken.workspace_id == workspace_id)
-        | (PersonalAccessToken.workspace_id.is_(None))
-    )
+    return stmt.where(PersonalAccessToken.workspace_id == workspace_id)
 
 
 async def list_tokens(db: AsyncSession) -> list[PersonalAccessToken]:

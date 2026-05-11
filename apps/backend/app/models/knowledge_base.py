@@ -14,11 +14,11 @@ class KnowledgeBase(Base, UUIDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Multi-tenancy boundary (Phase 1.1). Nullable through transition.
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)

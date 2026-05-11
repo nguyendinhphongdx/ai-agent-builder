@@ -109,11 +109,13 @@ async def test_list_credentials_isolated_per_workspace(
     assert {c.name for c in bob_creds} == {"Bob's"}
 
 
-async def test_list_credentials_includes_legacy_null_rows(
+async def test_list_credentials_hides_null_rows_after_lock(
     db_session, user_context, monkeypatch
 ) -> None:
-    """Pre-Phase-1.1 rows have workspace_id IS NULL; they must remain
-    visible to the owning user during the transition window."""
+    """Post-step-4 the dual-filter is gone — NULL rows would have been
+    caught by the lock migration's verification scan. This test
+    pins the new strict-filter behavior: any NULL row that somehow
+    persists is invisible in workspace-scoped listings."""
     from app.ai_credentials import service as svc
 
     monkeypatch.setattr(svc, "_encrypt", lambda s: s)
@@ -121,7 +123,6 @@ async def test_list_credentials_includes_legacy_null_rows(
 
     user = await create(db_session, UserFactory)
     workspace = await ensure_personal_workspace(db_session, user)
-    # Insert a row directly with NULL workspace_id (simulates legacy).
     legacy = AICredential(
         user_id=user.id,
         workspace_id=None,
@@ -134,7 +135,7 @@ async def test_list_credentials_includes_legacy_null_rows(
 
     user_context(user.id, workspace.id)
     creds = await list_ai_credentials(db_session)
-    assert any(c.name == "legacy" for c in creds)
+    assert not any(c.name == "legacy" for c in creds)
 
 
 async def test_get_credential_cross_workspace_returns_none(

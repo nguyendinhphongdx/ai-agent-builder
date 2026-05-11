@@ -105,31 +105,42 @@ async def test_get_agent_blocks_cross_workspace_lookup(db_session, user_context)
     assert sneaky_lookup is None
 
 
-async def test_legacy_null_workspace_rows_still_visible_in_transition(
+async def test_legacy_null_rows_are_invisible_after_lock(
     db_session, user_context
 ) -> None:
-    """Rows created before the multi-tenancy rollout have
-    ``workspace_id IS NULL``. During the Phase 1.1 transition the
-    service layer keeps showing them to their owner — this is
-    documented, not a bug. Once backfill stamps every row and the
-    column flips to NOT NULL the legacy branch goes away."""
+    """Post-step-4 the dual-filter is gone — rows with ``workspace_id
+    IS NULL`` should NOT surface when a workspace context is set.
+
+    This was the documented transition behavior in step 2/3; step 4
+    locked the column NOT NULL, so a freshly-listed workspace cannot
+    contain legacy rows. The migration would have failed to apply
+    if any NULL row existed. Test enforces the new contract.
+    """
     user = await create(db_session, UserFactory)
     workspace = await ensure_personal_workspace(db_session, user)
 
-    # Forge a "legacy" row by creating with no workspace context.
-    user_context(user.id, None)
-    legacy = await create_agent(db_session, **_make_payload("Legacy Agent"))
-    assert legacy.workspace_id is None
+    # Insert a NULL-workspace row directly, bypassing the service
+    # auto-fill (simulates an unscoped insert pre-lock).
+    from app.models.agent import Agent
 
-    # New row in the proper workspace.
+    legacy = Agent(
+        user_id=user.id,
+        workspace_id=None,
+        name="Legacy Agent",
+        system_prompt="x",
+        model_id="openai/gpt-4o",
+    )
+    db_session.add(legacy)
+    await db_session.flush()
+
     user_context(user.id, workspace.id)
     fresh = await create_agent(db_session, **_make_payload("Fresh Agent"))
     assert fresh.workspace_id == workspace.id
 
-    # Listing in workspace context should include BOTH (legacy + scoped).
+    # Listing must now hide the NULL row — strict filter.
     agents = await list_agents(db_session)
     names = {a.name for a in agents}
-    assert names == {"Legacy Agent", "Fresh Agent"}
+    assert names == {"Fresh Agent"}
 
 
 async def test_no_workspace_context_falls_back_to_user_only(

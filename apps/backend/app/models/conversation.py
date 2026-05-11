@@ -18,12 +18,12 @@ class Conversation(Base, UUIDMixin, TimestampMixin):
     agent_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Multi-tenancy boundary (Phase 1.1). Pinned from the agent's
-    # workspace at conversation-create time. Nullable through transition.
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. Pinned from the agent's workspace at
+    # conversation-create time. NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     title: Mapped[str | None] = mapped_column(String(255))

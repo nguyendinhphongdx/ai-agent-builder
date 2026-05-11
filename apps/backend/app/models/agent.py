@@ -46,14 +46,13 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Multi-tenancy boundary. Nullable during the Phase 1.1 transition —
-    # set ``NOT NULL`` once every existing row is backfilled. Service
-    # queries that scope by tenant should filter on this column, NOT on
+    # Multi-tenancy boundary. NOT NULL since Phase 1.1 step 4. Service
+    # queries that scope by tenant filter on this column, NOT on
     # ``user_id`` (which only identifies the creator within a workspace).
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)

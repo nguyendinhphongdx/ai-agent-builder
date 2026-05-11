@@ -19,7 +19,9 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 - **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ schema · 2 ✅ all 13 tables stamped · 3 ✅ CLI built (`python -m app.cli.backfill_tenancy`) — needs to RUN on staging · 4 ⏳ pending lock
+- **Step**: 1 ✅ schema · 2 ✅ all 13 tables stamped · 3 ✅ CLI built · 4 ✅ lock migration shipped — must run AFTER backfill on staging.
+
+**Phase 1.1 is feature-complete.** What's left is ops: run `python -m app.cli.backfill_tenancy` then `alembic upgrade head` on staging, smoke test, deploy to prod.
 - **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
 - **Open decisions** (closed in session 2):
   - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
@@ -142,6 +144,27 @@ If you're picking this up cold, do this in order:
 | [features/settings/components/SettingsNav.tsx](../../apps/frontend/src/features/settings/components/SettingsNav.tsx) | Adds "Workspace" entry in the Workspace group. |
 | [app/(dashboard)/settings/workspace/page.tsx](../../apps/frontend/src/app/(dashboard)/settings/workspace/page.tsx) | NEW route. |
 | [app/(dashboard)/workspaces/invitations/[token]/page.tsx](../../apps/frontend/src/app/(dashboard)/workspaces/invitations/[token]/page.tsx) | NEW route — `params` is a `Promise` (Next 16). |
+
+### Phase 1.1 — Block 7 Lock NOT NULL + dual-filter cleanup (session 2)
+
+Closes Phase 1.1 step 4. Code lands here; deploy is gated on backfill running to completion on staging.
+
+| File | What changed |
+|---|---|
+| [alembic/versions/s8i1j4e7f9g2_lock_workspace_id_not_null.py](../../apps/backend/alembic/versions/s8i1j4e7f9g2_lock_workspace_id_not_null.py) | NEW migration. `ALTER COLUMN workspace_id SET NOT NULL` across all 13 resource tables. If any NULL row remains the ALTER aborts and the migration rolls back. `users.default_workspace_id` stays NULLABLE on purpose (its FK is `ON DELETE SET NULL`). |
+| All 13 resource models | `Mapped[uuid.UUID \| None]` → `Mapped[uuid.UUID]`, `nullable=True` → `nullable=False`. Comments updated to reflect the post-lock contract. |
+| Services (agents, ai_credentials, personal_access_tokens, tools, knowledge_bases, conversations, workflows) | `_scope_filter` collapsed from `WHERE workspace_id = X OR IS NULL` to strict `WHERE workspace_id = X`. The `current_workspace_id_or_none` no-context branch stays (background tasks, CLI). |
+| Tests | `test_legacy_null_rows_visible_during_transition` flipped to `test_legacy_null_rows_are_invisible_after_lock` for both agents and credentials — strict filter is the new contract. |
+
+**Deploy sequence (mandatory order):**
+
+1. `python -m app.cli.backfill_tenancy --dry-run` — verify counts make sense.
+2. `python -m app.cli.backfill_tenancy` — actually backfill.
+3. `python -m app.cli.backfill_tenancy --dry-run` again — must report 0 across every table.
+4. `alembic upgrade head` — the lock migration runs. If it fails on any table, repeat steps 2-3.
+5. Deploy this code. Services are already using the strict filter; they just need the NOT NULL DB state for the assumption to hold.
+
+If you deploy this code BEFORE the migration runs, any user whose `default_workspace_id` is still NULL will see no rows on workspace-scoped queries — the auth dep sets the context to NULL, and the strict filter drops everything in that case (intentional — we don't want implicit cross-tenant leaks).
 
 ### Phase 1.1 — Block 6 Backfill CLI (session 2)
 

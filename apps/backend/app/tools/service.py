@@ -8,13 +8,11 @@ from app.models.tool import Tool
 
 
 def _scope_filter(stmt):
-    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    """Restrict to tools in the current workspace."""
     workspace_id = current_workspace_id_or_none()
     if workspace_id is None:
         return stmt
-    return stmt.where(
-        (Tool.workspace_id == workspace_id) | (Tool.workspace_id.is_(None))
-    )
+    return stmt.where(Tool.workspace_id == workspace_id)
 
 
 async def list_tools(db: AsyncSession) -> list[Tool]:

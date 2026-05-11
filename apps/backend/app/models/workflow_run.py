@@ -25,11 +25,12 @@ class WorkflowRun(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
-    # Multi-tenancy boundary (Phase 1.1). Inherited from parent workflow.
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Multi-tenancy boundary. Inherited from parent workflow.
+    # NOT NULL since Phase 1.1 step 4.
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(  # Conversation kích hoạt workflow (nếu có)

@@ -15,13 +15,11 @@ from app.models.workflow_run import WorkflowRun
 
 
 def _scope_filter(stmt):
-    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    """Restrict to workflows in the current workspace."""
     workspace_id = current_workspace_id_or_none()
     if workspace_id is None:
         return stmt
-    return stmt.where(
-        (Workflow.workspace_id == workspace_id) | (Workflow.workspace_id.is_(None))
-    )
+    return stmt.where(Workflow.workspace_id == workspace_id)
 
 
 def generate_webhook_token() -> str:
