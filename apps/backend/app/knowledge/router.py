@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.jobs import types as job_types
 from app.jobs.producer import enqueue as enqueue_job
 from app.knowledge.retriever import KnowledgeRetriever
+from app.permissions import catalogue as P
+from app.workspaces.permissions import require_active_permission
 
 logger = logging.getLogger("agentforge")
 from app.knowledge.schemas import (
@@ -60,6 +62,7 @@ async def list_kbs_endpoint(
 @router.post("", response_model=KnowledgeBaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_kb_endpoint(
     body: KnowledgeBaseCreate,
+    _: object = Depends(require_active_permission(P.KB_CREATE)),
     db: AsyncSession = Depends(get_db),
 ):
     kb = await create_knowledge_base(db, **body.model_dump())
@@ -81,6 +84,7 @@ async def get_kb_endpoint(
 async def update_kb_endpoint(
     kb_id: uuid.UUID,
     body: KnowledgeBaseUpdate,
+    _: object = Depends(require_active_permission(P.KB_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     kb = await get_knowledge_base(db, kb_id)
@@ -93,6 +97,7 @@ async def update_kb_endpoint(
 @router.delete("/{kb_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_kb_endpoint(
     kb_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.KB_DELETE)),
     db: AsyncSession = Depends(get_db),
 ):
     kb = await get_knowledge_base(db, kb_id)
@@ -108,6 +113,7 @@ async def delete_kb_endpoint(
 async def upload_document_endpoint(
     kb_id: uuid.UUID,
     file: UploadFile = File(...),
+    _: object = Depends(require_active_permission(P.KB_DOCUMENT_UPLOAD)),
     db: AsyncSession = Depends(get_db),
 ):
     kb = await get_knowledge_base(db, kb_id)
@@ -262,6 +268,7 @@ async def list_chunks_endpoint(
 async def reprocess_document_endpoint(
     kb_id: uuid.UUID,
     doc_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.KB_DOCUMENT_UPLOAD)),
     db: AsyncSession = Depends(get_db),
 ):
     """Retry ingestion for a document — resets its state and re-enqueues.
@@ -305,6 +312,7 @@ async def reprocess_document_endpoint(
 async def delete_document_endpoint(
     kb_id: uuid.UUID,
     doc_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.KB_DOCUMENT_DELETE)),
     db: AsyncSession = Depends(get_db),
 ):
     kb = await get_knowledge_base(db, kb_id)

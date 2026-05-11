@@ -84,17 +84,11 @@ def require_workspace_role(min_role: str):
 
 
 def require_permission(permission: str):
-    """Dependency factory — 403 unless the caller has ``permission``.
+    """Dependency factory — 403 unless the caller has ``permission``
+    in the workspace named by the path's ``workspace_id``.
 
-    Resolves the caller's WorkspaceMember from the path's
-    ``workspace_id`` (FastAPI auto-injects via sub-dep), then checks
-    :func:`app.permissions.service.has_permission` against the
-    member's role.
-
-    Same shape as :func:`require_workspace_role`: returns the
-    WorkspaceMember on success, raises 404 / 403 otherwise. 404 for
-    non-members keeps cross-tenant ids opaque (no "this exists but
-    you can't see it" leak).
+    Use on endpoints whose path already carries ``workspace_id``
+    (workspace-scoped CRUD under ``/workspaces/{id}/...``).
     """
 
     async def _check(
@@ -107,6 +101,58 @@ def require_permission(permission: str):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workspace not found",
+            )
+        if not has_permission(member, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission}",
+            )
+        return member
+
+    return _check
+
+
+def require_active_permission(permission: str):
+    """Dependency factory — 403 unless the caller has ``permission``
+    in their **active** workspace (the one set on the request via
+    X-Workspace-Id header or user.default_workspace_id).
+
+    Use this for endpoints whose URL doesn't carry workspace_id —
+    most resource CRUD lives under ``/agents``, ``/knowledge-bases``,
+    etc. and gets its tenant scope from the request's active workspace.
+
+    Resolution:
+      1. get_current_user (already runs) seeds ``current_workspace_id``
+         in the ContextVar.
+      2. This dep reads it back and looks up the matching member row.
+      3. Permission check + return the member.
+
+    No active workspace context (background tasks, pre-backfilled
+    legacy users) → 403 with ``no_active_workspace``. UI should
+    surface a workspace-picker prompt.
+    """
+
+    async def _check(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> WorkspaceMember:
+        from app.context import current_workspace_id_or_none
+
+        workspace_id = current_workspace_id_or_none()
+        if workspace_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="no_active_workspace",
+            )
+
+        member = await get_member(db, workspace_id, current_user.id)
+        if member is None:
+            # User isn't a member of the workspace they're trying to
+            # act in — auth dep accepted them (default workspace) but
+            # the header is overriding to one they don't belong to.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="not_a_workspace_member",
             )
         if not has_permission(member, permission):
             raise HTTPException(

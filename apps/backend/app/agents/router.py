@@ -25,8 +25,10 @@ from app.auth.dependencies import get_current_user
 from app.context import current_user_id
 from app.db.session import get_db
 from app.models.ai_credential import AICredential
+from app.permissions import catalogue as P
 from app.share.schemas import ShareConfigResponse, ShareSettingsUpdate
 from app.share.service import disable_share, enable_share, update_share_settings
+from app.workspaces.permissions import require_active_permission
 
 
 async def _assert_credential_owned(
@@ -63,6 +65,7 @@ async def list_agents_endpoint(  # Lấy danh sách agent của user hiện tạ
 @router.post("", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent_endpoint(  # Tạo agent mới
     body: AgentCreate,
+    _: object = Depends(require_active_permission(P.AGENT_CREATE)),
     db: AsyncSession = Depends(get_db),
 ):
     await _assert_credential_owned(db, body.credential_id)
@@ -85,6 +88,7 @@ async def get_agent_endpoint(  # Lấy chi tiết agent theo ID
 async def update_agent_endpoint(  # Cập nhật thông tin agent
     agent_id: uuid.UUID,
     body: AgentUpdate,
+    _: object = Depends(require_active_permission(P.AGENT_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     agent = await get_agent(db, agent_id)
@@ -102,6 +106,7 @@ async def update_agent_endpoint(  # Cập nhật thông tin agent
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_agent_endpoint(  # Xóa agent
     agent_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.AGENT_DELETE)),
     db: AsyncSession = Depends(get_db),
 ):
     agent = await get_agent(db, agent_id)
@@ -114,6 +119,7 @@ async def delete_agent_endpoint(  # Xóa agent
 async def attach_tool_endpoint(  # Gắn tool vào agent
     agent_id: uuid.UUID,
     tool_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.AGENT_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -127,6 +133,7 @@ async def attach_tool_endpoint(  # Gắn tool vào agent
 async def detach_tool_endpoint(  # Gỡ tool khỏi agent
     agent_id: uuid.UUID,
     tool_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.AGENT_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -141,6 +148,7 @@ async def detach_tool_endpoint(  # Gỡ tool khỏi agent
 async def attach_kb_endpoint(  # Gắn knowledge base vào agent
     agent_id: uuid.UUID,
     kb_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.AGENT_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -156,6 +164,7 @@ async def attach_kb_endpoint(  # Gắn knowledge base vào agent
 async def detach_kb_endpoint(  # Gỡ knowledge base khỏi agent
     agent_id: uuid.UUID,
     kb_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.AGENT_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     try:

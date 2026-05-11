@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.context import current_user_id
 from app.db.session import get_db
+from app.permissions import catalogue as P
 from app.rate_limit import make_limit
+from app.workspaces.permissions import require_active_permission
 from app.workflows.schemas import (
     NodeExecuteRequest,
     WorkflowCreate,
@@ -48,6 +50,7 @@ async def list_workflows_endpoint(  # Lấy danh sách workflow của user
 @router.post("", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED)
 async def create_workflow_endpoint(  # Tạo workflow mới
     body: WorkflowCreate,
+    _: object = Depends(require_active_permission(P.WORKFLOW_CREATE)),
     db: AsyncSession = Depends(get_db),
 ):
     workflow = await create_workflow(db, **body.model_dump())
@@ -69,6 +72,7 @@ async def get_workflow_endpoint(  # Lấy chi tiết workflow kèm nodes + edges
 async def update_workflow_endpoint(  # Cập nhật workflow, có thể lưu toàn bộ graph
     workflow_id: uuid.UUID,
     body: WorkflowUpdate,
+    _: object = Depends(require_active_permission(P.WORKFLOW_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     workflow = await get_workflow(db, workflow_id)
@@ -97,6 +101,7 @@ async def update_workflow_endpoint(  # Cập nhật workflow, có thể lưu to�
 @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow_endpoint(  # Xóa workflow
     workflow_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.WORKFLOW_DELETE)),
     db: AsyncSession = Depends(get_db),
 ):
     workflow = await get_workflow(db, workflow_id)
@@ -110,7 +115,10 @@ async def delete_workflow_endpoint(  # Xóa workflow
 @router.post(
     "/{workflow_id}/execute",
     response_model=WorkflowRunResponse,
-    dependencies=[Depends(make_limit("workflow-exec", 30))],
+    dependencies=[
+        Depends(make_limit("workflow-exec", 30)),
+        Depends(require_active_permission(P.WORKFLOW_EXECUTE)),
+    ],
 )
 async def execute_workflow_endpoint(  # Chạy workflow và trả về kết quả
     workflow_id: uuid.UUID,

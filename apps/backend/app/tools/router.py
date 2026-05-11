@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
+from app.permissions import catalogue as P
 from app.tools.schemas import (
     ToolCreate,
     ToolResponse,
@@ -14,6 +15,7 @@ from app.tools.schemas import (
     ToolUpdate,
 )
 from app.tools.service import create_tool, delete_tool, get_tool, list_tools, update_tool
+from app.workspaces.permissions import require_active_permission
 
 router = APIRouter(
     prefix="/tools",
@@ -31,6 +33,7 @@ async def list_tools_endpoint(db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=ToolResponse, status_code=status.HTTP_201_CREATED)
 async def create_tool_endpoint(
     body: ToolCreate,
+    _: object = Depends(require_active_permission(P.TOOL_CREATE)),
     db: AsyncSession = Depends(get_db),
 ):
     tool = await create_tool(db, **body.model_dump())
@@ -52,6 +55,7 @@ async def get_tool_endpoint(
 async def update_tool_endpoint(
     tool_id: uuid.UUID,
     body: ToolUpdate,
+    _: object = Depends(require_active_permission(P.TOOL_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
     tool = await get_tool(db, tool_id)
@@ -64,6 +68,7 @@ async def update_tool_endpoint(
 @router.delete("/{tool_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_endpoint(
     tool_id: uuid.UUID,
+    _: object = Depends(require_active_permission(P.TOOL_DELETE)),
     db: AsyncSession = Depends(get_db),
 ):
     tool = await get_tool(db, tool_id)
@@ -76,6 +81,7 @@ async def delete_tool_endpoint(
 async def test_tool_endpoint(
     tool_id: uuid.UUID,
     body: ToolTestRequest,
+    _: object = Depends(require_active_permission(P.TOOL_EXECUTE)),
     db: AsyncSession = Depends(get_db),
 ):
     tool = await get_tool(db, tool_id)
