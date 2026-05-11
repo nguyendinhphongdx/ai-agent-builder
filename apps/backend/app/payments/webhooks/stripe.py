@@ -75,4 +75,49 @@ async def stripe_webhook(
                 await db.rollback()
                 raise HTTPException(status_code=500, detail="Handler failed")
 
+    elif event_type in (
+        "customer.subscription.created",
+        "customer.subscription.updated",
+    ):
+        # Platform-billing subscription events (Block 4). Marketplace
+        # checkouts don't use subscriptions so this branch is
+        # exclusively our own SaaS plan flow.
+        from app.billing.webhooks import handle_subscription_event
+
+        sub_obj = event.get("data", {}).get("object", {})
+        async with async_session_factory() as db:
+            try:
+                await handle_subscription_event(db, sub_obj)
+                await db.commit()
+            except Exception:
+                logger.exception("stripe webhook: subscription sync failed")
+                await db.rollback()
+                raise HTTPException(status_code=500, detail="Handler failed")
+
+    elif event_type == "customer.subscription.deleted":
+        from app.billing.webhooks import handle_subscription_deleted
+
+        sub_obj = event.get("data", {}).get("object", {})
+        async with async_session_factory() as db:
+            try:
+                await handle_subscription_deleted(db, sub_obj)
+                await db.commit()
+            except Exception:
+                logger.exception("stripe webhook: subscription cancel failed")
+                await db.rollback()
+                raise HTTPException(status_code=500, detail="Handler failed")
+
+    elif event_type == "invoice.payment_failed":
+        from app.billing.webhooks import handle_invoice_payment_failed
+
+        invoice = event.get("data", {}).get("object", {})
+        async with async_session_factory() as db:
+            try:
+                await handle_invoice_payment_failed(db, invoice)
+                await db.commit()
+            except Exception:
+                logger.exception("stripe webhook: invoice fail handler crashed")
+                await db.rollback()
+                raise HTTPException(status_code=500, detail="Handler failed")
+
     return JSONResponse({"received": True})
