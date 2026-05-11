@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import service as audit_service
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.organization import Organization
@@ -178,6 +179,18 @@ async def upsert_sso_config(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    await audit_service.log_event(
+        db,
+        action="sso.config.update",
+        resource_type="sso_configuration",
+        resource_id=row.id,
+        organization_id=org_id,
+        metadata={
+            "provider": row.provider,
+            "is_active": row.is_active,
+            "jit_provisioning": row.jit_provisioning,
+        },
+    )
     await db.commit()
     return _to_sso_response(row)
 
@@ -200,6 +213,14 @@ async def delete_sso_config(
     )
     if row is not None:
         await db.delete(row)
+        await audit_service.log_event(
+            db,
+            action="sso.config.delete",
+            resource_type="sso_configuration",
+            resource_id=row.id,
+            organization_id=org_id,
+            metadata={"provider": provider},
+        )
         await db.commit()
 
 
@@ -260,6 +281,14 @@ async def create_scim_token(
         created_by=current_user.id,
         expires_at=body.expires_at,
     )
+    await audit_service.log_event(
+        db,
+        action="scim.token.mint",
+        resource_type="scim_token",
+        resource_id=row.id,
+        organization_id=org_id,
+        metadata={"name": row.name, "expires_at": row.expires_at.isoformat() if row.expires_at else None},
+    )
     await db.commit()
     payload = SCIMTokenResponse.model_validate(row).model_dump()
     payload["plaintext"] = plaintext
@@ -287,6 +316,14 @@ async def revoke_scim_token(
     if row is None:
         raise HTTPException(404, detail="SCIM token not found")
     await sso_service.revoke_scim_token(db, token_id)
+    await audit_service.log_event(
+        db,
+        action="scim.token.revoke",
+        resource_type="scim_token",
+        resource_id=token_id,
+        organization_id=org_id,
+        metadata={"name": row.name},
+    )
     await db.commit()
 
 
@@ -341,6 +378,14 @@ async def create_workspace_ip_rule(
         )
     except ValueError as exc:
         raise HTTPException(400, detail=str(exc))
+    await audit_service.log_event(
+        db,
+        action="ip_rule.create",
+        resource_type="ip_rule",
+        resource_id=row.id,
+        workspace_id=workspace_id,
+        metadata={"cidr": row.cidr, "description": row.description},
+    )
     await db.commit()
     return IPRuleResponse.model_validate(row)
 
@@ -358,4 +403,11 @@ async def delete_workspace_ip_rule(
     ok = await sso_service.delete_ip_rule(db, rule_id)
     if not ok:
         raise HTTPException(404, detail="IP rule not found")
+    await audit_service.log_event(
+        db,
+        action="ip_rule.delete",
+        resource_type="ip_rule",
+        resource_id=rule_id,
+        workspace_id=workspace_id,
+    )
     await db.commit()

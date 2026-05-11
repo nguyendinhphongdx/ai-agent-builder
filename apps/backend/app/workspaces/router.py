@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import service as audit_service
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -111,6 +112,15 @@ async def create_workspace(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    await audit_service.log_event(
+        db,
+        action="workspace.create",
+        resource_type="workspace",
+        resource_id=ws.id,
+        organization_id=ws.organization_id,
+        workspace_id=ws.id,
+        metadata={"name": ws.name, "slug": ws.slug},
+    )
     await db.commit()
     # Eager-load org for the response shape.
     await db.refresh(ws, ["organization"])
@@ -169,6 +179,19 @@ async def delete_workspace(
         await service.delete_workspace(db, ws)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    # Audit BEFORE commit so the row carries on the same txn — if the
+    # delete somehow rolls back, the audit row goes with it.
+    await audit_service.log_event(
+        db,
+        action="workspace.delete",
+        resource_type="workspace",
+        resource_id=ws.id,
+        organization_id=ws.organization_id,
+        # Pass workspace_id explicitly — it's being deleted in the same
+        # txn so the ContextVar default would point to a doomed row.
+        workspace_id=None,
+        metadata={"name": ws.name, "slug": ws.slug},
+    )
     await db.commit()
 
 
@@ -212,10 +235,19 @@ async def update_member(
             detail="Only owners can grant the owner role",
         )
 
+    old_role = target.role
     try:
         await service.update_member_role(db, target, body.role)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await audit_service.log_event(
+        db,
+        action="workspace.member.role_change",
+        resource_type="user",
+        resource_id=target.user_id,
+        workspace_id=workspace_id,
+        metadata={"from": old_role, "to": body.role},
+    )
     await db.commit()
     await db.refresh(target, ["user"])
     return MemberResponse.model_validate(target)
@@ -248,10 +280,19 @@ async def remove_member(
     if target is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
+    old_role = target.role
     try:
         await service.remove_member(db, target)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await audit_service.log_event(
+        db,
+        action="workspace.member.remove" if not is_self else "workspace.member.leave",
+        resource_type="user",
+        resource_id=user_id,
+        workspace_id=workspace_id,
+        metadata={"role": old_role},
+    )
     await db.commit()
 
 
@@ -295,6 +336,14 @@ async def create_workspace_invitation(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await audit_service.log_event(
+        db,
+        action="workspace.member.invite",
+        resource_type="invitation",
+        resource_id=inv.id,
+        workspace_id=workspace_id,
+        metadata={"email": inv.email, "role": inv.role},
+    )
     await db.commit()
     return InvitationResponse.model_validate(inv)
 
@@ -323,6 +372,14 @@ async def revoke_workspace_invitation(
     if inv is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
     await service.revoke_invitation(db, inv)
+    await audit_service.log_event(
+        db,
+        action="workspace.member.invite_revoke",
+        resource_type="invitation",
+        resource_id=invitation_id,
+        workspace_id=workspace_id,
+        metadata={"email": inv.email, "role": inv.role},
+    )
     await db.commit()
 
 
@@ -349,6 +406,14 @@ async def accept_workspace_invitation(
             detail="Invitation not found or expired",
         )
     member = await service.accept_invitation(db, inv, current_user)
+    await audit_service.log_event(
+        db,
+        action="workspace.member.accept_invitation",
+        resource_type="user",
+        resource_id=current_user.id,
+        workspace_id=inv.workspace_id,
+        metadata={"role": member.role, "email": inv.email},
+    )
     await db.commit()
 
     row = await service.get_workspace_with_member(db, inv.workspace_id, current_user.id)

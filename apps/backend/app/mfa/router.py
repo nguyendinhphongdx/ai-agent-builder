@@ -10,6 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import Request
+
+from app.audit import service as audit_service
 from app.auth.dependencies import get_current_user
 from app.config import settings
 from app.db.session import get_db
@@ -106,6 +109,12 @@ async def totp_verify_setup(
     # (Alternative: have verify_setup_totp return plaintexts + hashes.
     # Chose simplicity — one extra round costs nothing.)
     plaintexts = await mfa_service.regenerate_backup_codes(db, current_user)
+    await audit_service.log_event(
+        db,
+        action="mfa.totp.enable",
+        resource_type="user",
+        resource_id=current_user.id,
+    )
     await db.commit()
     return TOTPVerifySetupResponse(enabled=True, backup_codes=plaintexts)
 
@@ -126,6 +135,12 @@ async def regenerate_backup_codes(
             detail="Enable MFA first.",
         )
     plaintexts = await mfa_service.regenerate_backup_codes(db, current_user)
+    await audit_service.log_event(
+        db,
+        action="mfa.backup_codes.regenerate",
+        resource_type="user",
+        resource_id=current_user.id,
+    )
     await db.commit()
     return BackupCodesResponse(backup_codes=plaintexts)
 
@@ -158,4 +173,10 @@ async def disable_mfa(
             detail="Invalid code. Use your authenticator or a backup code.",
         )
     await mfa_service.disable_totp(db, current_user)
+    await audit_service.log_event(
+        db,
+        action="mfa.totp.disable",
+        resource_type="user",
+        resource_id=current_user.id,
+    )
     await db.commit()
