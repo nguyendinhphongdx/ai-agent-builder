@@ -32,6 +32,13 @@ class Workflow(Base, UUIDMixin, TimestampMixin):
     # URL-embedded shared secret. Public webhook callers must include this in
     # the path so leaking workflow_id alone is not enough to trigger.
     webhook_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # HMAC key for payload-integrity verification (Phase 2.4 Block 1).
+    # Distinct from webhook_token: that one *routes*, this one
+    # *authenticates the payload*. Nullable so legacy rows don't break;
+    # a webhook node with ``require_signature=true`` returns 503 if
+    # the workflow has no secret yet. Senders compute HMAC-SHA256 over
+    # the raw request body and pass ``X-Hub-Signature-256: sha256=<hex>``.
+    webhook_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship()

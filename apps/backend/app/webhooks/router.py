@@ -30,6 +30,7 @@ from app.jobs import types as job_types
 from app.jobs.producer import enqueue as enqueue_job
 from app.models.workflow import Workflow
 from app.models.workflow_node import WorkflowNode
+from app.webhooks.signing import verify_signature, verify_timestamp
 
 logger = logging.getLogger("agentforge")
 
@@ -152,6 +153,26 @@ async def receive_webhook(
             raise HTTPException(status_code=404, detail="Webhook path not found")
 
         config = trigger_node.config or {}
+
+        # ── Hardening (Phase 2.4 Block 1) ──────────────────────
+        # Read the raw body once; FastAPI caches it so the
+        # downstream ``_build_input`` json()/form() parsers keep
+        # working. Two opt-in checks, both keyed on the node
+        # config so different webhooks on the same workflow can
+        # have different strictness.
+        raw_body = await request.body()
+        if int(config.get("replay_window_seconds") or 0) > 0:
+            verify_timestamp(
+                provided=request.headers.get("x-webhook-timestamp"),
+                window_seconds=int(config["replay_window_seconds"]),
+            )
+        if bool(config.get("require_signature")):
+            verify_signature(
+                raw_body,
+                secret=workflow.webhook_secret,
+                provided=request.headers.get("x-hub-signature-256"),
+            )
+
         input_data = await _build_input(request)
         mode = config.get("response_mode", "immediately")
 

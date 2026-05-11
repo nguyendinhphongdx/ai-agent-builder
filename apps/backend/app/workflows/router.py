@@ -26,6 +26,7 @@ from app.workflows.service import (
     get_workflow_run,
     list_workflow_runs,
     list_workflows,
+    rotate_webhook_secret,
     rotate_webhook_token,
     save_graph,
     update_workflow,
@@ -221,6 +222,29 @@ async def rotate_webhook_token_endpoint(  # Tạo lại token webhook (URL cũ n
     workflow = await rotate_webhook_token(db, workflow)
     await db.commit()
     return WorkflowResponse.model_validate(workflow)
+
+
+@router.post("/{workflow_id}/webhook-secret/rotate")
+async def rotate_webhook_secret_endpoint(
+    workflow_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a fresh HMAC webhook secret.
+
+    The plaintext value is returned ONCE in this response. Subsequent
+    reads (e.g. GET /workflows/{id}) never expose it again — store
+    it now in your sender config (GitHub webhook secret, Postman
+    var, etc.).
+    """
+    workflow = await get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    workflow = await rotate_webhook_secret(db, workflow)
+    await db.commit()
+    return {
+        "workflow_id": str(workflow.id),
+        "webhook_secret": workflow.webhook_secret,
+    }
 
 
 # ─── NDV: Per-node execution data ─────────────────────────────────

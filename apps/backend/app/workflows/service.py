@@ -75,6 +75,34 @@ async def rotate_webhook_token(db: AsyncSession, workflow: Workflow) -> Workflow
     return workflow
 
 
+def generate_webhook_secret() -> str:
+    """HMAC key for webhook signature verification (Phase 2.4 Block 1).
+
+    32 random bytes encoded as 64-char hex. Hex (vs. base64) so the
+    caller library that does the HMAC computation has a trivial
+    "copy/paste into env var" path with no padding pitfalls.
+    """
+    import secrets
+
+    return secrets.token_hex(32)
+
+
+async def rotate_webhook_secret(db: AsyncSession, workflow: Workflow) -> Workflow:
+    """Mint a fresh webhook HMAC secret.
+
+    Returning the secret in plaintext is intentional — this is the
+    ONLY time the FE sees it. Owners must paste it into their
+    sender (GitHub webhook secret field, Postman script, etc.).
+    Subsequent reads return None to avoid logging the value in
+    session-replay tools.
+    """
+    workflow.webhook_secret = generate_webhook_secret()
+    await db.flush()
+    await db.refresh(workflow)
+    await db.refresh(workflow, ["nodes", "edges"])
+    return workflow
+
+
 async def update_workflow(db: AsyncSession, workflow: Workflow, **kwargs) -> Workflow:
     """Cập nhật thông tin workflow (không bao gồm nodes/edges)."""
     for key, value in kwargs.items():
