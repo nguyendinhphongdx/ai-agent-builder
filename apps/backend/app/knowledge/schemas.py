@@ -22,6 +22,9 @@ class KnowledgeBaseCreate(BaseModel):
     rerank_provider: str | None = None
     rerank_model: str | None = None
     rerank_top_n: int = 5
+    # Parent-child chunking. 0 = disabled (default; single-level
+    # chunking). >0 enables — value is the parent chunk size in chars.
+    parent_chunk_size: int = 0
 
 
 class KnowledgeBaseUpdate(BaseModel):
@@ -35,6 +38,7 @@ class KnowledgeBaseUpdate(BaseModel):
     rerank_provider: str | None = None
     rerank_model: str | None = None
     rerank_top_n: int | None = None
+    parent_chunk_size: int | None = None
 
 
 class KnowledgeBaseResponse(AppBaseModel):
@@ -53,6 +57,7 @@ class KnowledgeBaseResponse(AppBaseModel):
     rerank_provider: str | None
     rerank_model: str | None
     rerank_top_n: int
+    parent_chunk_size: int
     total_documents: int
     total_chunks: int
     status: str

@@ -87,6 +87,13 @@ class KnowledgeRetriever:
         effective_threshold = (
             score_threshold if score_threshold is not None else first.retrieval_score_threshold
         )
+        # Parent-child mode: any KB in the query opts in → swap small
+        # chunks for their parents after retrieval. Dedupes parents
+        # (multiple small chunks may share one) so the returned list
+        # has no duplicates.
+        expand_parents = any(
+            getattr(kb, "parent_chunk_size", 0) > 0 for kb in kbs
+        )
         # The 0.7 default threshold is calibrated for cosine similarity
         # (0..1). RRF scores live on a different scale (typically
         # 0..0.04 at top_k=5), so applying the same threshold would
@@ -124,9 +131,93 @@ class KnowledgeRetriever:
         all_chunks.sort(key=lambda c: c.score or 0, reverse=True)
         candidates = all_chunks[:fetch_k]
 
+        # Parent-child expansion runs BEFORE reranking so the reranker
+        # scores the larger context window (what the LLM ultimately
+        # sees), not the small searchable shard.
+        if expand_parents:
+            candidates = await self._expand_to_parents(candidates)
+
         if rerank_kb is not None:
             return await self._rerank(query, candidates, rerank_kb)
         return candidates[:effective_top_k]
+
+    # ── Parent expansion ─────────────────────────────────────────
+
+    async def _expand_to_parents(
+        self,
+        candidates: list[RetrievedChunk],
+    ) -> list[RetrievedChunk]:
+        """Swap each small (level=0) chunk's content for its parent's,
+        deduping parents so the returned list has no repeats.
+
+        Chunks with no parent (legacy single-level KBs, or KBs with
+        parent_chunk_size=0 mixed in) pass through unchanged. Score +
+        source_document are preserved from the originating small chunk
+        — the parent inherits the rank of its first-matching child.
+        """
+        parent_ids: list[uuid.UUID] = []
+        for c in candidates:
+            pid_str = c.metadata.get("parent_chunk_id")
+            if not pid_str:
+                continue
+            try:
+                parent_ids.append(uuid.UUID(str(pid_str)))
+            except (TypeError, ValueError):
+                continue
+        if not parent_ids:
+            return candidates
+
+        # Batch-fetch all parents in one query.
+        result = await self.db.execute(
+            select(
+                DocumentChunk.id,
+                DocumentChunk.content,
+                DocumentChunk.data,
+            ).where(DocumentChunk.id.in_(parent_ids))
+        )
+        parent_by_id: dict[uuid.UUID, tuple[str, dict]] = {
+            row.id: (row.content, row.data or {}) for row in result.all()
+        }
+
+        out: list[RetrievedChunk] = []
+        seen_parents: set[uuid.UUID] = set()
+        for c in candidates:
+            pid_str = c.metadata.get("parent_chunk_id")
+            if not pid_str:
+                out.append(c)
+                continue
+            try:
+                pid = uuid.UUID(str(pid_str))
+            except (TypeError, ValueError):
+                out.append(c)
+                continue
+            if pid in seen_parents:
+                # Multiple children hit the same parent — skip the
+                # duplicate. The parent's rank is set by the first
+                # (best-scoring) child to surface it.
+                continue
+            parent = parent_by_id.get(pid)
+            if parent is None:
+                # Parent was deleted while we were searching — fall
+                # back to the small chunk's content.
+                out.append(c)
+                continue
+            seen_parents.add(pid)
+            content, parent_meta = parent
+            # Merge metadata: keep the child's source + score context,
+            # but flag that this is parent-expanded for downstream
+            # consumers that care.
+            merged = {**parent_meta, **c.metadata, "expanded_parent": True}
+            out.append(
+                RetrievedChunk(
+                    content=content,
+                    metadata=merged,
+                    score=c.score,
+                    source_document=merged.get("source"),
+                    chunk_index=merged.get("chunk_index"),
+                )
+            )
+        return out
 
     # ── Reranker stage ───────────────────────────────────────────
 
@@ -182,14 +273,19 @@ class KnowledgeRetriever:
     ) -> list[RetrievedChunk]:
         embeddings = build_for_kb(sample_kb)
         query_embedding = await embeddings.aembed_query(query)
+        # Restrict to level=0 chunks. Parents (level=1) have no
+        # embedding so they wouldn't surface here anyway, but being
+        # explicit removes any chance of confusion.
         db_result = await self.db.execute(
             select(
                 DocumentChunk.content,
                 DocumentChunk.data,
+                DocumentChunk.parent_chunk_id,
                 DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
             )
             .where(DocumentChunk.knowledge_base_id.in_(kb_ids))
             .where(DocumentChunk.embedding.isnot(None))
+            .where(DocumentChunk.chunk_level == 0)
             .order_by("distance")
             .limit(top_k)
         )
@@ -199,6 +295,8 @@ class KnowledgeRetriever:
             if threshold is not None and similarity < threshold:
                 continue
             metadata = row.data or {}
+            if row.parent_chunk_id is not None:
+                metadata = {**metadata, "parent_chunk_id": str(row.parent_chunk_id)}
             out.append(
                 RetrievedChunk(
                     content=row.content,
@@ -229,10 +327,12 @@ class KnowledgeRetriever:
                 DocumentChunk.id,
                 DocumentChunk.content,
                 DocumentChunk.data,
+                DocumentChunk.parent_chunk_id,
                 DocumentChunk.embedding.cosine_distance(query_embedding).label("distance"),
             )
             .where(DocumentChunk.knowledge_base_id.in_(kb_ids))
             .where(DocumentChunk.embedding.isnot(None))
+            .where(DocumentChunk.chunk_level == 0)
             .order_by("distance")
             .limit(leg_size)
         )
@@ -247,9 +347,11 @@ class KnowledgeRetriever:
               id,
               content,
               metadata AS data,
+              parent_chunk_id,
               ts_rank_cd(content_tsv, plainto_tsquery('simple', :q)) AS rank
             FROM document_chunks
             WHERE knowledge_base_id = ANY(:kb_ids)
+              AND chunk_level = 0
               AND content_tsv @@ plainto_tsquery('simple', :q)
             ORDER BY rank DESC
             LIMIT :limit
@@ -272,17 +374,25 @@ class KnowledgeRetriever:
         # response shape.
         vector_rank: dict[uuid.UUID, int] = {}
         bm25_rank: dict[uuid.UUID, int] = {}
-        rows_by_id: dict[uuid.UUID, tuple[str, dict]] = {}
+        rows_by_id: dict[uuid.UUID, tuple[str, dict, uuid.UUID | None]] = {}
 
         for i, row in enumerate(vector_rows):
             cid = row.id
             vector_rank[cid] = i + 1
-            rows_by_id.setdefault(cid, (row.content, row.data or {}))
+            rows_by_id.setdefault(cid, (row.content, row.data or {}, row.parent_chunk_id))
         for i, row in enumerate(bm25_rows):
             raw_id = row["id"]
             cid = raw_id if isinstance(raw_id, uuid.UUID) else uuid.UUID(str(raw_id))
             bm25_rank[cid] = i + 1
-            rows_by_id.setdefault(cid, (row["content"], row["data"] or {}))
+            pid = row.get("parent_chunk_id")
+            parent_uuid: uuid.UUID | None
+            if pid is None:
+                parent_uuid = None
+            elif isinstance(pid, uuid.UUID):
+                parent_uuid = pid
+            else:
+                parent_uuid = uuid.UUID(str(pid))
+            rows_by_id.setdefault(cid, (row["content"], row["data"] or {}, parent_uuid))
 
         # Reciprocal Rank Fusion across both legs.
         fused: list[tuple[float, uuid.UUID]] = []
@@ -297,7 +407,9 @@ class KnowledgeRetriever:
 
         out: list[RetrievedChunk] = []
         for score, cid in fused[:top_k]:
-            content, metadata = rows_by_id[cid]
+            content, metadata, parent_id = rows_by_id[cid]
+            if parent_id is not None:
+                metadata = {**metadata, "parent_chunk_id": str(parent_id)}
             out.append(
                 RetrievedChunk(
                     content=content,

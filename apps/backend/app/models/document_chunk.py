@@ -39,6 +39,23 @@ class DocumentChunk(Base, UUIDMixin):
     token_count: Mapped[int | None] = mapped_column(Integer)
     embedding = mapped_column(Vector())  # Vector embedding, dimension tùy theo KB config
     data: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+    # Parent-child chunking (Phase 2.1 Block 3). When the KB has
+    # ``parent_chunk_size > 0``, ingestion produces two levels:
+    #   level=0 small chunks (~200 tokens) — embedded + searched.
+    #   level=1 parent chunks (~1000 tokens) — returned to the LLM
+    #           after a small-chunk hit. Self-FK + CASCADE so deleting
+    #           a parent purges its children.
+    # NULL parent_chunk_id + level=0 = legacy single-level chunk.
+    parent_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    chunk_level: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default="now()"
     )

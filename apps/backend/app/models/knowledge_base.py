@@ -58,6 +58,15 @@ class KnowledgeBase(Base, UUIDMixin, TimestampMixin):
         Integer, default=5, server_default="5", nullable=False
     )
 
+    # Parent-child chunking (Phase 2.1 Block 3). 0 = disabled (legacy
+    # single-level chunking). >0 = enabled + value is the parent
+    # chunk size in characters. ``chunk_size`` continues to govern
+    # small (level=0) chunks. Typical config: chunk_size=200,
+    # parent_chunk_size=1000.
+    parent_chunk_size: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+
     # Bộ đếm thống kê
     total_documents: Mapped[int] = mapped_column(Integer, default=0)
     total_chunks: Mapped[int] = mapped_column(Integer, default=0)

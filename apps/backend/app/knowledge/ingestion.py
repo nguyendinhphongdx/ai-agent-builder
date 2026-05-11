@@ -123,17 +123,73 @@ async def ingest_document(
         # Phase: chunking
         await set_phase("chunking")
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=kb.chunk_size,
-            chunk_overlap=kb.chunk_overlap,
-        )
-        chunks = splitter.split_text(raw_text)
+        # Branch on KB.parent_chunk_size:
+        #   == 0  legacy single-level — split into chunk_size pieces.
+        #   > 0   parent-child — split twice. Parents at parent_chunk_size
+        #         get NO embedding (level=1, only returned to LLM). Small
+        #         children at chunk_size get the embedding + level=0 +
+        #         parent_chunk_id pointing back. Searched against the
+        #         small layer, returned via the parent layer.
+        if kb.parent_chunk_size and kb.parent_chunk_size > kb.chunk_size:
+            parent_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=kb.parent_chunk_size,
+                # Overlap inside parents reduces context bleeding — keep
+                # smaller than the parent size to leave room.
+                chunk_overlap=min(kb.chunk_overlap, kb.parent_chunk_size // 10),
+            )
+            parent_texts = parent_splitter.split_text(raw_text)
+            child_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=kb.chunk_size,
+                chunk_overlap=kb.chunk_overlap,
+            )
+            # Flatten: list of (parent_index, child_text). Parents are
+            # rebuilt later from parent_texts after we have UUIDs.
+            chunks_with_parent: list[tuple[int, str]] = []
+            for pi, parent_text in enumerate(parent_texts):
+                for child_text in child_splitter.split_text(parent_text):
+                    chunks_with_parent.append((pi, child_text))
+            chunks = [t for _, t in chunks_with_parent]
+        else:
+            parent_texts = []
+            chunks_with_parent = []
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=kb.chunk_size,
+                chunk_overlap=kb.chunk_overlap,
+            )
+            chunks = splitter.split_text(raw_text)
 
         if not chunks:
             document.chunk_count = 0
             document.processing_completed_at = datetime.now(timezone.utc)
             await set_phase("ready", status="ready", progress=100)
             return document
+
+        # Persist parent chunks first so children can reference their
+        # IDs. Parents carry no embedding — they're only returned to
+        # the LLM after a child match — so no embed call needed.
+        parent_id_by_index: dict[int, uuid.UUID] = {}
+        parent_records: list[DocumentChunk] = []
+        for pi, ptext in enumerate(parent_texts):
+            parent = DocumentChunk(
+                document_id=document.id,
+                knowledge_base_id=kb.id,
+                workspace_id=kb.workspace_id,
+                content=ptext,
+                chunk_index=pi,
+                chunk_level=1,
+                token_count=len(ptext) // 4,
+                data={
+                    "source": document.filename,
+                    "level": "parent",
+                    "parent_index": pi,
+                },
+            )
+            db.add(parent)
+            parent_records.append(parent)
+        if parent_records:
+            await db.flush()
+            for pi, parent in enumerate(parent_records):
+                parent_id_by_index[pi] = parent.id
 
         # Phase: embedding (batched so we can report progress)
         await set_phase("embedding", progress=0)
@@ -149,6 +205,9 @@ async def ingest_document(
 
             for offset, (text, vec) in enumerate(zip(batch, vectors)):
                 i = start + offset
+                parent_id: uuid.UUID | None = None
+                if chunks_with_parent:
+                    parent_id = parent_id_by_index.get(chunks_with_parent[i][0])
                 chunk_records.append(
                     DocumentChunk(
                         document_id=document.id,
@@ -157,6 +216,8 @@ async def ingest_document(
                         content=text,
                         embedding=vec,
                         chunk_index=i,
+                        chunk_level=0,
+                        parent_chunk_id=parent_id,
                         token_count=len(text) // 4,
                         data={
                             "source": document.filename,
@@ -176,6 +237,8 @@ async def ingest_document(
         db.add_all(chunk_records)
         document.status = "ready"
         document.processing_phase = "ready"
+        # ``chunk_count`` is the searchable layer — exclude parents so
+        # the UI shows the user-meaningful number.
         document.chunk_count = total
         document.token_count = sum(c.token_count or 0 for c in chunk_records)
         document.processing_completed_at = datetime.now(timezone.utc)
