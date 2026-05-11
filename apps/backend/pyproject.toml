@@ -43,6 +43,9 @@ dependencies = [
     # TOTP for MFA. Pure Python, no native deps. Authenticator apps
     # (Google Authenticator, 1Password, Authy) all speak this format.
     "pyotp>=2.9",
+    # Prometheus metric registry + ``/metrics`` text exposition.
+    # Pure Python, no native deps. Used by app.observability.metrics.
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]

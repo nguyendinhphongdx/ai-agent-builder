@@ -92,6 +92,14 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
 
+    # Prometheus /metrics endpoint + per-request counter/histogram.
+    # Install before the other middleware so it wraps every route and
+    # sees the matched-route template (PrometheusMiddleware reads
+    # request.scope["route"]).
+    from app.observability import metrics as prom_metrics
+
+    prom_metrics.install(app)
+
     # Request id + structured access log. Order matters: RequestId runs first
     # so the access log line (and any deeper logger.* calls) carries the id.
     from app.observability import (

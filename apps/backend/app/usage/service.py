@@ -106,6 +106,37 @@ async def log_llm_call(
         # Never break the request because we couldn't write telemetry.
         logger.exception("usage.log_llm_call: write failed")
         return None
+
+    # Mirror to Prometheus counters/histograms. Labels collapse NULL
+    # to "unknown" so cardinality stays bounded — high-cardinality
+    # labels are the #1 way to blow up a Prom server.
+    try:
+        from app.observability.metrics import (
+            llm_call_duration_seconds,
+            llm_cost_usd_total,
+            llm_tokens_total,
+        )
+
+        prov_label = provider or "unknown"
+        model_label = model or "unknown"
+        if prompt_tokens:
+            llm_tokens_total.labels(
+                provider=prov_label, model=model_label, direction="input"
+            ).inc(prompt_tokens)
+        if completion_tokens:
+            llm_tokens_total.labels(
+                provider=prov_label, model=model_label, direction="output"
+            ).inc(completion_tokens)
+        if cost is not None:
+            llm_cost_usd_total.labels(
+                provider=prov_label, model=model_label
+            ).inc(float(cost))
+        if latency_ms is not None:
+            llm_call_duration_seconds.labels(
+                provider=prov_label, model=model_label
+            ).observe(latency_ms / 1000.0)
+    except Exception:  # noqa: BLE001 — metrics never break the path
+        logger.debug("usage: failed to record Prometheus counters", exc_info=True)
     return row
 
 

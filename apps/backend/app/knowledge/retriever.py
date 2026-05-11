@@ -65,6 +65,12 @@ class KnowledgeRetriever:
     ) -> list[RetrievedChunk]:
         if not knowledge_base_ids:
             return []
+        # Wall-clock timing covers the entire retrieve path (embed +
+        # SQL + RRF + rerank). One observation per call, labelled
+        # after we determine the mode below.
+        import time as _time
+
+        _started = _time.perf_counter()
 
         result = await self.db.execute(
             select(KnowledgeBase).where(KnowledgeBase.id.in_(knowledge_base_ids))
@@ -138,8 +144,26 @@ class KnowledgeRetriever:
             candidates = await self._expand_to_parents(candidates)
 
         if rerank_kb is not None:
-            return await self._rerank(query, candidates, rerank_kb)
-        return candidates[:effective_top_k]
+            result = await self._rerank(query, candidates, rerank_kb)
+        else:
+            result = candidates[:effective_top_k]
+
+        # Prom-record the call's wall-clock — labelled by which path
+        # actually ran so dashboards can break down per-mode latency.
+        try:
+            from app.observability.metrics import kb_query_duration_seconds
+            import time as _time
+
+            if rerank_kb is not None:
+                mode = "hybrid_rerank" if hybrid_mode else "vector_rerank"
+            else:
+                mode = "hybrid" if hybrid_mode else "vector"
+            kb_query_duration_seconds.labels(mode=mode).observe(
+                _time.perf_counter() - _started
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return result
 
     # ── Parent expansion ─────────────────────────────────────────
 
