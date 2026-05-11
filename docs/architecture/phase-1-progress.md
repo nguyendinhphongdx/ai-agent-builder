@@ -19,7 +19,7 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 - **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ schema · 2 ✅ all 13 tables stamped (workflows + nodes + edges + runs closes the set) · 3 ⏳ pending CLI · 4 ⏳ pending lock
+- **Step**: 1 ✅ schema · 2 ✅ all 13 tables stamped · 3 ✅ CLI built (`python -m app.cli.backfill_tenancy`) — needs to RUN on staging · 4 ⏳ pending lock
 - **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
 - **Open decisions** (closed in session 2):
   - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
@@ -142,6 +142,33 @@ If you're picking this up cold, do this in order:
 | [features/settings/components/SettingsNav.tsx](../../apps/frontend/src/features/settings/components/SettingsNav.tsx) | Adds "Workspace" entry in the Workspace group. |
 | [app/(dashboard)/settings/workspace/page.tsx](../../apps/frontend/src/app/(dashboard)/settings/workspace/page.tsx) | NEW route. |
 | [app/(dashboard)/workspaces/invitations/[token]/page.tsx](../../apps/frontend/src/app/(dashboard)/workspaces/invitations/[token]/page.tsx) | NEW route — `params` is a `Promise` (Next 16). |
+
+### Phase 1.1 — Block 6 Backfill CLI (session 2)
+
+`python -m app.cli.backfill_tenancy` — two-phase rollout for legacy rows. Idempotent + dry-run capable + batched for low lock contention.
+
+| File | What it does |
+|---|---|
+| [app/cli/backfill_tenancy.py](../../apps/backend/app/cli/backfill_tenancy.py) | NEW. **Phase A**: streams `User` rows with `default_workspace_id IS NULL`, calls `ensure_personal_workspace` per user. **Phase B**: stamps `workspace_id` on every resource table — direct via `users.default_workspace_id` (7 tables with `user_id`) or via parent FK (6 child tables: documents/chunks/messages/workflow_nodes/edges/runs). Uses `WITH targets AS (… LIMIT :batch) UPDATE … FROM targets` so a 50M-row backfill doesn't lock the whole table. Loop exits when batch returns 0 rows. |
+| [tests/integration/test_backfill_tenancy.py](../../apps/backend/tests/integration/test_backfill_tenancy.py) | 4 smoke tests: Phase A provisions personal workspaces; dry-run leaves DB untouched; Phase B stamps legacy NULL rows (agents + KB); idempotent re-run reports zero updates on green DB. |
+
+**Operational notes** for the user to run:
+
+```bash
+# 1. Dry-run first to see what's affected.
+python -m app.cli.backfill_tenancy --dry-run
+
+# 2. Run Phase A alone (small, safe).
+python -m app.cli.backfill_tenancy --users-only
+
+# 3. Run Phase B with larger batch on quiet hours.
+python -m app.cli.backfill_tenancy --resources-only --batch-size 10000
+
+# 4. Confirm clean — second run should report 0 updates everywhere.
+python -m app.cli.backfill_tenancy
+```
+
+Only after the second run reports 0 across every table can Block 7's lock migration safely run.
 
 ### Phase 1.1 — Block 5 Step-2 Group C (session 2)
 
