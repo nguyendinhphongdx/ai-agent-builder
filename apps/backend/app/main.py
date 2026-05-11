@@ -59,6 +59,7 @@ from app.share.router import router as share_router
 from app.sso.oidc_router import router as sso_oidc_router
 from app.sso.router import router as sso_admin_router
 from app.tools.router import router as tools_router
+from app.usage.router import router as usage_router
 from app.webhooks.router import router as webhooks_router
 from app.workflows.router import router as workflows_router
 from app.workspaces.router import router as workspaces_router
@@ -236,6 +237,7 @@ def create_app() -> FastAPI:
     app.include_router(ai_credentials_router, prefix=settings.API_PREFIX)
     app.include_router(llm_router, prefix=settings.API_PREFIX)
     app.include_router(tools_router, prefix=settings.API_PREFIX)
+    app.include_router(usage_router, prefix=settings.API_PREFIX)
     app.include_router(knowledge_router, prefix=settings.API_PREFIX)
     app.include_router(kb_connectors_router, prefix=settings.API_PREFIX)
     app.include_router(conversations_router, prefix=settings.API_PREFIX)
