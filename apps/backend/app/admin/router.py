@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import service
 from app.admin.jobs import router as admin_jobs_router
-from app.audit.router import admin_router as admin_audit_router
 from app.admin.schemas import (
     AdminActionRow,
     AdminPurchaseRow,
@@ -28,6 +27,7 @@ from app.admin.schemas import (
     TemplateModerationRequest,
     UserBanRequest,
 )
+from app.audit.router import admin_router as admin_audit_router
 from app.auth.dependencies import get_current_user
 from app.auth.permissions import UserRole, require_role
 from app.db.session import get_db

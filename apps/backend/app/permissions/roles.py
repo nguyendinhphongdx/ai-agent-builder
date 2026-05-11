@@ -25,7 +25,6 @@ from app.models.workspace_member import (
 )
 from app.permissions import catalogue as P
 
-
 _VIEWER_PERMISSIONS: frozenset[str] = frozenset(
     {
         P.AGENT_READ, P.AGENT_CHAT,

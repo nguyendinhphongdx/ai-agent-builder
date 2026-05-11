@@ -32,6 +32,7 @@ if _settings.LOG_FORMAT == "json":
 from app.admin.router import router as admin_router
 from app.agents.router import router as agents_router
 from app.ai_credentials.router import router as ai_credentials_router
+from app.audit.router import org_router as org_audit_router
 from app.auth.oauth_router import router as oauth_router
 from app.auth.router import router as auth_router
 from app.config import settings
@@ -45,15 +46,14 @@ from app.internal.router import router as internal_router
 from app.jobs.router import router as jobs_router
 from app.knowledge.connectors.router import router as kb_connectors_router
 from app.knowledge.router import router as knowledge_router
-from app.mfa.router import router as mfa_router
 from app.llm.router import router as llm_router
+from app.mfa.router import router as mfa_router
 from app.multi_agent.router import router as multi_agent_router
 from app.payments.webhooks import momo_router as momo_webhook_router
 from app.payments.webhooks import stripe_router as stripe_webhook_router
 from app.payouts.router import router as payouts_router
 from app.permissions.router import router as permissions_router
 from app.personal_tokens.router import router as personal_tokens_router
-from app.audit.router import org_router as org_audit_router
 from app.scim.router import router as scim_router
 from app.share.router import router as share_router
 from app.sso.oidc_router import router as sso_oidc_router

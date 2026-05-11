@@ -116,6 +116,19 @@ class Settings(BaseSettings):
     # Production collectors should run TLS — leave False there.
     OTEL_EXPORTER_OTLP_INSECURE: bool = False
 
+    # LLM-specific trace provider. Distinct from OpenTelemetry —
+    # purpose-built platforms (Langfuse, LangSmith, Phoenix) ingest
+    # full prompt + response payloads, not just span trees.
+    #   Empty (default): auto-select Langfuse if its keys are set,
+    #     else Noop (silent, zero-network).
+    #   "langfuse" | "noop": explicit selection regardless of keys.
+    TRACE_PROVIDER: str = ""
+    # Langfuse. Set both keys to enable. ``LANGFUSE_HOST`` defaults to
+    # cloud.langfuse.com — point at a self-hosted instance otherwise.
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    LANGFUSE_HOST: str = ""
+
     # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
     # Empty = paid templates disabled — POST /templates/{id}/purchase
     # returns 503 instead of erroring deeper into the stack.

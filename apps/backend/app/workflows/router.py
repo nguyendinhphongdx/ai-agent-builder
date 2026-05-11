@@ -10,7 +10,6 @@ from app.context import current_user_id
 from app.db.session import get_db
 from app.permissions import catalogue as P
 from app.rate_limit import make_limit
-from app.workspaces.permissions import require_active_permission
 from app.workflows.schemas import (
     NodeExecuteRequest,
     WorkflowCreate,
@@ -31,6 +30,7 @@ from app.workflows.service import (
     save_graph,
     update_workflow,
 )
+from app.workspaces.permissions import require_active_permission
 
 router = APIRouter(
     prefix="/workflows",

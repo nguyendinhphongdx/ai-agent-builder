@@ -360,8 +360,9 @@ async def revoke_workspace_invitation(
 ):
     # Fetch + verify scope before delete so token leaks across workspaces
     # are caught.
-    from app.models.workspace_invitation import WorkspaceInvitation
     from sqlalchemy import select
+
+    from app.models.workspace_invitation import WorkspaceInvitation
 
     inv = await db.scalar(
         select(WorkspaceInvitation).where(

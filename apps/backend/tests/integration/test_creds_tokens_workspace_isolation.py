@@ -12,7 +12,6 @@ import pytest
 from app.ai_credentials.schemas import AICredentialCreate
 from app.ai_credentials.service import (
     create_ai_credential,
-    delete_ai_credential,
     get_ai_credential,
     list_ai_credentials,
 )
@@ -23,7 +22,6 @@ from app.context import (
     set_current_workspace_id,
 )
 from app.models.ai_credential import AICredential
-from app.models.personal_access_token import PersonalAccessToken
 from app.personal_tokens.schemas import TokenCreate
 from app.personal_tokens.service import create_token, list_tokens, revoke_token
 from app.workspaces.service import ensure_personal_workspace

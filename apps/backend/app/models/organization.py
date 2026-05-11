@@ -16,7 +16,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
 
-
 # Plan tier — kept as String column (not Enum) to match the project's
 # convention and so we can roll out new plans via seed data without a
 # schema migration. Enforced at the service layer.

@@ -10,8 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import Request
-
 from app.audit import service as audit_service
 from app.auth.dependencies import get_current_user
 from app.config import settings

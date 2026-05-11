@@ -18,10 +18,11 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from alembic import command
 from alembic.config import Config as AlembicConfig
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
+
+from alembic import command
 
 # Reuse the prod image so pgvector + pg16 behavior matches what migrations
 # were written against. Keep this in sync with services/postgres/docker-compose.yml.

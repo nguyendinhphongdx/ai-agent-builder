@@ -26,7 +26,6 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_, select
 
-from app.config import settings
 from app.db.session import async_session_factory
 from app.knowledge.connectors.sync import run_connector
 from app.models.kb_connector import KBConnector

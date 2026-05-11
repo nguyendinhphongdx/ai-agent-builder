@@ -5,7 +5,6 @@ Convention: dotted, lowercase, ``<domain>.<verb>.<noun>``.
 """
 from __future__ import annotations
 
-
 # ─── Knowledge base ────────────────────────────────────────────────
 JOB_KB_INGEST_DOCUMENT = "kb.ingest.document"
 """Process a freshly-uploaded document — extract, chunk, embed."""

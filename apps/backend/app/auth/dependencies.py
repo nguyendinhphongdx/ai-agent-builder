@@ -22,7 +22,6 @@ from app.models.user import User
 from app.models.workspace import Workspace
 from app.personal_tokens.service import verify_plaintext
 
-
 # Paths exempt from the ``force_mfa`` workspace gate. The user has to
 # be able to reach these even without MFA enrolled, otherwise the
 # only way to satisfy the gate (enrolling TOTP) would be blocked by

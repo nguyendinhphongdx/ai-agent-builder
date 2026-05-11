@@ -28,7 +28,6 @@ from app.models.workspace_member import (
     WorkspaceMember,
 )
 
-
 # Personal workspaces always use this slug — uniqueness is per-org so
 # the constraint stays well-defined even when every personal Org has a
 # child workspace called ``personal``.

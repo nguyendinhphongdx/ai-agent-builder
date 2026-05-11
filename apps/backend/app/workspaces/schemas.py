@@ -14,7 +14,6 @@ from app.models.workspace_member import (
     WORKSPACE_ROLE_VIEWER,
 )
 
-
 # Allowed roles for invites + role-change payloads. Owner is granted
 # only by promoting an existing member, never via invite.
 ROLE_SET_NO_OWNER = (

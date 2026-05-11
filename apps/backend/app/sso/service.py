@@ -25,7 +25,6 @@ from app.models.sso_configuration import (
 from app.models.workspace_ip_rule import WorkspaceIPRule
 from app.security.crypto import decrypt_secret, encrypt_secret
 
-
 # ─── SSO configuration ─────────────────────────────────────────────
 
 

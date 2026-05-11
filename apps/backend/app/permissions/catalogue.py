@@ -12,7 +12,6 @@ When adding a permission:
 """
 from __future__ import annotations
 
-
 # ─── Agents ────────────────────────────────────────────────────────
 AGENT_READ = "agent.read"
 AGENT_CREATE = "agent.create"

@@ -180,8 +180,9 @@ async def chat_sse(
             # silently when the LLM didn't surface usage_metadata
             # (Ollama, some self-hosted setups). usage_service swallows
             # write failures so a telemetry hiccup never breaks chat.
+            event_row = None
             if usage_payload is not None:
-                await usage_service.log_llm_call(
+                event_row = await usage_service.log_llm_call(
                     db,
                     model_id=usage_payload.get("model_id") or _agent.model_id,
                     prompt_tokens=usage_payload.get("prompt_tokens"),
@@ -193,6 +194,38 @@ async def chat_sse(
                     user_id=user_id,
                 )
                 await db.commit()
+
+            # Mirror to the LLM-specific trace provider (Langfuse /
+            # LangSmith / Phoenix) when configured. Provider's
+            # ``emit`` swallows exceptions; this never blocks chat.
+            if usage_payload is not None and full_response:
+                from app.observability.trace_provider import get_provider
+                from app.observability.trace_provider.base import LLMTrace
+
+                await get_provider().emit(
+                    LLMTrace(
+                        name="agent.chat",
+                        model_id=usage_payload.get("model_id") or _agent.model_id,
+                        messages=[
+                            {"role": m.role, "content": m.content}
+                            for m in history
+                        ],
+                        output=full_response,
+                        prompt_tokens=usage_payload.get("prompt_tokens"),
+                        completion_tokens=usage_payload.get("completion_tokens"),
+                        total_tokens=usage_payload.get("total_tokens"),
+                        cost_usd=(
+                            float(event_row.cost_usd)
+                            if event_row is not None and event_row.cost_usd is not None
+                            else None
+                        ),
+                        latency_ms=latency_ms,
+                        workspace_id=_agent.workspace_id,
+                        user_id=user_id,
+                        agent_id=_agent.id,
+                        conversation_id=_conv_id,
+                    )
+                )
 
             if not client_gone:
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"

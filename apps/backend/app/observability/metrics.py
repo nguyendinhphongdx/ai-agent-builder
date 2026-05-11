@@ -25,7 +25,6 @@ from prometheus_client import (
 )
 from starlette.middleware.base import BaseHTTPMiddleware
 
-
 # Use a dedicated registry rather than the default global. Two reasons:
 #   1. Lets tests reset the registry without affecting other test modules.
 #   2. Plays nicer with multi-process deployments — Gunicorn workers

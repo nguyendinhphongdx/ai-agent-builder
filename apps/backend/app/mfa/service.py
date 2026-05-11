@@ -24,7 +24,7 @@ from app.models.user import User
 from app.security.crypto import decrypt_secret, encrypt_secret
 
 if TYPE_CHECKING:
-    import pyotp
+    pass
 
 
 _BACKUP_CODE_COUNT = 10

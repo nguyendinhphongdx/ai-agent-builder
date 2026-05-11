@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.workflow import Workflow
-from app.models.workflow_node import WorkflowNode
 
 logger = logging.getLogger("agentforge")
 

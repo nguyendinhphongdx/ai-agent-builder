@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-
 # Per 1M tokens, USD. {provider: {model_substring: (prompt_rate, completion_rate)}}.
 # Matching is "longest prefix wins" so we can have "claude-sonnet" and
 # "claude-sonnet-4" route differently.

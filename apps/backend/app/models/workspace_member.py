@@ -17,7 +17,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
 # Role tier strings. Workspace-scoped — distinct from the platform role
 # on User.role (user/moderator/support/admin) which governs access to
 # admin tooling, not tenant resources.

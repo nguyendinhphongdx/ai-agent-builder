@@ -34,7 +34,6 @@ from app.models.workspace_member import (
 from app.permissions.service import has_permission_async
 from app.workspaces.service import get_member
 
-
 # Ordered low → high. ``rank[role]`` gives the integer rank used by
 # the comparison in ``require_workspace_role``.
 _ROLE_RANK = {

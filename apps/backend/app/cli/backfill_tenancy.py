@@ -39,7 +39,6 @@ from app.db.session import async_session_factory
 from app.models.user import User
 from app.workspaces.service import ensure_personal_workspace
 
-
 # (table, parent_table, parent_fk_column, parent_id_column)
 #   parent_table=None  → user_id direct lookup against users
 #   parent_table=<name> → join through parent's workspace_id

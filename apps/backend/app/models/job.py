@@ -11,7 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
 
-
 # State machine (one direction):
 #   queued → running → completed
 #                    → failed → (retry → running) | (max_attempts → dead)

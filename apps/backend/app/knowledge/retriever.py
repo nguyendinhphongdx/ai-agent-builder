@@ -29,7 +29,6 @@ from app.knowledge.reranker import build_for_kb as build_reranker_for_kb
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 
-
 # Reciprocal Rank Fusion constant. Lower k → top ranks dominate
 # harder; 60 is the original Cormack/Clarke/Buettcher value and
 # what every public hybrid-search impl ships with.
@@ -151,8 +150,9 @@ class KnowledgeRetriever:
         # Prom-record the call's wall-clock — labelled by which path
         # actually ran so dashboards can break down per-mode latency.
         try:
-            from app.observability.metrics import kb_query_duration_seconds
             import time as _time
+
+            from app.observability.metrics import kb_query_duration_seconds
 
             if rerank_kb is not None:
                 mode = "hybrid_rerank" if hybrid_mode else "vector_rerank"

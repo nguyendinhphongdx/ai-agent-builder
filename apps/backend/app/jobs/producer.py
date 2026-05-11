@@ -27,12 +27,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dispatcher_client import (
     DispatcherClient,
-    Priority,
-    ServiceName,
     HttpMethod,
+    Priority,
     RetryConfig,
+    ServiceName,
 )
-from app.jobs import idempotency, service as job_service
+from app.jobs import idempotency
+from app.jobs import service as job_service
 from app.models.job import Job
 
 logger = logging.getLogger("agentforge")

@@ -25,7 +25,6 @@ from app.auth.router import _set_auth_cookies
 from app.auth.service import get_user_by_email
 from app.config import settings
 from app.db.session import get_db
-from app.models.organization import Organization
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember

@@ -17,7 +17,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDMixin
 
-
 # Canonical event_type strings. Keep in sync with the service-layer
 # helpers; new types are a code change, not a migration.
 EVENT_LLM_CALL = "llm.call"

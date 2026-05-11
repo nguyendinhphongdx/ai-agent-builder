@@ -7,10 +7,11 @@ job of each resource table's isolation test suite.
 """
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from app.cli.backfill_tenancy import _phase_a_users, _phase_b_resources
 from app.models.agent import Agent
 from app.models.knowledge_base import KnowledgeBase
-from sqlalchemy import select
 from tests.factories import UserFactory, create
 
 
@@ -84,7 +85,7 @@ async def test_phase_b_stamps_resource_rows(db_session) -> None:
 async def test_phase_b_idempotent(db_session) -> None:
     """Re-running on a clean DB should report zero updates — the
     table-level NULL count is the loop's exit condition."""
-    user = await create(db_session, UserFactory)
+    await create(db_session, UserFactory)
     await _phase_a_users(db_session, dry_run=False, batch_size=100)
 
     # First pass — nothing to backfill since no legacy resources exist.

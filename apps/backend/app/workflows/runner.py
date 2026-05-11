@@ -57,9 +57,10 @@ class WorkflowRunner:
         conversation_id: uuid.UUID | None = None,
     ) -> Any:
         """Execute workflow and save results to WorkflowRun."""
+        import time as _time
+
         from app.observability import tracing
         from app.observability.metrics import workflow_run_duration_seconds
-        import time as _time
 
         # Create run record
         run = await create_workflow_run(

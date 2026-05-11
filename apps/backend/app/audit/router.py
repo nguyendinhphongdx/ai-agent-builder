@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,6 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.audit_log import AuditLog
 from app.models.user import User
-
 
 # Two separate routers — one for the admin namespace (staff view),
 # one for the per-org namespace (tenant view). Same handler shape;
