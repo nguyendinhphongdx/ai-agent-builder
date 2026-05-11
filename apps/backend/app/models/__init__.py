@@ -19,6 +19,7 @@ from app.models.job import Job
 from app.models.kb_connector import KBConnector
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
+from app.models.notification import Notification, NotificationPreference
 from app.models.oauth_account import OAuthAccount
 from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
@@ -64,6 +65,8 @@ __all__ = [
     "DiscordTrigger",
     "EmailTrigger",
     "KBConnector",
+    "Notification",
+    "NotificationPreference",
     "TeamsTrigger",
     "UsageEvent",
     "Tool",

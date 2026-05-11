@@ -1,305 +1,229 @@
-# AgentForge
+<div align="center">
 
-Open-source AI Agent Builder platform. Create, configure, and deploy AI agents with custom tools, knowledge bases (RAG), visual workflows, and multi-agent collaboration.
+# 🔥 AgentForge
 
-## Tech Stack
+**The open-source LLM app platform.**
+Build AI agents, visual workflows, RAG pipelines, and multi-agent systems — self-hosted, batteries-included.
 
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.12, FastAPI, LangChain, LangGraph |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind, shadcn/ui |
-| Database | PostgreSQL 16 + pgvector |
-| Workflow Editor | React Flow (@xyflow/react v12) |
-| State | TanStack Query (server) + Zustand (UI) |
-| Auth | JWT in httpOnly secure cookies |
-| Infra | Docker Compose, Redis, RabbitMQ |
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-async-009688.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL + pgvector](https://img.shields.io/badge/Postgres-pgvector-336791.svg)](https://github.com/pgvector/pgvector)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
-## Project Structure
+[Quick Start](#quick-start) · [Features](#features) · [Why AgentForge?](#why-agentforge) · [Development](DEVELOPMENT.md) · [Documentation](docs/)
 
-```
-lc-agent/
-├── apps/
-│   ├── backend/            Python FastAPI + LangGraph
-│   └── frontend/           Next.js 16 + TypeScript
-├── services/
-│   ├── postgres/           pgvector:pg16 (own docker-compose)
-│   ├── redis/              redis:7-alpine
-│   └── rabbitmq/           rabbitmq:3-management
-├── docs/                   Project specifications (59 files)
-├── mcp-docs/               MCP server for doc search
-├── scripts/
-│   ├── forge.sh            CLI for Linux/Mac/Git Bash
-│   └── forge.cmd           CLI for Windows
-├── docker-compose.yml      Root orchestration
-├── docker-compose.dev.yml  Dev overrides (hot-reload)
-└── CLAUDE.md               AI assistant context
-```
+</div>
 
-## Prerequisites
+---
 
-- [Docker](https://docs.docker.com/get-docker/) & Docker Compose v2
-- [Node.js](https://nodejs.org/) 20+ & [pnpm](https://pnpm.io/)
-- [Python](https://www.python.org/) 3.12+
-- OpenAI API key (or Anthropic / Ollama for local)
+## Why AgentForge?
 
-## Quick Start
+AgentForge is a **production-ready, self-hosted alternative to Dify, Flowise, and LangSmith**.
+It combines agent building, visual workflows, RAG, observability, and billing — all in a single
+open-source monorepo you can run anywhere.
+
+Whether you're a solo developer prototyping a chatbot or a company shipping AI products to paying
+customers, AgentForge gives you the full stack: **drag-and-drop workflow design, knowledge bases
+with pgvector, SSO/SCIM, Stripe billing, and Langfuse observability — out of the box.**
+
+> **No vendor lock-in. No per-seat pricing. No credit limits. Just your infrastructure.**
+
+---
+
+## ✨ Features
+
+### 🤖 Agent Builder
+
+Create AI agents in minutes with a split-view editor — config on the left, live chat preview on
+the right. Switch LLM providers (OpenAI, Anthropic, Google, Ollama) on the fly, attach tools and
+knowledge bases, and ship to production with one click.
+
+### 🔀 Visual Workflows
+
+Drag-and-drop workflow editor powered by React Flow that compiles to LangGraph StateGraphs.
+Branching, loops, human-in-the-loop, sub-workflows, and per-node execution tracking with token
+usage and latency metrics.
+
+### 📚 Knowledge Bases (RAG)
+
+Upload PDF, DOCX, TXT, MD, CSV, or HTML. AgentForge handles the full pipeline: parse → chunk →
+embed → cosine search via **pgvector**. Auto-generates a retrieval tool for any agent — no glue
+code required.
+
+### 🛠️ Tools & Integrations
+
+4 built-in tool types (HTTP Request, Code Executor, Web Scraper, DB Query) plus dynamic JSON
+Schema → Pydantic conversion for custom tools. Connect to anything with REST, GraphQL, OAuth,
+or webhooks.
+
+### 🎯 Multi-Agent Orchestration
+
+Supervisor/worker and peer collaboration patterns. Mix LLM providers across agents (e.g., GPT-4
+supervises a Claude worker and a Gemini researcher). Built on LangGraph.
+
+### 📨 Triggers Everywhere
+
+Trigger agents from anywhere your users already are:
+
+- 🌐 **Webhooks** (HMAC-signed, replay protection)
+- 📧 **Email** (IMAP poll)
+- 💬 **Slack**, **Discord**, **Microsoft Teams**
+- ⏰ **Scheduled** (cron)
+
+### 💬 Streaming Chat
+
+Token-by-token WebSocket streaming with tool-call indicators, markdown rendering, conversation
+history, and embeddable widgets for any website.
+
+### 🏢 Enterprise-Grade
+
+Everything you need to ship AI products to real customers:
+
+- **Multi-tenant workspaces** with RBAC and audit logs
+- **MFA** (TOTP), **SSO** (SAML/OIDC), **SCIM** provisioning
+- **Stripe** billing (Checkout, Subscriptions, Connect payouts) + **MoMo** for VND payments
+- **OpenTelemetry** tracing, **Langfuse** LLM traces, cost dashboard, rate limiting
+- **Admin console** with user/workspace management, hub moderation, personal access tokens
+
+### 🏪 Template Hub
+
+Share and install agent, workflow, and tool templates across workspaces. Author payouts via
+Stripe Connect — turn your agents into revenue.
+
+---
+
+## ⚡ Quick Start
+
+Get AgentForge running in under 2 minutes:
 
 ```bash
-# 1. Clone
-git clone <repo-url>
-cd lc-agent
+git clone <repo-url> lc-agent && cd lc-agent
 
-# 2. Copy environment files
 cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.example apps/frontend/.env.local
 # Edit apps/backend/.env → set OPENAI_API_KEY
 
-# 3. Start all services
 docker compose up -d
-
-# 4. Run database migrations
 docker compose exec backend alembic upgrade head
-
-# 5. Bootstrap a root admin (idempotent — promotes if email exists)
 docker compose exec backend python -m app.cli.seed_admin \
     --email admin@example.com --password 'ChangeMe!'
-
-# 6. Seed the 5 official starter templates (used by the /welcome wizard)
-docker compose exec backend python -m app.cli.seed_starter_templates \
-    --owner-email admin@example.com
 ```
 
-Open:
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/api/docs
-- **RabbitMQ UI**: http://localhost:15672
+Then open **<http://localhost:3000>** and sign in. That's it.
 
-### Operational endpoints
+> 📘 For local dev (hot-reload, manual setup, CLI reference, env vars, migrations, ops) see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
-| Path | Purpose |
-|---|---|
-| `GET /healthz` | Liveness — always 200, no deps. Use as k8s `livenessProbe`. |
-| `GET /readyz` | Readiness — pings Postgres + Redis. 503 when degraded. |
-| `GET /api/openapi.json` | Full OpenAPI spec for client codegen. |
+---
 
-### Operator CLIs
+## 🏗️ Tech Stack
 
-```bash
-# Promote an existing user to admin without resetting their password
-docker compose exec backend python -m app.cli.seed_admin \
-    --email user@example.com --promote-only
+<table>
+<tr>
+<td>
 
-# Refresh the seeded starter templates after editing _starter_templates.py
-docker compose exec backend python -m app.cli.seed_starter_templates \
-    --owner-email admin@example.com
+**Backend**
+- Python 3.12
+- FastAPI (async)
+- LangChain · LangGraph
+- SQLAlchemy 2.0
+
+</td>
+<td>
+
+**Frontend**
+- Next.js 16 · React 19
+- TypeScript · Tailwind
+- shadcn/ui (radix-ui)
+- TanStack Query · Zustand
+
+</td>
+<td>
+
+**Infrastructure**
+- PostgreSQL 16 + pgvector
+- Redis · RabbitMQ
+- Docker Compose
+- Self-hosted, anywhere
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📐 Architecture
+
+```text
+lc-agent/
+├── apps/
+│   ├── backend/       FastAPI + LangGraph
+│   └── frontend/      Next.js 16
+├── services/          Postgres · Redis · RabbitMQ · Dispatcher · Mail · Socket · Code Sandbox
+├── docs/              60+ spec files (architecture, conventions, backend, frontend, API)
+├── mcp-docs/          MCP server for AI-assisted doc search
+└── scripts/forge.sh   CLI for managing the whole stack
 ```
 
-For production hardening (JSON logs, Sentry, Stripe Connect payouts) see
-[`docs/architecture/operations.md`](docs/architecture/operations.md).
+See **[DEVELOPMENT.md](DEVELOPMENT.md)** for the full layout and module breakdown.
 
-For enabling VND payments via MoMo (Vietnam), see
-[`docs/guides/momo-setup.md`](docs/guides/momo-setup.md) — covers
-merchant registration, env vars, IPN exposure, sandbox testing, and
-author payout settlement.
+---
 
-## Development Guide
+## 📦 Use Cases
 
-### Using the CLI
+- 🤖 **Customer support chatbots** with knowledge-base-aware responses
+- 📊 **Internal copilots** that query your databases and APIs
+- 🔄 **AI-powered workflow automation** (intake forms, triage, routing)
+- 🎓 **Tutoring & coaching agents** with conversation memory
+- 🛒 **AI product features** for SaaS — agents-as-a-service with billing built-in
+- 🏬 **Template marketplaces** where authors earn from their agents
 
-The `forge` CLI manages all services and apps. Available for both Windows and Linux.
+---
 
-```bash
-# Linux / Mac / Git Bash
-./scripts/forge.sh <command> [target]
+## 🗺️ Roadmap
 
-# Windows CMD / PowerShell
-scripts\forge.cmd <command> [target]
-```
+- [x] Agent builder with multi-provider LLM support
+- [x] Visual workflow editor with LangGraph compilation
+- [x] RAG with pgvector
+- [x] Multi-agent orchestration
+- [x] Inbound triggers (webhook, email, Slack, Discord, Teams, cron)
+- [x] Stripe & MoMo billing
+- [x] SSO/SCIM, MFA, audit logs
+- [x] Template hub with author payouts
+- [x] OpenTelemetry + Langfuse observability
+- [ ] Voice agents (WebRTC)
+- [ ] On-prem LLM gateway with model routing
+- [ ] Fine-tuning pipeline
 
-### Common Workflows
+---
 
-**Start infrastructure only (recommended for local dev):**
+## 🤝 Contributing
 
-```bash
-./scripts/forge.sh start infra        # postgres + redis + rabbitmq
-```
+We welcome contributions! Whether it's a bug fix, a new feature, docs improvements, or a new
+template for the hub — please open an issue or PR.
 
-**Run backend locally with hot-reload:**
+Before contributing:
 
-```bash
-./scripts/forge.sh install backend    # pip install -e ".[dev]"
-./scripts/forge.sh migrate            # alembic upgrade head
-./scripts/forge.sh dev backend        # uvicorn --reload on :8000
-```
+1. Read **[CLAUDE.md](CLAUDE.md)** for project conventions (4-layer backend modules, feature-based
+   frontend, httpOnly cookie auth, snake_case plural tables)
+2. See **[DEVELOPMENT.md](DEVELOPMENT.md)** for local setup
+3. Browse **[docs/conventions/](docs/conventions/)** for code style rules
 
-**Run frontend locally:**
+---
 
-```bash
-./scripts/forge.sh install frontend   # pnpm install
-./scripts/forge.sh dev frontend       # next dev on :3000
-```
+## 📜 License
 
-**Start everything with Docker:**
+[MIT](LICENSE) — free for personal and commercial use. No telemetry, no callbacks, no surprises.
 
-```bash
-./scripts/forge.sh start all          # All services + apps
-./scripts/forge.sh status             # Check what's running
-./scripts/forge.sh logs backend       # Tail logs
-./scripts/forge.sh stop all           # Stop everything
-```
+---
 
-### CLI Reference
+<div align="center">
 
-| Command | Description |
-|---|---|
-| `start [target]` | Start services via Docker |
-| `stop [target]` | Stop services |
-| `restart [target]` | Restart services |
-| `build [target]` | Build Docker images |
-| `dev <target>` | Start local dev server (hot-reload) |
-| `logs [target]` | Tail logs |
-| `status` | Show running services |
-| `health` | Health check endpoints |
-| `install <target>` | Install dependencies |
-| `test <target>` | Run tests |
-| `migrate` | Run database migrations |
-| `clean [target]` | Remove containers + volumes |
+**[⬆ Back to top](#-agentforge)**
 
-**Targets:** `all`, `infra`, `apps`, `postgres`, `redis`, `rabbitmq`, `backend`, `frontend`, `docs`
+Built with FastAPI · LangGraph · Next.js · Postgres
 
-### Manual Setup (without CLI)
+If AgentForge is useful to you, please ⭐ the repo!
 
-**Backend:**
-
-```bash
-cd apps/backend
-python -m venv .venv
-source .venv/bin/activate    # Linux/Mac
-# .venv\Scripts\activate     # Windows
-
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend:**
-
-```bash
-cd apps/frontend
-pnpm install
-pnpm dev
-```
-
-**Individual service:**
-
-```bash
-cd services/postgres
-docker compose up -d         # Start standalone
-docker compose logs -f       # Tail logs
-docker compose down -v       # Stop + remove data
-```
-
-### Environment Variables
-
-**Backend** (`apps/backend/.env`):
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://...` | Async DB connection |
-| `SECRET_KEY` | `dev-secret-key...` | JWT signing key |
-| `OPENAI_API_KEY` | | OpenAI API key |
-| `ANTHROPIC_API_KEY` | | Anthropic API key |
-| `CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed origins |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
-
-**Frontend** (`apps/frontend/.env.local`):
-
-| Variable | Default | Description |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api` | Backend API URL |
-| `NEXT_PUBLIC_WS_URL` | `ws://localhost:8000/api` | WebSocket URL |
-
-### Database Migrations
-
-```bash
-# Create new migration
-cd apps/backend
-alembic revision --autogenerate -m "add new field"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback
-alembic downgrade -1
-```
-
-## Features
-
-### Agent Builder
-- Create agents with system prompt, LLM model selection (OpenAI, Anthropic, Ollama)
-- Split-view editor: config on left, live chat preview on right
-- Attach tools and knowledge bases per agent
-
-### Custom Tools
-- 4 built-in types: HTTP Request, Code Executor, Web Scraper, DB Query
-- Dynamic JSON Schema to Pydantic model conversion
-- Test tool execution with dry-run endpoint
-
-### Knowledge Base (RAG)
-- Upload documents: PDF, DOCX, TXT, MD, CSV, HTML
-- Pipeline: parse → chunk (RecursiveCharacterTextSplitter) → embed (OpenAI) → pgvector
-- Cosine similarity search, auto-creates retrieval tool for agents
-
-### Visual Workflows
-- React Flow drag-and-drop editor with 8 node types
-- Compiler: JSON graph → LangGraph StateGraph
-- Execution tracking with per-node logs, token usage, latency
-
-### Multi-Agent
-- **Supervisor pattern**: coordinator delegates to worker agents
-- **Peer collaboration**: sequential processing with synthesis
-- Support for mixed LLM providers across agents
-
-### Streaming Chat
-- WebSocket with token-by-token streaming
-- Tool call indicators (start/end events)
-- Markdown rendering, auto-scroll, conversation history
-
-## API Overview
-
-| Group | Endpoints |
-|---|---|
-| Auth | `POST /api/auth/{register,login,refresh,logout}`, `GET /api/auth/me` |
-| Agents | `CRUD /api/agents`, attach/detach tools & KBs |
-| Tools | `CRUD /api/tools`, `POST /api/tools/{id}/test` |
-| Knowledge | `CRUD /api/knowledge-bases`, upload docs, semantic query |
-| Workflows | `CRUD /api/workflows`, execute, run history |
-| Conversations | `CRUD /api/conversations`, messages, `WS /api/ws/chat/{id}` |
-| Multi-Agent | `POST /api/multi-agent/{supervisor,peer}`, providers list |
-
-Full API docs at http://localhost:8000/api/docs (Swagger UI).
-
-## Documentation
-
-Project specifications live in `docs/` (59 files organized by domain):
-
-```
-docs/
-├── architecture/    System design, project structure, deployment, dependencies
-├── conventions/     Code style rules (backend, frontend, components, database, API)
-├── backend/         Per-module specifications
-├── frontend/        Per-feature specifications
-├── database/        Per-table schema specifications
-├── api/             Per-endpoint request/response examples
-└── flows/           End-to-end flow specifications
-```
-
-An MCP server at `mcp-docs/` provides search tools for AI assistants:
-
-```bash
-./scripts/forge.sh dev docs   # Start MCP docs server
-```
-
-## License
-
-MIT
+</div>
