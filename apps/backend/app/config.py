@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     # callers are anonymous browsers so we key on client IP. 0 disables.
     SHARE_RATE_LIMIT_PER_MIN: int = 30
 
+    # Audit log retention (days). Set to 0 to disable the purge job
+    # (rows accumulate forever — useful in development). The default
+    # is "free plan" — bumped per-org once billing tiers wire up.
+    AUDIT_LOG_RETENTION_DAYS: int = 90
+
     # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
     # Empty = paid templates disabled — POST /templates/{id}/purchase
     # returns 503 instead of erroring deeper into the stack.

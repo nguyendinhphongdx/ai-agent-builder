@@ -64,15 +64,17 @@ from app.workspaces.router import router as workspaces_router
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    """App-wide startup/shutdown hooks. Currently boots the
-    ``scheduled_triggers`` ticker — adds future background services
-    here as they land (e.g. usage-event flusher in P2.3)."""
+    """App-wide startup/shutdown hooks. Boots background services
+    that share the API process; add new ones here as they land."""
+    from app.audit import purge as audit_purge
     from app.scheduled_triggers import scheduler
 
     scheduler.start()
+    audit_purge.start()
     try:
         yield
     finally:
+        await audit_purge.stop()
         await scheduler.stop()
 
 

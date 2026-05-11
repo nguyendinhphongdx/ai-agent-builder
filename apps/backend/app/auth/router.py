@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import (
@@ -6,6 +7,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
+    Request,
     Response,
     UploadFile,
     status,
@@ -145,6 +147,7 @@ async def register(
 async def login(
     body: LoginRequest,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Xác thực email + password.
@@ -152,14 +155,38 @@ async def login(
     If ``user.mfa_enabled``, returns a ``MfaChallengeResponse`` instead
     of session cookies — caller follows up with /auth/mfa/verify-login.
     """
+    from app.audit import service as audit_service
+    from app.models.audit_log import ACTOR_SYSTEM, ACTOR_USER
+
     user = await get_user_by_email(db, body.email)
     if not user or not verify_password(body.password, user.hashed_password):
+        # Log the failed attempt — no actor user id (could be probing
+        # for valid emails). Email kept in metadata so security can
+        # spot credential stuffing patterns.
+        await audit_service.log_event(
+            db,
+            action="auth.login.failed",
+            actor_type=ACTOR_SYSTEM,
+            request=request,
+            metadata={"email": body.email[:255]},
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
     if not user.is_active:
+        await audit_service.log_event(
+            db,
+            action="auth.login.disabled",
+            actor_user_id=user.id,
+            actor_type=ACTOR_USER,
+            resource_type="user",
+            resource_id=user.id,
+            request=request,
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled",
@@ -168,6 +195,16 @@ async def login(
     # Second factor required — issue short-lived challenge token, NO
     # session cookies yet. Browser must call /auth/mfa/verify-login.
     if user.mfa_enabled:
+        await audit_service.log_event(
+            db,
+            action="auth.login.mfa_required",
+            actor_user_id=user.id,
+            actor_type=ACTOR_USER,
+            resource_type="user",
+            resource_id=user.id,
+            request=request,
+        )
+        await db.commit()
         return MfaChallengeResponse(
             mfa_token=_mint_mfa_challenge_token(str(user.id), body.remember_me),
         ).model_dump()
@@ -179,6 +216,16 @@ async def login(
         token_version=user.token_version,
         remember=body.remember_me,
     )
+    await audit_service.log_event(
+        db,
+        action="auth.login.success",
+        actor_user_id=user.id,
+        actor_type=ACTOR_USER,
+        resource_type="user",
+        resource_id=user.id,
+        request=request,
+    )
+    await db.commit()
     return AuthResponse(user=UserResponse.model_validate(user)).release()
 
 
@@ -225,11 +272,14 @@ def _verify_mfa_challenge_token(token: str) -> tuple[str, bool]:
 async def mfa_verify_login(
     body: MfaVerifyLoginRequest,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Second step of MFA-protected login. Accepts the TOTP code or
     a backup code — same validation path as in-app verification."""
+    from app.audit import service as audit_service
     from app.mfa.service import verify_login_factor
+    from app.models.audit_log import ACTOR_USER
 
     user_id, remember_from_token = _verify_mfa_challenge_token(body.mfa_token)
     user = await get_user_by_id(db, user_id)
@@ -241,6 +291,16 @@ async def mfa_verify_login(
 
     ok = await verify_login_factor(db, user, body.code)
     if not ok:
+        await audit_service.log_event(
+            db,
+            action="auth.login.mfa_failed",
+            actor_user_id=user.id,
+            actor_type=ACTOR_USER,
+            resource_type="user",
+            resource_id=user.id,
+            request=request,
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid code.",
@@ -255,6 +315,17 @@ async def mfa_verify_login(
         # honour it; the challenge token carries the flag forward.
         remember=remember_from_token or body.remember_me,
     )
+    await audit_service.log_event(
+        db,
+        action="auth.login.success",
+        actor_user_id=user.id,
+        actor_type=ACTOR_USER,
+        resource_type="user",
+        resource_id=user.id,
+        request=request,
+        metadata={"mfa": True},
+    )
+    await db.commit()
     return AuthResponse(user=UserResponse.model_validate(user)).release()
 
 
@@ -314,10 +385,46 @@ async def refresh(
 # ─── Logout / Me ──────────────────────────────────────────────────
 
 @router.post("/logout")
-async def logout(response: Response):
-    """Đăng xuất bằng cách xóa cookie access_token và refresh_token."""
+async def logout(
+    response: Response,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Đăng xuất bằng cách xóa cookie access_token và refresh_token.
+
+    Logs the event when we can identify the user; an already-expired
+    session that calls logout just gets cookies cleared with no audit
+    row (nothing meaningful to record).
+    """
+    from app.audit import service as audit_service
+    from app.models.audit_log import ACTOR_USER
+
+    # Try to resolve the user from the access cookie WITHOUT raising —
+    # logout must succeed even when the token is bad/expired.
+    user_id: uuid.UUID | None = None
+    cookie = request.cookies.get("access_token")
+    if cookie:
+        payload = decode_token(cookie)
+        if payload and payload.get("type") == "access":
+            try:
+                user_id = uuid.UUID(str(payload.get("sub")))
+            except (ValueError, TypeError):
+                user_id = None
+
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path=f"{settings.API_PREFIX}/auth/refresh")
+
+    if user_id is not None:
+        await audit_service.log_event(
+            db,
+            action="auth.logout",
+            actor_user_id=user_id,
+            actor_type=ACTOR_USER,
+            resource_type="user",
+            resource_id=user_id,
+            request=request,
+        )
+        await db.commit()
     return {"message": "Logged out"}
 
 
