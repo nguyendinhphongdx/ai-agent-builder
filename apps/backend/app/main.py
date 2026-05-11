@@ -41,6 +41,7 @@ from app.hub.router import auth_router as hub_auth_router
 from app.hub.router import public_router as hub_public_router
 from app.integrations.router import router as integrations_router
 from app.internal.router import router as internal_router
+from app.jobs.router import router as jobs_router
 from app.knowledge.router import router as knowledge_router
 from app.llm.router import router as llm_router
 from app.multi_agent.router import router as multi_agent_router
@@ -207,6 +208,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
+    app.include_router(jobs_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
     app.include_router(workspaces_router, prefix=settings.API_PREFIX)
