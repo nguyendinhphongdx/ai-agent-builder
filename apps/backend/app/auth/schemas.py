@@ -93,3 +93,26 @@ class AuthResponse(AppBaseModel):
         data = super().release()
         data["user"] = self.user.release()
         return data
+
+
+class MfaChallengeResponse(BaseModel):
+    """Returned by /auth/login when the user has MFA enabled.
+
+    The FE shows a TOTP prompt, then POSTs ``mfa_token`` + ``code``
+    to /auth/mfa/verify-login to complete the flow. The session
+    cookie is NOT set until verify-login succeeds.
+    """
+
+    mfa_required: bool = True
+    mfa_token: str
+    """Short-lived (5 min) signed token carrying the pending user_id.
+    Caller passes it back to verify-login."""
+
+
+class MfaVerifyLoginRequest(BaseModel):
+    """Second step of MFA-protected login — confirm with auth-app
+    code or backup code."""
+
+    mfa_token: str
+    code: str = Field(..., min_length=1)
+    remember_me: bool = False

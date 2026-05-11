@@ -44,6 +44,7 @@ from app.integrations.router import router as integrations_router
 from app.internal.router import router as internal_router
 from app.jobs.router import router as jobs_router
 from app.knowledge.router import router as knowledge_router
+from app.mfa.router import router as mfa_router
 from app.llm.router import router as llm_router
 from app.multi_agent.router import router as multi_agent_router
 from app.payments.webhooks import momo_router as momo_webhook_router
@@ -229,6 +230,7 @@ def create_app() -> FastAPI:
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
     app.include_router(sso_oidc_router, prefix=settings.API_PREFIX)
+    app.include_router(mfa_router, prefix=settings.API_PREFIX)
     app.include_router(workspaces_router, prefix=settings.API_PREFIX)
     # Hub: public browse + detail, then authenticated fork/publish/edit on the
     # same /templates prefix. Order matters — public routes are defined before

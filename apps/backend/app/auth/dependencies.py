@@ -12,13 +12,27 @@ distinguish API requests from cookie requests without re-decoding.
 from __future__ import annotations
 
 from fastapi import Cookie, Depends, Header, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.service import decode_token, get_user_by_id
 from app.context import set_current_user_id, set_current_workspace_id
 from app.db.session import get_db
 from app.models.user import User
+from app.models.workspace import Workspace
 from app.personal_tokens.service import verify_plaintext
+
+
+# Paths exempt from the ``force_mfa`` workspace gate. The user has to
+# be able to reach these even without MFA enrolled, otherwise the
+# only way to satisfy the gate (enrolling TOTP) would be blocked by
+# the gate itself.
+_MFA_EXEMPT_PREFIXES = (
+    "/api/auth/mfa/",       # enrolment + verify endpoints
+    "/api/auth/logout",     # always allow sign-out
+    "/api/auth/refresh",    # session refresh
+    "/api/users/me",        # whoami — used by the FE to detect mfa_enabled
+)
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -99,7 +113,47 @@ async def get_current_user(
 
     set_current_user_id(user.id)
     _seed_workspace_context(user, x_workspace_id)
+    await _enforce_workspace_mfa(request, user, db)
     return user
+
+
+async def _enforce_workspace_mfa(
+    request: Request, user: User, db: AsyncSession
+) -> None:
+    """Block requests when the active workspace has ``force_mfa=True``
+    and the user hasn't enrolled MFA.
+
+    Skips:
+      - exempt paths (enrol + sign-out + whoami)
+      - API-token auth (tokens carry their own scope; MFA gate would
+        break programmatic clients that legitimately can't TOTP)
+      - users who've already enrolled
+    """
+    # API-token requests bypass — header-only programmatic auth.
+    if getattr(request.state, "api_token", None) is not None:
+        return
+    if user.mfa_enabled:
+        return
+
+    path = request.url.path
+    if any(path.startswith(p) for p in _MFA_EXEMPT_PREFIXES):
+        return
+
+    # Read the active workspace's force_mfa flag.
+    from app.context import current_workspace_id_or_none
+
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return  # no workspace context = no enforcement
+
+    force_mfa = await db.scalar(
+        select(Workspace.force_mfa).where(Workspace.id == workspace_id)
+    )
+    if force_mfa:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="mfa_required",
+        )
 
 
 def _seed_workspace_context(user: User, header_value: str | None) -> None:

@@ -24,6 +24,8 @@ from app.auth.schemas import (
     EmailChangeRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    MfaChallengeResponse,
+    MfaVerifyLoginRequest,
     PasswordChangeRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -139,13 +141,17 @@ async def register(
 
 # ─── Login ─────────────────────────────────────────────────────────
 
-@router.post("/login", response_model=AuthResponse, dependencies=[_AUTH_PUBLIC_LIMIT])
+@router.post("/login", dependencies=[_AUTH_PUBLIC_LIMIT])
 async def login(
     body: LoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """Xác thực email + password. Unverified users vẫn login được."""
+    """Xác thực email + password.
+
+    If ``user.mfa_enabled``, returns a ``MfaChallengeResponse`` instead
+    of session cookies — caller follows up with /auth/mfa/verify-login.
+    """
     user = await get_user_by_email(db, body.email)
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
@@ -159,12 +165,95 @@ async def login(
             detail="Account is disabled",
         )
 
+    # Second factor required — issue short-lived challenge token, NO
+    # session cookies yet. Browser must call /auth/mfa/verify-login.
+    if user.mfa_enabled:
+        return MfaChallengeResponse(
+            mfa_token=_mint_mfa_challenge_token(str(user.id), body.remember_me),
+        ).model_dump()
+
     user.last_login_at = datetime.now(timezone.utc)
     _set_auth_cookies(
         response,
         str(user.id),
         token_version=user.token_version,
         remember=body.remember_me,
+    )
+    return AuthResponse(user=UserResponse.model_validate(user)).release()
+
+
+# ─── MFA second-step login ────────────────────────────────────────
+
+
+_MFA_CHALLENGE_TTL_SECONDS = 300  # 5 minutes — covers typing the code.
+
+
+def _mfa_signer():
+    from itsdangerous import URLSafeTimedSerializer
+
+    return URLSafeTimedSerializer(settings.SECRET_KEY, salt="mfa-login-challenge")
+
+
+def _mint_mfa_challenge_token(user_id: str, remember: bool) -> str:
+    return _mfa_signer().dumps({"sub": user_id, "remember": remember})
+
+
+def _verify_mfa_challenge_token(token: str) -> tuple[str, bool]:
+    """Returns (user_id, remember) — raises HTTPException on bad/expired."""
+    from itsdangerous import BadSignature, SignatureExpired
+
+    try:
+        payload = _mfa_signer().loads(token, max_age=_MFA_CHALLENGE_TTL_SECONDS)
+    except SignatureExpired:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MFA challenge expired — log in again.",
+        )
+    except BadSignature:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid MFA challenge token.",
+        )
+    return str(payload["sub"]), bool(payload.get("remember", False))
+
+
+@router.post(
+    "/mfa/verify-login",
+    response_model=AuthResponse,
+    dependencies=[_AUTH_PUBLIC_LIMIT],
+)
+async def mfa_verify_login(
+    body: MfaVerifyLoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Second step of MFA-protected login. Accepts the TOTP code or
+    a backup code — same validation path as in-app verification."""
+    from app.mfa.service import verify_login_factor
+
+    user_id, remember_from_token = _verify_mfa_challenge_token(body.mfa_token)
+    user = await get_user_by_id(db, user_id)
+    if user is None or not user.is_active or not user.mfa_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid MFA challenge token.",
+        )
+
+    ok = await verify_login_factor(db, user, body.code)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid code.",
+        )
+
+    user.last_login_at = datetime.now(timezone.utc)
+    _set_auth_cookies(
+        response,
+        str(user.id),
+        token_version=user.token_version,
+        # If the user ticked "remember me" on the password step we
+        # honour it; the challenge token carries the flag forward.
+        remember=remember_from_token or body.remember_me,
     )
     return AuthResponse(user=UserResponse.model_validate(user)).release()
 

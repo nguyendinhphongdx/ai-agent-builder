@@ -40,6 +40,9 @@ dependencies = [
     # Cron expression parser for the workflow scheduled-trigger node.
     # Lightweight, no native deps — pure Python.
     "croniter>=2.0",
+    # TOTP for MFA. Pure Python, no native deps. Authenticator apps
+    # (Google Authenticator, 1Password, Authy) all speak this format.
+    "pyotp>=2.9",
 ]
 
 [project.optional-dependencies]
