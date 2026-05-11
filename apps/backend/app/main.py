@@ -50,6 +50,7 @@ from app.multi_agent.router import router as multi_agent_router
 from app.payments.webhooks import momo_router as momo_webhook_router
 from app.payments.webhooks import stripe_router as stripe_webhook_router
 from app.payouts.router import router as payouts_router
+from app.permissions.router import router as permissions_router
 from app.personal_tokens.router import router as personal_tokens_router
 from app.audit.router import org_router as org_audit_router
 from app.scim.router import router as scim_router
@@ -232,6 +233,7 @@ def create_app() -> FastAPI:
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
     app.include_router(jobs_router, prefix=settings.API_PREFIX)
+    app.include_router(permissions_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
     app.include_router(sso_oidc_router, prefix=settings.API_PREFIX)

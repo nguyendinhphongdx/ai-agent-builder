@@ -26,6 +26,7 @@ import {
   useCreateInvitation,
   useRevokeInvitation,
 } from "../hooks/useWorkspaces";
+import { RoleInspector } from "../components/RoleInspector";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { roleAtLeast, type WorkspaceRole } from "../types";
 
@@ -88,6 +89,7 @@ export function WorkspaceSettingsView() {
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
           {canManage && <TabsTrigger value="invitations">Invitations</TabsTrigger>}
+          <TabsTrigger value="roles">Roles</TabsTrigger>
           {canManage && <TabsTrigger value="general">General</TabsTrigger>}
           {canDelete && (
             <TabsTrigger value="danger" className="text-destructive">
@@ -105,6 +107,17 @@ export function WorkspaceSettingsView() {
             <InvitationsPanel workspaceId={current.id} />
           </TabsContent>
         )}
+
+        <TabsContent value="roles" className="mt-4">
+          <SettingsCard
+            title="Built-in roles"
+            description="What each role can do. Expand to see the permission set."
+          >
+            <div className="p-5">
+              <RoleInspector />
+            </div>
+          </SettingsCard>
+        </TabsContent>
 
         {canManage && (
           <TabsContent value="general" className="mt-4">

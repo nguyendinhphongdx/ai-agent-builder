@@ -9,6 +9,7 @@ from app.models.ai_credential import AICredential
 from app.models.audit_log import AuditLog
 from app.models.auth_token import AuthToken
 from app.models.conversation import Conversation
+from app.models.custom_role import CustomRole
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.file import File
@@ -51,6 +52,7 @@ __all__ = [
     "AgentTemplateKbChunk",
     "AdminAction",
     "AuditLog",
+    "CustomRole",
     "Tool",
     "KnowledgeBase",
     "Document",

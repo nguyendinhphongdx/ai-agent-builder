@@ -31,7 +31,7 @@ from app.models.workspace_member import (
     WORKSPACE_ROLE_VIEWER,
     WorkspaceMember,
 )
-from app.permissions.service import has_permission
+from app.permissions.service import has_permission_async
 from app.workspaces.service import get_member
 
 
@@ -102,7 +102,7 @@ def require_permission(permission: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workspace not found",
             )
-        if not has_permission(member, permission):
+        if not await has_permission_async(db, member, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Missing permission: {permission}",
@@ -154,7 +154,7 @@ def require_active_permission(permission: str):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="not_a_workspace_member",
             )
-        if not has_permission(member, permission):
+        if not await has_permission_async(db, member, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Missing permission: {permission}",
