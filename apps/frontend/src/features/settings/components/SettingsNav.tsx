@@ -6,6 +6,7 @@ import {
   Banknote,
   BarChart3,
   Building2,
+  CreditCard,
   Key,
   KeyRound,
   Plug,
@@ -49,6 +50,7 @@ const GROUPS: NavGroup[] = [
       { href: "/settings/api-tokens", label: "API Tokens", icon: KeyRound },
       { href: "/settings/integrations", label: "Integrations", icon: Plug },
       { href: "/settings/usage", label: "Usage & Cost", icon: BarChart3 },
+      { href: "/settings/billing", label: "Billing & Plan", icon: CreditCard },
     ],
   },
   {
