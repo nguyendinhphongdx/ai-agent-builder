@@ -57,6 +57,10 @@ class WorkflowRunner:
         conversation_id: uuid.UUID | None = None,
     ) -> Any:
         """Execute workflow and save results to WorkflowRun."""
+        from app.observability import tracing
+        from app.observability.metrics import workflow_run_duration_seconds
+        import time as _time
+
         # Create run record
         run = await create_workflow_run(
             self.db, workflow.id, user_id, input_data, conversation_id
@@ -65,37 +69,55 @@ class WorkflowRunner:
 
         wf_id = str(workflow.id)
         run_id = str(run.id)
+        _started = _time.perf_counter()
 
-        try:
-            result = await self._execute(workflow, input_data)
+        # One OTEL span per workflow run with attributes the FE / ops
+        # care about (id, name, node count). Nested node-level spans
+        # come from each executor's own use of the helper.
+        with tracing.span(
+            "workflow.run",
+            workflow_id=wf_id,
+            run_id=run_id,
+            workflow_name=workflow.name,
+            node_count=len(workflow.nodes or []),
+        ):
+            try:
+                result = await self._execute(workflow, input_data)
 
-            run = await update_workflow_run(
-                self.db,
-                run,
-                status=result.status,
-                output_data=result.output,
-                node_executions=[ne.to_dict() for ne in result.node_executions],
-                total_tokens=result.total_tokens,
-                error_message=result.error,
-                completed_at=datetime.now(timezone.utc),
-            )
-            await self.db.commit()
+                run = await update_workflow_run(
+                    self.db,
+                    run,
+                    status=result.status,
+                    output_data=result.output,
+                    node_executions=[ne.to_dict() for ne in result.node_executions],
+                    total_tokens=result.total_tokens,
+                    error_message=result.error,
+                    completed_at=datetime.now(timezone.utc),
+                )
+                await self.db.commit()
 
-            if result.status == "completed":
-                emit_workflow_completed(wf_id, run_id, result.total_tokens)
-            else:
-                emit_workflow_failed(wf_id, run_id, result.error or "Unknown error")
+                if result.status == "completed":
+                    emit_workflow_completed(wf_id, run_id, result.total_tokens)
+                else:
+                    emit_workflow_failed(wf_id, run_id, result.error or "Unknown error")
 
-        except Exception as e:
-            run = await update_workflow_run(
-                self.db,
-                run,
-                status="failed",
-                error_message=str(e),
-                completed_at=datetime.now(timezone.utc),
-            )
-            await self.db.commit()
-            emit_workflow_failed(wf_id, run_id, str(e))
+                workflow_run_duration_seconds.labels(status=result.status).observe(
+                    _time.perf_counter() - _started
+                )
+            except Exception as e:
+                tracing.record_exception(e)
+                run = await update_workflow_run(
+                    self.db,
+                    run,
+                    status="failed",
+                    error_message=str(e),
+                    completed_at=datetime.now(timezone.utc),
+                )
+                await self.db.commit()
+                emit_workflow_failed(wf_id, run_id, str(e))
+                workflow_run_duration_seconds.labels(status="failed").observe(
+                    _time.perf_counter() - _started
+                )
 
         return run
 

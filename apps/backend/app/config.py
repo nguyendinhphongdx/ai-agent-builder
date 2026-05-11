@@ -102,6 +102,20 @@ class Settings(BaseSettings):
     # later; for v1 a single platform key is enough.
     COHERE_API_KEY: str = ""
 
+    # OpenTelemetry. Empty endpoint = tracing OFF (zero overhead, no
+    # exporter, no instrumentation). Set this to your collector's gRPC
+    # endpoint (Tempo / Datadog / New Relic / Honeycomb / Phoenix /
+    # Grafana Cloud …) to enable.
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    # Optional bearer-style header set as ``Authorization``. Vendor-
+    # specific format (e.g. Honeycomb uses ``x-honeycomb-team`` —
+    # those go through OTEL_EXPORTER_OTLP_HEADERS directly).
+    OTEL_EXPORTER_OTLP_HEADERS: str = ""
+    OTEL_SERVICE_NAME: str = "agentforge-backend"
+    # Insecure plain-text gRPC for collectors on the same network.
+    # Production collectors should run TLS — leave False there.
+    OTEL_EXPORTER_OTLP_INSECURE: bool = False
+
     # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
     # Empty = paid templates disabled — POST /templates/{id}/purchase
     # returns 503 instead of erroring deeper into the stack.

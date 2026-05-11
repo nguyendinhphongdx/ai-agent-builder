@@ -46,6 +46,16 @@ dependencies = [
     # Prometheus metric registry + ``/metrics`` text exposition.
     # Pure Python, no native deps. Used by app.observability.metrics.
     "prometheus-client>=0.20",
+    # OpenTelemetry SDK + OTLP exporter + auto-instrumentation for
+    # FastAPI, SQLAlchemy, Redis, httpx. Tracing is OFF by default —
+    # wakes up when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.48b0",
+    "opentelemetry-instrumentation-redis>=0.48b0",
+    "opentelemetry-instrumentation-httpx>=0.48b0",
 ]
 
 [project.optional-dependencies]

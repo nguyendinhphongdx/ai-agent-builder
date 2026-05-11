@@ -101,6 +101,15 @@ def create_app() -> FastAPI:
 
     prom_metrics.install(app)
 
+    # OpenTelemetry tracing — no-op unless OTEL_EXPORTER_OTLP_ENDPOINT
+    # is set. The SQLAlchemy engine needs to exist before we hook it,
+    # so import + grab it here rather than letting tracing.init build
+    # its own.
+    from app.db.session import engine as db_engine
+    from app.observability import tracing
+
+    tracing.init(app=app, engine=db_engine)
+
     # Request id + structured access log. Order matters: RequestId runs first
     # so the access log line (and any deeper logger.* calls) carries the id.
     from app.observability import (
