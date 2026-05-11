@@ -4,9 +4,21 @@ from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
+from app.models.agent import Agent
 from app.models.conversation import Conversation
 from app.models.message import Message
+
+
+def _scope_filter(stmt):
+    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return stmt
+    return stmt.where(
+        (Conversation.workspace_id == workspace_id)
+        | (Conversation.workspace_id.is_(None))
+    )
 
 
 async def list_conversations(
@@ -23,7 +35,7 @@ async def list_conversations(
     if agent_id:
         q = q.where(Conversation.agent_id == agent_id)
     q = q.order_by(Conversation.last_message_at.desc().nullslast())
-    result = await db.execute(q)
+    result = await db.execute(_scope_filter(q))
     return list(result.scalars().all())
 
 
@@ -31,20 +43,33 @@ async def get_conversation(
     db: AsyncSession, conv_id: uuid.UUID
 ) -> Conversation | None:
     """Lấy cuộc hội thoại theo ID, chỉ trả về nếu thuộc về user hiện tại."""
-    result = await db.execute(
-        select(Conversation).where(
-            Conversation.id == conv_id,
-            Conversation.user_id == current_user_id(),
-        )
+    stmt = select(Conversation).where(
+        Conversation.id == conv_id,
+        Conversation.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     return result.scalar_one_or_none()
 
 
 async def create_conversation(
     db: AsyncSession, agent_id: uuid.UUID, title: str | None = None
 ) -> Conversation:
-    """Tạo cuộc hội thoại mới giữa user hiện tại và agent."""
-    conv = Conversation(user_id=current_user_id(), agent_id=agent_id, title=title)
+    """Tạo cuộc hội thoại mới giữa user hiện tại và agent.
+
+    ``workspace_id`` is pinned from the agent's workspace — keeps the
+    conversation tagged with the agent's tenant even when the caller's
+    active workspace differs (matters for share/embed channel where
+    the agent owner may not be the request's authenticated user).
+    """
+    agent_workspace_id = await db.scalar(
+        select(Agent.workspace_id).where(Agent.id == agent_id)
+    )
+    conv = Conversation(
+        user_id=current_user_id(),
+        agent_id=agent_id,
+        workspace_id=agent_workspace_id,
+        title=title,
+    )
     db.add(conv)
     await db.flush()
     await db.refresh(conv)
@@ -72,7 +97,17 @@ async def save_message(
 
     Tự động tăng total_messages, cập nhật last_message_at,
     và cộng dồn total_tokens nếu có thông tin token_usage.
+
+    Denormalises ``workspace_id`` from the parent conversation so
+    message-level cost/usage queries don't need a JOIN to filter
+    by tenant.
     """
+    # Pull the parent's workspace_id in the same query that drives
+    # the counter bump — saves a round-trip.
+    parent_workspace_id = await db.scalar(
+        select(Conversation.workspace_id).where(Conversation.id == conversation_id)
+    )
+    kwargs.setdefault("workspace_id", parent_workspace_id)
     msg = Message(conversation_id=conversation_id, role=role, content=content, **kwargs)
     db.add(msg)
 

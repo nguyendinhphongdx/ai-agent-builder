@@ -4,38 +4,50 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
 from app.models.agent import AgentKnowledgeBase
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 
 
+def _scope_filter(stmt):
+    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return stmt
+    return stmt.where(
+        (KnowledgeBase.workspace_id == workspace_id)
+        | (KnowledgeBase.workspace_id.is_(None))
+    )
+
+
 async def list_knowledge_bases(db: AsyncSession) -> list[KnowledgeBase]:
-    result = await db.execute(
+    stmt = (
         select(KnowledgeBase)
         .where(KnowledgeBase.user_id == current_user_id())
         .order_by(KnowledgeBase.updated_at.desc())
     )
+    result = await db.execute(_scope_filter(stmt))
     return list(result.scalars().all())
 
 
 async def get_knowledge_base(
     db: AsyncSession, kb_id: uuid.UUID
 ) -> KnowledgeBase | None:
-    result = await db.execute(
-        select(KnowledgeBase).where(
-            KnowledgeBase.id == kb_id,
-            KnowledgeBase.user_id == current_user_id(),
-        )
+    stmt = select(KnowledgeBase).where(
+        KnowledgeBase.id == kb_id,
+        KnowledgeBase.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     return result.scalar_one_or_none()
 
 
 async def get_knowledge_base_unscoped(
     db: AsyncSession, kb_id: uuid.UUID
 ) -> KnowledgeBase | None:
-    """Fetch KB without user_id check. Used by trusted background tasks only."""
+    """Fetch KB without user/workspace check. Used by trusted
+    background tasks only (workflow runner, ingestion worker)."""
     result = await db.execute(select(KnowledgeBase).where(KnowledgeBase.id == kb_id))
     return result.scalar_one_or_none()
 
@@ -43,6 +55,7 @@ async def get_knowledge_base_unscoped(
 async def create_knowledge_base(db: AsyncSession, **kwargs) -> KnowledgeBase:
     # Snapshot embedding config from platform env at create time. Stored on the
     # KB so ingestion + retrieval always agree, even after admin changes defaults.
+    kwargs.setdefault("workspace_id", current_workspace_id_or_none())
     kb = KnowledgeBase(
         user_id=current_user_id(),
         embedding_provider=settings.EMBEDDING_PROVIDER,

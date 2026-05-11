@@ -129,9 +129,12 @@ async def upload_document_endpoint(
     await storage.upload(storage_key, content, file.content_type or "application/octet-stream")
     content_hash = hashlib.sha256(content).hexdigest()
 
-    # Create document record — pending, no phase set yet.
+    # Create document record — pending, no phase set yet. Inherit
+    # workspace_id from the parent KB so child rows stay tenant-tagged
+    # even when KB itself was just freshly stamped above.
     doc = Document(
         knowledge_base_id=kb_id,
+        workspace_id=kb.workspace_id,
         filename=file.filename or "unknown",
         file_path=storage_key,
         file_type=ext,

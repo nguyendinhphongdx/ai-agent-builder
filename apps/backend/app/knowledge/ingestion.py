@@ -153,6 +153,7 @@ async def ingest_document(
                     DocumentChunk(
                         document_id=document.id,
                         knowledge_base_id=kb.id,
+                        workspace_id=kb.workspace_id,
                         content=text,
                         embedding=vec,
                         chunk_index=i,

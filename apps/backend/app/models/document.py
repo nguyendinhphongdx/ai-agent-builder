@@ -18,6 +18,14 @@ class Document(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
+    # Multi-tenancy boundary (Phase 1.1). Denormalised from parent KB
+    # for fast indexed filtering. Nullable through the transition.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # Thông tin file
     filename: Mapped[str] = mapped_column(String(512), nullable=False)

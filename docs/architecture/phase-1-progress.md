@@ -19,7 +19,7 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 - **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ schema · 2 🟡 3/12 tables (agents + ai_credentials + PATs) · 3 ⏳ pending CLI · 4 ⏳ pending lock
+- **Step**: 1 ✅ schema · 2 🟡 9/13 tables (agents + ai_credentials + PATs + tools + KB + documents + chunks + conversations + messages) · 3 ⏳ pending CLI · 4 ⏳ pending lock
 - **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
 - **Open decisions** (closed in session 2):
   - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
@@ -142,6 +142,20 @@ If you're picking this up cold, do this in order:
 | [features/settings/components/SettingsNav.tsx](../../apps/frontend/src/features/settings/components/SettingsNav.tsx) | Adds "Workspace" entry in the Workspace group. |
 | [app/(dashboard)/settings/workspace/page.tsx](../../apps/frontend/src/app/(dashboard)/settings/workspace/page.tsx) | NEW route. |
 | [app/(dashboard)/workspaces/invitations/[token]/page.tsx](../../apps/frontend/src/app/(dashboard)/workspaces/invitations/[token]/page.tsx) | NEW route — `params` is a `Promise` (Next 16). |
+
+### Phase 1.1 — Block 4 Step-2 Group B (session 2)
+
+`workspace_id` added to **tools**, **knowledge_bases**, **documents**, **document_chunks**, **conversations**, **messages**.
+
+| File | What changed |
+|---|---|
+| [alembic/versions/q6g8h2c5d7e9_resources_workspace_id.py](../../apps/backend/alembic/versions/q6g8h2c5d7e9_resources_workspace_id.py) | NEW migration. One file, 6 ALTER TABLEs — same nullable-FK-CASCADE shape as agents. |
+| Models: [tool.py](../../apps/backend/app/models/tool.py), [knowledge_base.py](../../apps/backend/app/models/knowledge_base.py), [document.py](../../apps/backend/app/models/document.py), [document_chunk.py](../../apps/backend/app/models/document_chunk.py), [conversation.py](../../apps/backend/app/models/conversation.py), [message.py](../../apps/backend/app/models/message.py) | `workspace_id` column added on each. Child tables (documents, chunks, messages) denormalise from parent for fast scan-free filtering on hot paths (RAG retrieval, cost dashboards). |
+| [app/tools/service.py](../../apps/backend/app/tools/service.py) | Dual-filter `_scope_filter` on list/get; `create_tool` auto-fills from ContextVar. |
+| [app/knowledge/service.py](../../apps/backend/app/knowledge/service.py) | Same on `list_knowledge_bases`/`get_knowledge_base`/`create_knowledge_base`. `get_knowledge_base_unscoped` left as-is for trusted background jobs. |
+| [app/knowledge/router.py](../../apps/backend/app/knowledge/router.py) | Document insert inherits `workspace_id` from parent KB. |
+| [app/knowledge/ingestion.py](../../apps/backend/app/knowledge/ingestion.py) | DocumentChunk creation inherits `workspace_id` from KB so embeddings are tenant-tagged. |
+| [app/conversations/service.py](../../apps/backend/app/conversations/service.py) | Dual-filter on list/get; `create_conversation` pins `workspace_id` from the **agent's** workspace (anonymous share-channel conversations must follow the agent, not the caller). `save_message` denormalises from parent conversation. |
 
 ### Phase 1.1 — Block 3 Step-2 Group A (session 2)
 

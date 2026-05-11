@@ -18,6 +18,14 @@ class Conversation(Base, UUIDMixin, TimestampMixin):
     agent_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Multi-tenancy boundary (Phase 1.1). Pinned from the agent's
+    # workspace at conversation-create time. Nullable through transition.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     title: Mapped[str | None] = mapped_column(String(255))
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)  # Ghim cuộc hội thoại lên đầu
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Ẩn khỏi danh sách
