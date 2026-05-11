@@ -11,6 +11,7 @@ from app.models.conversation import Conversation
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.file import File
+from app.models.job import Job
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
 from app.models.oauth_account import OAuthAccount
@@ -56,5 +57,6 @@ __all__ = [
     "Message",
     "AICredential",
     "File",
+    "Job",
     "PersonalAccessToken",
 ]
