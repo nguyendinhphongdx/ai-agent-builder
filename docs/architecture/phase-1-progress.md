@@ -17,11 +17,15 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 ## ⏱ Current Snapshot
 
-- **Last updated**: 2026-05-11
+- **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ (schema additive) · 2 🟡 (proof-of-pattern done for agents only) · 3 ⏳ pending · 4 ⏳ pending
-- **Active branch**: `master` (no feature branch yet)
-- **Blocking decision waiting on user**: backfill strategy (data migration vs CLI script) — see [Open Decisions](#-open-decisions-awaiting-user) below.
+- **Step**: 1 ✅ schema · 2 🟡 1/12 tables (agents) · 3 ⏳ pending CLI · 4 ⏳ pending lock
+- **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
+- **Open decisions** (closed in session 2):
+  - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
+  - **Workspace API timing**: **NOW**, parallel to step-2 rollout (Block 1 done)
+  - **Pattern**: keep **dual-filter** for transition; collapse on step 4
+- **Active branch**: `master`
 
 ---
 
@@ -38,13 +42,13 @@ If you're picking this up cold, do this in order:
    ```
    Failure here = **stop and investigate before adding more**. Likely culprits: alembic chain typo, missing __init__.py, circular import on `app.workspaces.service`.
 
-2. **Wait for user decision on**: backfill strategy + whether to scale step-2 pattern to remaining tables now or build the workspace API first. Both options are listed in [Open Decisions](#-open-decisions-awaiting-user).
-
-3. **If user says "go": next concrete tasks** in priority order:
-   - **a.** Backfill migration (Phase 1.1 step 3) for existing users + their resources. Single alembic data migration that creates a personal Org+Workspace+Member per user and stamps `agents.workspace_id` from `users.default_workspace_id`.
-   - **b.** Apply step-2 pattern to next group: ai_credentials + personal_access_tokens (auth/credentials cluster — small blast radius, similar shape to agents).
-   - **c.** Then group 2: tools + knowledge_bases + documents + document_chunks + conversations.
-   - **d.** Then group 3: workflows + workflow_nodes + workflow_edges + workflow_runs.
+2. **Decisions are locked** (see Current Snapshot). Next concrete blocks in execution order:
+   - **Block 2** — Frontend workspace switcher (header Combobox) + `/settings/workspace` page (members + invitations + danger zone). Unblocks dogfood.
+   - **Block 3** — Step-2 Group A: add `workspace_id` to `ai_credentials` + `personal_access_tokens`. Mirror agents pattern.
+   - **Block 4** — Step-2 Group B: tools + knowledge_bases + documents + document_chunks + conversations + messages.
+   - **Block 5** — Step-2 Group C: workflows + workflow_nodes + workflow_edges + workflow_runs.
+   - **Block 6** — `python -m app.cli.backfill_tenancy` script. Run on staging.
+   - **Block 7** — Lock `workspace_id SET NOT NULL` everywhere; remove dual-filter OR-NULL branches in services.
    - **e.** Finally, step 4: ALTER `workspace_id SET NOT NULL` across every table — only after backfill verified clean on staging.
 
 ---
@@ -107,8 +111,19 @@ If you're picking this up cold, do this in order:
 | [test_workspaces.py](../../apps/backend/tests/integration/test_workspaces.py) | 7 tests: org/workspace creation, slug uniqueness per-org, composite PK on members, invitation token uniqueness, cascade-delete via org, SET NULL on inviter delete, relationship eager-load, UUID type enforcement |
 | [test_ensure_personal_workspace.py](../../apps/backend/tests/integration/test_ensure_personal_workspace.py) | 6 tests: full creation, idempotency, recovery from null pointer, fallback name when no full_name, list_user_workspace_ids, two users get distinct orgs |
 | [test_agent_workspace_isolation.py](../../apps/backend/tests/integration/test_agent_workspace_isolation.py) | 5 tests: auto-fill workspace_id on create, list isolation, get cross-workspace blocked, legacy NULL rows still visible during transition, no-context fallback |
+| [test_workspaces_api.py](../../apps/backend/tests/integration/test_workspaces_api.py) | 16 tests covering Block 1 service layer: create_team_workspace (fresh org / attach existing / slug retry), list_user_workspaces with role, update + delete (refuse personal), member promote/demote/remove with last-owner guard, invitation create/accept/expire/used/idempotent re-accept, role_at_least helper. |
 
-**Verification status**: ⚠️ NOT yet run on a real machine — the dev environment used to author this didn't have Python or Docker installed. The user will run them on their dev machine. If anything fails, fix before resuming step-2 rollout.
+**Verification status**: ⚠️ NOT yet run on a real machine — author had no Docker. User will run them; if anything fails, fix before resuming step-2 rollout.
+
+### Phase 1.1 — Block 1 Workspace CRUD API (session 2)
+
+| File | What it does |
+|---|---|
+| [app/workspaces/service.py](../../apps/backend/app/workspaces/service.py) | Extended with `list_user_workspaces` (paired with role), `create_team_workspace` (fresh org or attach), `update_workspace`, `delete_workspace` (refuses personal), member helpers (`list_members`, `get_member`, `update_member_role`, `remove_member`) with last-owner guards, and invitation helpers (`create_invitation`, `list_invitations`, `revoke_invitation`, `get_invitation_by_token` rejecting expired/used, idempotent `accept_invitation`). |
+| [app/workspaces/schemas.py](../../apps/backend/app/workspaces/schemas.py) | NEW. Pydantic shapes: `WorkspaceSummary` (with caller role + embedded org), `WorkspaceCreate/Update`, `MemberResponse` (eager user), `InvitationCreate/Response/AcceptResponse`. |
+| [app/workspaces/permissions.py](../../apps/backend/app/workspaces/permissions.py) | NEW. `require_workspace_role(min_role)` dep — resolves `workspace_id` path param via FastAPI sub-dep injection, fetches the caller's `WorkspaceMember`, 404 if not member, 403 if role rank below min. Returns the member row. Plus `role_at_least(role, min)` rank helper. |
+| [app/workspaces/router.py](../../apps/backend/app/workspaces/router.py) | NEW. 11 endpoints under `/api/workspaces`: list/create/get/patch/delete workspace, list/patch/remove members (self-leave allowed), list/create/revoke invitations, public `POST /workspaces/invitations/{token}/accept`. Role gates: viewer for reads, admin for membership/invitation mgmt, owner for delete + grant-owner. |
+| [app/main.py](../../apps/backend/app/main.py) | Wires `workspaces_router`. |
 
 ---
 

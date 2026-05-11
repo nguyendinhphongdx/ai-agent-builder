@@ -52,6 +52,7 @@ from app.share.router import router as share_router
 from app.tools.router import router as tools_router
 from app.webhooks.router import router as webhooks_router
 from app.workflows.router import router as workflows_router
+from app.workspaces.router import router as workspaces_router
 
 
 def create_app() -> FastAPI:
@@ -208,6 +209,7 @@ def create_app() -> FastAPI:
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
+    app.include_router(workspaces_router, prefix=settings.API_PREFIX)
     # Hub: public browse + detail, then authenticated fork/publish/edit on the
     # same /templates prefix. Order matters — public routes are defined before
     # the auth-gated ones in routers, but FastAPI matches by path so order of
