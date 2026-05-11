@@ -255,6 +255,14 @@ async def ingest_document(
         await db.commit()
         await db.refresh(document)
         await _emit_progress(kb.user_id, kb.id, document)
+        await _notify_inbox(
+            db,
+            user_id=kb.user_id,
+            workspace_id=kb.workspace_id,
+            kb=kb,
+            document=document,
+            success=True,
+        )
         return document
 
     except Exception as exc:  # noqa: BLE001
@@ -266,6 +274,60 @@ async def ingest_document(
         except Exception:  # noqa: BLE001
             # If DB rollback-needed state, try reset
             await db.rollback()
+        await _notify_inbox(
+            db,
+            user_id=kb.user_id,
+            workspace_id=kb.workspace_id,
+            kb=kb,
+            document=document,
+            success=False,
+            error=str(exc)[:500],
+        )
         return document
+
+
+async def _notify_inbox(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
+    kb: KnowledgeBase,
+    document: Document,
+    success: bool,
+    error: str | None = None,
+) -> None:
+    """Persistent inbox row when a document finishes (good or bad).
+
+    Why both branches: long-running KB jobs are the #1 case where
+    a user closes the tab and comes back later — the WS event from
+    ``_emit_progress`` is gone, so they need history to know what
+    happened. Fire-and-forget; never break ingestion.
+    """
+    try:
+        from app.notifications import inbox as inbox_service
+        from app.models.notification import TYPE_KB_FAILED, TYPE_KB_PROCESSED
+
+        title = (
+            f"“{document.title or document.file_path}” added to {kb.name}"
+            if success
+            else f"“{document.title or document.file_path}” failed to process"
+        )
+        await inbox_service.notify(
+            db,
+            user_id=user_id,
+            type=TYPE_KB_PROCESSED if success else TYPE_KB_FAILED,
+            title=title,
+            body=None if success else (error or "Unknown error"),
+            link_url=f"/knowledge/{kb.id}",
+            workspace_id=workspace_id,
+            extra={
+                "kb_id": str(kb.id),
+                "document_id": str(document.id),
+                "chunk_count": document.chunk_count or 0,
+            },
+        )
+        await db.commit()
+    except Exception:  # noqa: BLE001
+        logger.debug("kb notify_inbox failed", exc_info=True)
 
 

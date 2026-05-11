@@ -426,7 +426,48 @@ async def create_invitation(
     )
     db.add(invitation)
     await db.flush()
+
+    # If the invitee already has an account, ping their inbox so
+    # they see the invite without waiting on email delivery.
+    await _notify_invitee_if_user(db, invitation)
+
     return invitation
+
+
+async def _notify_invitee_if_user(
+    db: AsyncSession, invitation: WorkspaceInvitation
+) -> None:
+    """Best-effort inbox ping when the invited email matches a user.
+
+    No-op when the email isn't on the platform yet — they get the
+    email-based magic link instead.
+    """
+    try:
+        invitee = await db.scalar(
+            select(User).where(User.email == invitation.email)
+        )
+        if invitee is None:
+            return
+        ws = await db.get(Workspace, invitation.workspace_id)
+        if ws is None:
+            return
+        from app.models.notification import TYPE_MEMBER_INVITED
+        from app.notifications import inbox as inbox_service
+
+        await inbox_service.notify(
+            db,
+            user_id=invitee.id,
+            type=TYPE_MEMBER_INVITED,
+            title=f"You've been invited to {ws.name}",
+            body=f"Accept the invite to join as {invitation.role}.",
+            link_url=f"/invitations/{invitation.token}",
+            workspace_id=None,  # cross-workspace — show in all contexts
+            extra={"invitation_id": str(invitation.id), "role": invitation.role},
+        )
+    except Exception:  # noqa: BLE001
+        # Telemetry-flavoured — invitation creation must not fail
+        # because the inbox write hiccuped.
+        pass
 
 
 async def revoke_invitation(
@@ -479,4 +520,24 @@ async def accept_invitation(
     db.add(member)
     invitation.accepted_at = datetime.now(timezone.utc)
     await db.flush()
+
+    # Ping the inviter so they know the seat is filled.
+    if invitation.invited_by is not None:
+        try:
+            ws = await db.get(Workspace, invitation.workspace_id)
+            from app.models.notification import TYPE_MEMBER_INVITED
+            from app.notifications import inbox as inbox_service
+
+            await inbox_service.notify(
+                db,
+                user_id=invitation.invited_by,
+                type=TYPE_MEMBER_INVITED,
+                title=f"{user.full_name or user.email} joined {ws.name if ws else 'the workspace'}",
+                body=None,
+                link_url=f"/settings/workspace",
+                workspace_id=invitation.workspace_id,
+                extra={"user_id": str(user.id), "role": invitation.role},
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return member

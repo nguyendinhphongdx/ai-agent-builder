@@ -10,10 +10,13 @@ Replaces LangGraph StateGraph with a custom runner that supports:
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger("agentforge")
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -101,6 +104,7 @@ class WorkflowRunner:
                     emit_workflow_completed(wf_id, run_id, result.total_tokens)
                 else:
                     emit_workflow_failed(wf_id, run_id, result.error or "Unknown error")
+                await self._notify_terminal(workflow, run, result.status, result.error)
 
                 workflow_run_duration_seconds.labels(status=result.status).observe(
                     _time.perf_counter() - _started
@@ -116,11 +120,56 @@ class WorkflowRunner:
                 )
                 await self.db.commit()
                 emit_workflow_failed(wf_id, run_id, str(e))
+                await self._notify_terminal(workflow, run, "failed", str(e))
                 workflow_run_duration_seconds.labels(status="failed").observe(
                     _time.perf_counter() - _started
                 )
 
         return run
+
+    async def _notify_terminal(
+        self,
+        workflow: Workflow,
+        run: Any,
+        status: str,
+        error: str | None,
+    ) -> None:
+        """Persist an inbox notification for the workflow owner.
+
+        Fire-and-forget pattern: never lets an inbox-write failure
+        change the run outcome. Trigger-fired-from-cron runs notify
+        the same owner — they want to know their automation broke
+        even if they weren't watching.
+        """
+        try:
+            from app.notifications import inbox as inbox_service
+            from app.models.notification import (
+                TYPE_WORKFLOW_FAILED,
+                TYPE_WORKFLOW_SUCCEEDED,
+            )
+
+            if status == "completed":
+                type_ = TYPE_WORKFLOW_SUCCEEDED
+                title = f"Workflow “{workflow.name}” finished"
+                body = None
+            else:
+                type_ = TYPE_WORKFLOW_FAILED
+                title = f"Workflow “{workflow.name}” failed"
+                body = (error or "Unknown error")[:500]
+
+            await inbox_service.notify(
+                self.db,
+                user_id=workflow.user_id,
+                type=type_,
+                title=title,
+                body=body,
+                link_url=f"/workflows/{workflow.id}/runs/{run.id}",
+                workspace_id=workflow.workspace_id,
+                extra={"run_id": str(run.id), "status": status},
+            )
+            await self.db.commit()
+        except Exception:  # noqa: BLE001 — telemetry-flavoured
+            logger.debug("workflow notify failed", exc_info=True)
 
     async def run_single_node(
         self,
