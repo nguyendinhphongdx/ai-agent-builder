@@ -24,6 +24,7 @@ from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.scim_token import SCIMToken
 from app.models.sso_configuration import SSOConfiguration
 from app.models.tool import Tool
+from app.models.usage_event import UsageEvent
 from app.models.user import User
 from app.models.workflow import Workflow
 from app.models.workflow_edge import WorkflowEdge
@@ -55,6 +56,7 @@ __all__ = [
     "AuditLog",
     "CustomRole",
     "KBConnector",
+    "UsageEvent",
     "Tool",
     "KnowledgeBase",
     "Document",

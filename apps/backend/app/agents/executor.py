@@ -196,6 +196,22 @@ async def execute_agent_stream(
                     if content:
                         yield AgentStreamEvent("token", content=content)
 
+            elif kind == "on_chat_model_end":
+                # Token usage lives on the final AIMessage's
+                # usage_metadata (LangChain normalises this across
+                # providers — keys: input_tokens, output_tokens,
+                # total_tokens). Yield a usage event so the SSE
+                # handler can write a usage_events row.
+                usage = _extract_usage(event.get("data"))
+                if usage is not None:
+                    yield AgentStreamEvent(
+                        "usage",
+                        prompt_tokens=usage.get("input_tokens"),
+                        completion_tokens=usage.get("output_tokens"),
+                        total_tokens=usage.get("total_tokens"),
+                        model_id=agent.model_id,
+                    )
+
             elif kind == "on_tool_start":
                 yield AgentStreamEvent(
                     "tool_start",
@@ -216,7 +232,12 @@ async def execute_agent_stream(
             pre_messages.append(SystemMessage(content=system_prompt))
         pre_messages.extend(lc_messages)
 
+        # Track the final chunk so we can pull usage_metadata after
+        # the stream completes (LangChain attaches it to the last
+        # AIMessage chunk in the stream).
+        final_chunk = None
         async for chunk in llm.astream(pre_messages):
+            final_chunk = chunk
             if hasattr(chunk, "content") and chunk.content:
                 content = chunk.content
                 if isinstance(content, list):
@@ -226,4 +247,37 @@ async def execute_agent_stream(
                 if content:
                     yield AgentStreamEvent("token", content=content)
 
+        if final_chunk is not None:
+            usage = _extract_usage({"output": final_chunk})
+            if usage is not None:
+                yield AgentStreamEvent(
+                    "usage",
+                    prompt_tokens=usage.get("input_tokens"),
+                    completion_tokens=usage.get("output_tokens"),
+                    total_tokens=usage.get("total_tokens"),
+                    model_id=agent.model_id,
+                )
+
     yield AgentStreamEvent("done")
+
+
+def _extract_usage(data: object) -> dict | None:
+    """Pull ``usage_metadata`` off the chat model's final output.
+
+    LangChain stashes the dict on ``AIMessage.usage_metadata`` for
+    every modern provider (OpenAI, Anthropic, Google, Mistral). The
+    shape is normalised to ``{input_tokens, output_tokens, total_tokens}``
+    regardless of provider — same keys we forward to usage_events.
+
+    Some streaming providers also include it on the last chunk
+    (.usage_metadata) — we accept both shapes.
+    """
+    if not isinstance(data, dict):
+        return None
+    candidate = data.get("output") or data.get("chunk")
+    if candidate is None:
+        return None
+    usage = getattr(candidate, "usage_metadata", None)
+    if isinstance(usage, dict) and (usage.get("input_tokens") or usage.get("output_tokens")):
+        return usage
+    return None

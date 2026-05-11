@@ -115,9 +115,17 @@ async def chat_sse(
     _attachments = attachments
 
     async def event_generator():
+        from app.usage import service as usage_service
+
         start_time = time.time()
         full_response = ""
         client_gone = False
+        # Captured from the executor's `on_chat_model_end` event so
+        # we can write a usage row alongside the assistant message.
+        # The executor emits it once per LLM call — agents with tool
+        # loops can emit multiple, but for v1 we record the last one
+        # (single-turn cost) and let analytics interpret.
+        usage_payload: dict | None = None
 
         try:
             history = await get_messages(db, _conv_id, limit=50)
@@ -147,6 +155,10 @@ async def chat_sse(
                     yield f"data: {json.dumps(event_dict)}\n\n"
                 elif event.type in ("tool_start", "tool_end"):
                     yield f"data: {json.dumps(event_dict)}\n\n"
+                elif event.type == "usage":
+                    # Don't forward to the client — token counts are
+                    # ops/billing telemetry, not user-facing data.
+                    usage_payload = event_dict
 
             latency_ms = int((time.time() - start_time) * 1000)
 
@@ -161,6 +173,24 @@ async def chat_sse(
                     content=full_response,
                     llm_model=_agent.model_id,
                     latency_ms=latency_ms,
+                )
+                await db.commit()
+
+            # Record the LLM call for cost/usage analytics. Skipped
+            # silently when the LLM didn't surface usage_metadata
+            # (Ollama, some self-hosted setups). usage_service swallows
+            # write failures so a telemetry hiccup never breaks chat.
+            if usage_payload is not None:
+                await usage_service.log_llm_call(
+                    db,
+                    model_id=usage_payload.get("model_id") or _agent.model_id,
+                    prompt_tokens=usage_payload.get("prompt_tokens"),
+                    completion_tokens=usage_payload.get("completion_tokens"),
+                    latency_ms=latency_ms,
+                    agent_id=_agent.id,
+                    conversation_id=_conv_id,
+                    workspace_id=_agent.workspace_id,
+                    user_id=user_id,
                 )
                 await db.commit()
 
