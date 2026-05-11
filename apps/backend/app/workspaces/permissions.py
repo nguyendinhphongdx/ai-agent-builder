@@ -1,10 +1,18 @@
 """Workspace-scoped permission dependencies.
 
-Every endpoint under ``/api/workspaces/{workspace_id}/*`` must call
-:func:`require_workspace_role` to enforce that the caller is a
-member with at least the given role. The dep returns the resolved
-``WorkspaceMember`` so endpoints can also inspect the caller's role
-without a second query.
+Two complementary primitives for gating endpoints:
+
+  - :func:`require_workspace_role` enforces a minimum role rank.
+    Use for endpoints whose meaning is "this is an admin op" —
+    member management, billing, danger-zone ops.
+  - :func:`require_permission` (Phase 1.5) enforces a specific
+    fine-grained permission flag. Use for resource CRUD — lets
+    custom roles grant a narrow capability without promoting to
+    a full role tier.
+
+Both return the resolved :class:`WorkspaceMember`. Pick whichever
+matches the endpoint's *intent* — many existing routes lean on
+role checks and stay simple that way.
 """
 from __future__ import annotations
 
@@ -23,6 +31,7 @@ from app.models.workspace_member import (
     WORKSPACE_ROLE_VIEWER,
     WorkspaceMember,
 )
+from app.permissions.service import has_permission
 from app.workspaces.service import get_member
 
 
@@ -68,6 +77,41 @@ def require_workspace_role(min_role: str):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Requires role {min_role} or higher; you have {member.role}",
+            )
+        return member
+
+    return _check
+
+
+def require_permission(permission: str):
+    """Dependency factory — 403 unless the caller has ``permission``.
+
+    Resolves the caller's WorkspaceMember from the path's
+    ``workspace_id`` (FastAPI auto-injects via sub-dep), then checks
+    :func:`app.permissions.service.has_permission` against the
+    member's role.
+
+    Same shape as :func:`require_workspace_role`: returns the
+    WorkspaceMember on success, raises 404 / 403 otherwise. 404 for
+    non-members keeps cross-tenant ids opaque (no "this exists but
+    you can't see it" leak).
+    """
+
+    async def _check(
+        workspace_id: uuid.UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> WorkspaceMember:
+        member = await get_member(db, workspace_id, current_user.id)
+        if member is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workspace not found",
+            )
+        if not has_permission(member, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission}",
             )
         return member
 
