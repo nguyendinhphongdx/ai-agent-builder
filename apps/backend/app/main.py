@@ -71,15 +71,18 @@ async def _lifespan(_app: FastAPI):
     """App-wide startup/shutdown hooks. Boots background services
     that share the API process; add new ones here as they land."""
     from app.audit import purge as audit_purge
+    from app.billing import usage_reporter as billing_reporter
     from app.knowledge.connectors import scheduler as connector_scheduler
     from app.scheduled_triggers import scheduler
 
     scheduler.start()
     audit_purge.start()
     connector_scheduler.start()
+    billing_reporter.start()
     try:
         yield
     finally:
+        await billing_reporter.stop()
         await connector_scheduler.stop()
         await audit_purge.stop()
         await scheduler.stop()
