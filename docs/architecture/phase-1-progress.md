@@ -19,7 +19,7 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 - **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ schema · 2 🟡 1/12 tables (agents) · 3 ⏳ pending CLI · 4 ⏳ pending lock
+- **Step**: 1 ✅ schema · 2 🟡 3/12 tables (agents + ai_credentials + PATs) · 3 ⏳ pending CLI · 4 ⏳ pending lock
 - **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
 - **Open decisions** (closed in session 2):
   - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
@@ -125,11 +125,44 @@ If you're picking this up cold, do this in order:
 | [app/workspaces/router.py](../../apps/backend/app/workspaces/router.py) | NEW. 11 endpoints under `/api/workspaces`: list/create/get/patch/delete workspace, list/patch/remove members (self-leave allowed), list/create/revoke invitations, public `POST /workspaces/invitations/{token}/accept`. Role gates: viewer for reads, admin for membership/invitation mgmt, owner for delete + grant-owner. |
 | [app/main.py](../../apps/backend/app/main.py) | Wires `workspaces_router`. |
 
+### Phase 1.1 — Block 2 Frontend switcher + settings (session 2)
+
+| File | What it does |
+|---|---|
+| [features/workspaces/types/index.ts](../../apps/frontend/src/features/workspaces/types/index.ts) | NEW. TS shapes mirroring backend schemas + `roleAtLeast` helper. |
+| [lib/api/workspaceService.ts](../../apps/frontend/src/lib/api/workspaceService.ts) | NEW. Wraps all 11 endpoints. |
+| [features/workspaces/stores/workspaceStore.ts](../../apps/frontend/src/features/workspaces/stores/workspaceStore.ts) | NEW. Zustand + persist middleware (`agentforge:current-workspace` key) holding `currentWorkspaceId`. |
+| [lib/api/client.ts](../../apps/frontend/src/lib/api/client.ts) | Request interceptor injects `X-Workspace-Id` from persisted store via raw localStorage (SSR-safe). |
+| [features/workspaces/hooks/useWorkspaces.ts](../../apps/frontend/src/features/workspaces/hooks/useWorkspaces.ts) | NEW. TanStack Query + mutation hooks; auto-selects personal workspace on first load; invalidates query keys on every mutation. |
+| [features/workspaces/components/WorkspaceSwitcher.tsx](../../apps/frontend/src/features/workspaces/components/WorkspaceSwitcher.tsx) | NEW. Header dropdown — switching invalidates *every* cached query. |
+| [features/workspaces/components/CreateWorkspaceDialog.tsx](../../apps/frontend/src/features/workspaces/components/CreateWorkspaceDialog.tsx) | NEW. Single-field create modal. |
+| [features/workspaces/views/WorkspaceSettingsView.tsx](../../apps/frontend/src/features/workspaces/views/WorkspaceSettingsView.tsx) | NEW. Tabs: Members / Invitations / General / Danger zone. Personal workspaces short-circuit to "can't manage" notice. Invite flow auto-copies accept URL to clipboard. |
+| [features/workspaces/views/AcceptInvitationView.tsx](../../apps/frontend/src/features/workspaces/views/AcceptInvitationView.tsx) | NEW. Auto-fires accept mutation; success/fail states with redirect to `/home`. |
+| [components/layout/Header.tsx](../../apps/frontend/src/components/layout/Header.tsx) | Mounts `<WorkspaceSwitcher />`. |
+| [features/settings/components/SettingsNav.tsx](../../apps/frontend/src/features/settings/components/SettingsNav.tsx) | Adds "Workspace" entry in the Workspace group. |
+| [app/(dashboard)/settings/workspace/page.tsx](../../apps/frontend/src/app/(dashboard)/settings/workspace/page.tsx) | NEW route. |
+| [app/(dashboard)/workspaces/invitations/[token]/page.tsx](../../apps/frontend/src/app/(dashboard)/workspaces/invitations/[token]/page.tsx) | NEW route — `params` is a `Promise` (Next 16). |
+
+### Phase 1.1 — Block 3 Step-2 Group A (session 2)
+
+`workspace_id` added to **ai_credentials** + **personal_access_tokens** mirroring the agents proof-of-pattern.
+
+| File | What changed |
+|---|---|
+| [alembic/versions/p5f7g1b4c6d8_creds_tokens_workspace_id.py](../../apps/backend/alembic/versions/p5f7g1b4c6d8_creds_tokens_workspace_id.py) | NEW migration. Adds nullable FK + index on both tables. Reversible. |
+| [app/models/ai_credential.py](../../apps/backend/app/models/ai_credential.py) | New `workspace_id` column, indexed, FK CASCADE → workspaces. |
+| [app/models/personal_access_token.py](../../apps/backend/app/models/personal_access_token.py) | Same. Tokens carry their own tenant binding so `/external/*` calls scope correctly regardless of caller's header. |
+| [app/ai_credentials/service.py](../../apps/backend/app/ai_credentials/service.py) | `create_ai_credential` auto-fills from context; list/get/update/delete use dual-filter `_scope_filter`. `get_plaintext_key_by_id` (runtime executor lookup) intentionally NOT scoped — agents store `credential_id` directly. |
+| [app/personal_tokens/service.py](../../apps/backend/app/personal_tokens/service.py) | Same dual-filter pattern; `create_token` stamps `workspace_id`. |
+| [app/personal_tokens/schemas.py](../../apps/backend/app/personal_tokens/schemas.py) | `TokenResponse` now exposes `workspace_id`. |
+| [app/auth/dependencies.py](../../apps/backend/app/auth/dependencies.py) | API-token branch: workspace context comes from `token.workspace_id` (NOT header) so external calls always scope to where the token was minted. Legacy tokens with NULL fall back to `user.default_workspace_id`. |
+| [tests/integration/test_creds_tokens_workspace_isolation.py](../../apps/backend/tests/integration/test_creds_tokens_workspace_isolation.py) | 7 tests covering auto-fill, list isolation across workspaces, legacy NULL row visibility, cross-workspace `get`/`revoke` returns None. |
+
 ---
 
 ## 🟡 In progress / paused mid-flight
 
-Nothing actively in flight — clean handoff at a natural pause point. Step 2 is "1 of 12 tables done"; the remaining 11 are queued behind a user decision.
+Nothing actively in flight — clean handoff at a natural pause point. Step 2 is "3 of 12 tables done"; remaining groups B (6 tables) and C (4 tables) follow the same pattern.
 
 ---
 

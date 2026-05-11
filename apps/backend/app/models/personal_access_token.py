@@ -27,6 +27,17 @@ class PersonalAccessToken(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
+    # Multi-tenancy boundary. Tokens are scoped to the workspace they
+    # were minted in — switching workspace in the UI then creating a
+    # token stamps that workspace. ``/api/external/*`` calls made with
+    # this token authenticate as ``(user, workspace)`` — header overrides
+    # are ignored for API-token requests downstream.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # Display label so user can identify what each token is for in the UI.
     name: Mapped[str] = mapped_column(String(255), nullable=False)

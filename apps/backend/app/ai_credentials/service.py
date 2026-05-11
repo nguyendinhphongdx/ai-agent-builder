@@ -12,7 +12,7 @@ from app.ai_credentials.schemas import (
     AICredentialResponse,
     AICredentialUpdate,
 )
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
 from app.models.ai_credential import AICredential
 from app.security.crypto import decrypt_secret, encrypt_secret, mask_secret
 
@@ -36,12 +36,26 @@ def _to_response(cred: AICredential, plaintext: str) -> AICredentialResponse:
 
 # ── CRUD ──────────────────────────────────────────────────────────────
 
+def _scope_filter(stmt):
+    """Apply Phase 1.1 dual-filter: rows in the current workspace
+    + legacy NULL rows (still visible until backfill stamps them).
+    No-op when no workspace is in context (background tasks).
+    """
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return stmt
+    return stmt.where(
+        (AICredential.workspace_id == workspace_id) | (AICredential.workspace_id.is_(None))
+    )
+
+
 async def list_ai_credentials(db: AsyncSession) -> list[AICredentialResponse]:
-    result = await db.execute(
+    stmt = (
         select(AICredential)
         .where(AICredential.user_id == current_user_id())
         .order_by(AICredential.created_at.desc())
     )
+    result = await db.execute(_scope_filter(stmt))
     creds = result.scalars().all()
     return [_to_response(c, _decrypt(c.encrypted_key)) for c in creds]
 
@@ -49,12 +63,11 @@ async def list_ai_credentials(db: AsyncSession) -> list[AICredentialResponse]:
 async def get_ai_credential(
     db: AsyncSession, cred_id: uuid.UUID
 ) -> AICredentialResponse | None:
-    result = await db.execute(
-        select(AICredential).where(
-            AICredential.id == cred_id,
-            AICredential.user_id == current_user_id(),
-        )
+    stmt = select(AICredential).where(
+        AICredential.id == cred_id,
+        AICredential.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     cred = result.scalar_one_or_none()
     if not cred:
         return None
@@ -66,6 +79,8 @@ async def create_ai_credential(
 ) -> AICredentialResponse:
     cred = AICredential(
         user_id=current_user_id(),
+        # Auto-tag with the active workspace so list/get see it post-creation.
+        workspace_id=current_workspace_id_or_none(),
         provider=data.provider,
         name=data.name,
         encrypted_key=_encrypt(data.plaintext_key),
@@ -81,12 +96,11 @@ async def update_ai_credential(
     cred_id: uuid.UUID,
     data: AICredentialUpdate,
 ) -> AICredentialResponse | None:
-    result = await db.execute(
-        select(AICredential).where(
-            AICredential.id == cred_id,
-            AICredential.user_id == current_user_id(),
-        )
+    stmt = select(AICredential).where(
+        AICredential.id == cred_id,
+        AICredential.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     cred = result.scalar_one_or_none()
     if not cred:
         return None
@@ -99,12 +113,11 @@ async def update_ai_credential(
 
 
 async def delete_ai_credential(db: AsyncSession, cred_id: uuid.UUID) -> bool:
-    result = await db.execute(
-        select(AICredential).where(
-            AICredential.id == cred_id,
-            AICredential.user_id == current_user_id(),
-        )
+    stmt = select(AICredential).where(
+        AICredential.id == cred_id,
+        AICredential.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     cred = result.scalar_one_or_none()
     if not cred:
         return False

@@ -49,6 +49,10 @@ class TokenResponse(BaseModel):
     name: str
     key_prefix: str
     scopes: list[str]
+    # Workspace this token authenticates as. ``None`` for legacy tokens
+    # minted before Phase 1.1; those fall back to the owner's default
+    # workspace at request time.
+    workspace_id: uuid.UUID | None = None
     last_used_at: datetime | None
     expires_at: datetime | None
     revoked_at: datetime | None

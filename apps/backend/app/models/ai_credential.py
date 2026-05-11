@@ -15,6 +15,14 @@ class AICredential(Base, UUIDMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    # Multi-tenancy boundary. Nullable during Phase 1.1 transition;
+    # flips NOT NULL once backfill stamps every existing row.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     encrypted_key: Mapped[str] = mapped_column(Text, nullable=False)

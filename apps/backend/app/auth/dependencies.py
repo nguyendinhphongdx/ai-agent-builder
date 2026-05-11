@@ -59,7 +59,12 @@ async def get_current_user(
         # Stash for require_scope + rate-limit middleware downstream.
         request.state.api_token = token
         set_current_user_id(user.id)
-        _seed_workspace_context(user, x_workspace_id)
+        # API tokens carry their OWN workspace binding (set at mint
+        # time). Ignore the header — the token is the source of truth
+        # for which tenant this request can see. Legacy tokens with
+        # workspace_id IS NULL fall back to the user's default
+        # workspace, matching pre-Phase-1.1 behavior.
+        set_current_workspace_id(token.workspace_id or user.default_workspace_id)
         return user
 
     # ── 2. Cookie session ────────────────────────────────────────────

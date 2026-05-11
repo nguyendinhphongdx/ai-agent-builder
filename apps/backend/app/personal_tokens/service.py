@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.user import User
 from app.personal_tokens.schemas import TokenCreate
@@ -36,12 +36,24 @@ def _generate_plaintext() -> str:
 # ─── CRUD ───────────────────────────────────────────────────────────
 
 
+def _scope_filter(stmt):
+    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return stmt
+    return stmt.where(
+        (PersonalAccessToken.workspace_id == workspace_id)
+        | (PersonalAccessToken.workspace_id.is_(None))
+    )
+
+
 async def list_tokens(db: AsyncSession) -> list[PersonalAccessToken]:
-    result = await db.execute(
+    stmt = (
         select(PersonalAccessToken)
         .where(PersonalAccessToken.user_id == current_user_id())
         .order_by(PersonalAccessToken.created_at.desc())
     )
+    result = await db.execute(_scope_filter(stmt))
     return list(result.scalars().all())
 
 
@@ -49,10 +61,15 @@ async def create_token(
     db: AsyncSession, data: TokenCreate
 ) -> tuple[PersonalAccessToken, str]:
     """Mint a new token for the user. Returns (row, plaintext) — caller MUST
-    surface the plaintext to the user immediately and never store it."""
+    surface the plaintext to the user immediately and never store it.
+
+    Token is stamped with the active workspace so external API calls
+    using this token are scoped to that workspace.
+    """
     plaintext = _generate_plaintext()
     token = PersonalAccessToken(
         user_id=current_user_id(),
+        workspace_id=current_workspace_id_or_none(),
         name=data.name,
         key_hash=_hash(plaintext),
         key_prefix=plaintext[:PREFIX_DISPLAY_LEN],
@@ -67,12 +84,11 @@ async def create_token(
 
 async def revoke_token(db: AsyncSession, token_id: uuid.UUID) -> bool:
     """Soft-revoke. Row is kept for audit; ``revoked_at`` rejects future use."""
-    result = await db.execute(
-        select(PersonalAccessToken).where(
-            PersonalAccessToken.id == token_id,
-            PersonalAccessToken.user_id == current_user_id(),
-        )
+    stmt = select(PersonalAccessToken).where(
+        PersonalAccessToken.id == token_id,
+        PersonalAccessToken.user_id == current_user_id(),
     )
+    result = await db.execute(_scope_filter(stmt))
     token = result.scalar_one_or_none()
     if not token:
         return False
