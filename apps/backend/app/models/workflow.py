@@ -14,6 +14,13 @@ class Workflow(Base, UUIDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Multi-tenancy boundary (Phase 1.1). Nullable through transition.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     agent_id: Mapped[uuid.UUID | None] = mapped_column(  # Agent gắn với workflow (tùy chọn)
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), index=True
     )

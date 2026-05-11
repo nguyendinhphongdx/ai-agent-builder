@@ -18,6 +18,13 @@ class WorkflowEdge(Base, UUIDMixin):
         nullable=False,
         index=True,
     )
+    # Multi-tenancy boundary (Phase 1.1). Denormalised from parent workflow.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     source_node_id: Mapped[uuid.UUID] = mapped_column(  # Node nguồn (đầu ra)
         UUID(as_uuid=True),
         ForeignKey("workflow_nodes.id", ondelete="CASCADE"),

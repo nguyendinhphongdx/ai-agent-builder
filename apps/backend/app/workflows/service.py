@@ -7,11 +7,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.context import current_user_id
+from app.context import current_user_id, current_workspace_id_or_none
 from app.models.workflow import Workflow
 from app.models.workflow_edge import WorkflowEdge
 from app.models.workflow_node import WorkflowNode
 from app.models.workflow_run import WorkflowRun
+
+
+def _scope_filter(stmt):
+    """Phase 1.1 dual-filter on workspace_id (= current OR IS NULL)."""
+    workspace_id = current_workspace_id_or_none()
+    if workspace_id is None:
+        return stmt
+    return stmt.where(
+        (Workflow.workspace_id == workspace_id) | (Workflow.workspace_id.is_(None))
+    )
 
 
 def generate_webhook_token() -> str:
@@ -25,11 +35,12 @@ def generate_webhook_token() -> str:
 
 async def list_workflows(db: AsyncSession) -> list[Workflow]:
     """Lấy danh sách workflow của user, sắp xếp theo thời gian cập nhật."""
-    result = await db.execute(
+    stmt = (
         select(Workflow)
         .where(Workflow.user_id == current_user_id())
         .order_by(Workflow.updated_at.desc())
     )
+    result = await db.execute(_scope_filter(stmt))
     return list(result.scalars().all())
 
 
@@ -37,17 +48,19 @@ async def get_workflow(
     db: AsyncSession, workflow_id: uuid.UUID
 ) -> Workflow | None:
     """Lấy chi tiết workflow kèm nodes và edges (eager loading)."""
-    result = await db.execute(
+    stmt = (
         select(Workflow)
         .options(selectinload(Workflow.nodes), selectinload(Workflow.edges))
         .where(Workflow.id == workflow_id, Workflow.user_id == current_user_id())
     )
+    result = await db.execute(_scope_filter(stmt))
     return result.scalar_one_or_none()
 
 
 async def create_workflow(db: AsyncSession, **kwargs) -> Workflow:
     """Tạo workflow mới — auto-generate webhook_token if not provided."""
     kwargs.setdefault("webhook_token", generate_webhook_token())
+    kwargs.setdefault("workspace_id", current_workspace_id_or_none())
     workflow = Workflow(user_id=current_user_id(), **kwargs)
     db.add(workflow)
     await db.flush()
@@ -98,11 +111,16 @@ async def save_graph(
         await db.delete(node)
     await db.flush()
 
+    # Inherit workspace_id from the parent workflow so the graph stays
+    # tenant-tagged even when the workflow was just freshly stamped.
+    ws_id = workflow.workspace_id
+
     # Tạo nodes mới với UUID từ frontend
     for node_data in nodes_data:
         node = WorkflowNode(
             id=node_data["id"],
             workflow_id=workflow.id,
+            workspace_id=ws_id,
             node_type=node_data["node_type"],
             label=node_data.get("label"),
             config=node_data.get("config", {}),
@@ -119,6 +137,7 @@ async def save_graph(
         edge = WorkflowEdge(
             id=edge_data["id"],
             workflow_id=workflow.id,
+            workspace_id=ws_id,
             source_node_id=edge_data["source_node_id"],
             target_node_id=edge_data["target_node_id"],
             source_handle=edge_data.get("source_handle"),
@@ -145,10 +164,18 @@ async def create_workflow_run(
     conversation_id: uuid.UUID | None = None,
     is_partial: bool = False,
 ) -> WorkflowRun:
-    """Tạo bản ghi chạy workflow mới với trạng thái 'running'."""
+    """Tạo bản ghi chạy workflow mới với trạng thái 'running'.
+
+    ``workspace_id`` inherits from the parent workflow so per-tenant
+    cost dashboards can filter runs without a JOIN to workflows.
+    """
+    workspace_id = await db.scalar(
+        select(Workflow.workspace_id).where(Workflow.id == workflow_id)
+    )
     run = WorkflowRun(
         workflow_id=workflow_id,
         user_id=user_id,
+        workspace_id=workspace_id,
         input_data=input_data,
         conversation_id=conversation_id,
         status="running",

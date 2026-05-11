@@ -19,7 +19,7 @@ summary: Live status of the Phase 1.1 multi-tenancy rollout. Tracks which migrat
 
 - **Last updated**: 2026-05-11 (session 2)
 - **Phase**: 1.1 — Multi-tenancy foundation
-- **Step**: 1 ✅ schema · 2 🟡 9/13 tables (agents + ai_credentials + PATs + tools + KB + documents + chunks + conversations + messages) · 3 ⏳ pending CLI · 4 ⏳ pending lock
+- **Step**: 1 ✅ schema · 2 ✅ all 13 tables stamped (workflows + nodes + edges + runs closes the set) · 3 ⏳ pending CLI · 4 ⏳ pending lock
 - **Workspace API**: ✅ Block 1 CRUD + members + invitations shipped (decided NOW path)
 - **Open decisions** (closed in session 2):
   - **Backfill strategy**: **(C) Hybrid** — alembic adds columns (already done), CLI script does the data backfill
@@ -142,6 +142,16 @@ If you're picking this up cold, do this in order:
 | [features/settings/components/SettingsNav.tsx](../../apps/frontend/src/features/settings/components/SettingsNav.tsx) | Adds "Workspace" entry in the Workspace group. |
 | [app/(dashboard)/settings/workspace/page.tsx](../../apps/frontend/src/app/(dashboard)/settings/workspace/page.tsx) | NEW route. |
 | [app/(dashboard)/workspaces/invitations/[token]/page.tsx](../../apps/frontend/src/app/(dashboard)/workspaces/invitations/[token]/page.tsx) | NEW route — `params` is a `Promise` (Next 16). |
+
+### Phase 1.1 — Block 5 Step-2 Group C (session 2)
+
+`workspace_id` added to **workflows**, **workflow_nodes**, **workflow_edges**, **workflow_runs**. Step-2 is now closed — all 13 resource tables stamped.
+
+| File | What changed |
+|---|---|
+| [alembic/versions/r7h9i3d6e8f0_workflows_workspace_id.py](../../apps/backend/alembic/versions/r7h9i3d6e8f0_workflows_workspace_id.py) | NEW migration. 4 ALTER TABLEs in one revision, same nullable-FK-CASCADE pattern. |
+| [app/models/workflow.py](../../apps/backend/app/models/workflow.py), [workflow_node.py](../../apps/backend/app/models/workflow_node.py), [workflow_edge.py](../../apps/backend/app/models/workflow_edge.py), [workflow_run.py](../../apps/backend/app/models/workflow_run.py) | `workspace_id` column added on each. Child tables denormalise from parent workflow. |
+| [app/workflows/service.py](../../apps/backend/app/workflows/service.py) | `list_workflows`/`get_workflow` use dual-filter `_scope_filter`; `create_workflow` auto-fills from ContextVar; `save_workflow_graph` propagates `workspace_id` to every node + edge insert; `create_workflow_run` inherits from parent workflow via single scalar lookup. |
 
 ### Phase 1.1 — Block 4 Step-2 Group B (session 2)
 
