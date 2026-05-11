@@ -25,6 +25,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.embedding import build_for_kb
+from app.knowledge.reranker import build_for_kb as build_reranker_for_kb
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
 
@@ -94,23 +95,80 @@ class KnowledgeRetriever:
         # hybrid impl makes.
         hybrid_mode = any(getattr(kb, "search_mode", "vector") == "hybrid" for kb in kbs)
 
+        # Reranking: when any KB in the request has a reranker set,
+        # we oversample 3× (capped at 50) so the reranker has a real
+        # candidate pool, then reduce to top_k via the reranker. Pick
+        # the first reranker-enabled KB's config as the deciding one
+        # (multi-KB queries with mixed rerank configs are rare).
+        rerank_kb = next((k for k in kbs if k.rerank_provider), None)
+        if rerank_kb is not None:
+            fetch_k = min(max(effective_top_k * 3, rerank_kb.rerank_top_n * 3), 50)
+        else:
+            fetch_k = effective_top_k
+
         all_chunks: list[RetrievedChunk] = []
         for group_kbs in groups.values():
             kb_ids = [k.id for k in group_kbs]
             if hybrid_mode:
-                chunks = await self._hybrid(query, group_kbs[0], kb_ids, effective_top_k)
+                chunks = await self._hybrid(query, group_kbs[0], kb_ids, fetch_k)
             else:
                 chunks = await self._vector_only(
                     query,
                     group_kbs[0],
                     kb_ids,
-                    effective_top_k,
+                    fetch_k,
                     effective_threshold,
                 )
             all_chunks.extend(chunks)
 
         all_chunks.sort(key=lambda c: c.score or 0, reverse=True)
-        return all_chunks[:effective_top_k]
+        candidates = all_chunks[:fetch_k]
+
+        if rerank_kb is not None:
+            return await self._rerank(query, candidates, rerank_kb)
+        return candidates[:effective_top_k]
+
+    # ── Reranker stage ───────────────────────────────────────────
+
+    async def _rerank(
+        self,
+        query: str,
+        candidates: list[RetrievedChunk],
+        rerank_kb: KnowledgeBase,
+    ) -> list[RetrievedChunk]:
+        """Run the configured reranker against ``candidates`` and
+        return them top-down by relevance, capped at ``rerank_top_n``.
+
+        Provider failures degrade gracefully (provider returns the
+        identity ranking) — we keep the candidates in their pre-rerank
+        order and slice to top_n. Better than 500-ing the retrieval.
+        """
+        provider = build_reranker_for_kb(rerank_kb)
+        top_n = rerank_kb.rerank_top_n or 5
+        if provider is None or not candidates:
+            return candidates[:top_n]
+
+        results = await provider.arerank(
+            query=query,
+            documents=[c.content for c in candidates],
+            top_n=min(top_n, len(candidates)),
+        )
+        out: list[RetrievedChunk] = []
+        for r in results:
+            if 0 <= r.index < len(candidates):
+                chunk = candidates[r.index]
+                # Replace the score with the reranker's relevance so
+                # downstream consumers see a consistent signal.
+                out.append(
+                    RetrievedChunk(
+                        content=chunk.content,
+                        metadata=chunk.metadata,
+                        score=r.score,
+                        source_document=chunk.source_document,
+                        chunk_index=chunk.chunk_index,
+                    )
+                )
+        return out
 
     # ── Vector-only ──────────────────────────────────────────────
 

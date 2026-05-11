@@ -17,6 +17,11 @@ class KnowledgeBaseCreate(BaseModel):
     # "vector" = legacy cosine-only. "hybrid" = BM25 ∪ vector via RRF
     # (default — better recall for keyword-heavy queries).
     search_mode: str = "hybrid"
+    # Reranker — null/empty = disabled. "cohere" is the only provider
+    # wired today; "bge", "voyage" are roadmapped.
+    rerank_provider: str | None = None
+    rerank_model: str | None = None
+    rerank_top_n: int = 5
 
 
 class KnowledgeBaseUpdate(BaseModel):
@@ -27,6 +32,9 @@ class KnowledgeBaseUpdate(BaseModel):
     retrieval_top_k: int | None = None
     retrieval_score_threshold: float | None = None
     search_mode: str | None = None
+    rerank_provider: str | None = None
+    rerank_model: str | None = None
+    rerank_top_n: int | None = None
 
 
 class KnowledgeBaseResponse(AppBaseModel):
@@ -42,6 +50,9 @@ class KnowledgeBaseResponse(AppBaseModel):
     retrieval_top_k: int
     retrieval_score_threshold: float
     search_mode: str
+    rerank_provider: str | None
+    rerank_model: str | None
+    rerank_top_n: int
     total_documents: int
     total_chunks: int
     status: str

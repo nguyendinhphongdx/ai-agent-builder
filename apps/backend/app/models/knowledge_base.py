@@ -48,6 +48,16 @@ class KnowledgeBase(Base, UUIDMixin, TimestampMixin):
         String(20), default="hybrid", server_default="hybrid", nullable=False
     )
 
+    # Optional reranker stage (Phase 2.1 Block 2). NULL = disabled,
+    # retriever returns hybrid/vector results directly. When set,
+    # retrieve() oversamples ~3× the final top_n, sends candidates
+    # to the named provider, returns the top rerank_top_n by relevance.
+    rerank_provider: Mapped[str | None] = mapped_column(String(50))
+    rerank_model: Mapped[str | None] = mapped_column(String(100))
+    rerank_top_n: Mapped[int] = mapped_column(
+        Integer, default=5, server_default="5", nullable=False
+    )
+
     # Bộ đếm thống kê
     total_documents: Mapped[int] = mapped_column(Integer, default=0)
     total_chunks: Mapped[int] = mapped_column(Integer, default=0)

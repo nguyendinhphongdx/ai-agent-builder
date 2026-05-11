@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     # is "free plan" — bumped per-org once billing tiers wire up.
     AUDIT_LOG_RETENTION_DAYS: int = 90
 
+    # Cohere reranker API key. Empty = rerank pipeline falls back to
+    # input order (retrieval still works, just no reranking benefit).
+    # Per-KB / per-workspace keys can layer on via ai_credentials
+    # later; for v1 a single platform key is enough.
+    COHERE_API_KEY: str = ""
+
     # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
     # Empty = paid templates disabled — POST /templates/{id}/purchase
     # returns 503 instead of erroring deeper into the stack.
