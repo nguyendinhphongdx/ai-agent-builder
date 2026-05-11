@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import service
+from app.admin.jobs import router as admin_jobs_router
 from app.admin.schemas import (
     AdminActionRow,
     AdminPurchaseRow,
@@ -41,6 +42,9 @@ router = APIRouter(
         Depends(require_role(UserRole.MODERATOR)),
     ],
 )
+
+# Jobs DLQ inspector — inherits the moderator+ gate from the parent.
+router.include_router(admin_jobs_router)
 
 
 # ─── Templates (moderator+) ───────────────────────────────────────────
