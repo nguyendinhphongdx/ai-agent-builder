@@ -22,6 +22,7 @@ from app.workflows.nodes.logic import (
     HumanInputExecutor,
     LoopExecutor,
     MergeExecutor,
+    SubWorkflowExecutor,
     SwitchExecutor,
 )
 
@@ -49,6 +50,7 @@ EXECUTORS: dict = {
     "loop": LoopExecutor(),
     "delay": DelayExecutor(),
     "human_input": HumanInputExecutor(),
+    "sub_workflow": SubWorkflowExecutor(),
     # Data
     "template": TemplateExecutor(),
     "set_variable": SetVariableExecutor(),
