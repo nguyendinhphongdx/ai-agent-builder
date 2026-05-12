@@ -39,8 +39,24 @@ def build_connector(connector_type: str) -> KBConnector | None:
         from app.knowledge.connectors.providers.notion import NotionConnector
 
         return NotionConnector()
-    # Other providers (Notion, web, GDrive, …) land in follow-up
-    # blocks — same lazy-import pattern.
+    if provider == "gcs":
+        from app.knowledge.connectors.providers.gcs import GCSConnector
+
+        return GCSConnector()
+    if provider == "azure_blob":
+        from app.knowledge.connectors.providers.azure_blob import (
+            AzureBlobConnector,
+        )
+
+        return AzureBlobConnector()
+    if provider == "gdrive":
+        from app.knowledge.connectors.providers.gdrive import (
+            GoogleDriveConnector,
+        )
+
+        return GoogleDriveConnector()
+    # Confluence / SharePoint / OneDrive / Dropbox land in
+    # follow-up blocks. Same lazy-import pattern.
     return None
 
 

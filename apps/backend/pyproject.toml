@@ -26,6 +26,12 @@ dependencies = [
     # at LLM-build time. Pin a recent enough version for ChatBedrock
     # with tool-use support.
     "langchain-aws>=0.2",
+    # Cloud-storage SDKs for KB connectors. Lazy-imported so
+    # tenants who don't use these providers pay no cold-start cost.
+    "google-cloud-storage>=2.10",
+    "google-api-python-client>=2.100",
+    "azure-storage-blob>=12.20",
+    "azure-identity>=1.17",
     "langgraph>=0.2",
     "langchain-text-splitters>=0.3",
     "pgvector>=0.3",
