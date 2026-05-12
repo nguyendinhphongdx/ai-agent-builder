@@ -21,6 +21,11 @@ dependencies = [
     "langchain-google-genai>=2.0",
     "langchain-community>=0.3",
     "langchain-ollama>=0.3",
+    # AWS Bedrock provider (P3.2). Pulls boto3 transitively — the
+    # AWS credential chain (env / ~/.aws / instance role) resolves
+    # at LLM-build time. Pin a recent enough version for ChatBedrock
+    # with tool-use support.
+    "langchain-aws>=0.2",
     "langgraph>=0.2",
     "langchain-text-splitters>=0.3",
     "pgvector>=0.3",

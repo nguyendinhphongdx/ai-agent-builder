@@ -71,6 +71,51 @@ def build_llm(
             extra["base_url"] = base_url
         return ChatOpenAI(model=model, **common, **extra)
 
+    elif provider == "azure":
+        # Azure OpenAI — three pieces required:
+        #   azure_endpoint  https://<resource>.openai.azure.com
+        #   api_version     e.g. "2024-08-01-preview"
+        #   azure_deployment  the Azure-side deployment name; model_id
+        #                     suffix is treated as the deployment id.
+        # Endpoint + version come from the credential's ``base_url``
+        # field (we overload it as JSON-ish "endpoint|version" to
+        # avoid a credentials schema migration). Senders may also
+        # pass them explicitly via kwargs.
+        from langchain_openai import AzureChatOpenAI
+
+        azure_endpoint = kwargs.pop("azure_endpoint", None) or base_url
+        api_version = kwargs.pop("api_version", "2024-08-01-preview")
+        if not azure_endpoint:
+            raise ValueError(
+                "Azure provider requires base_url (endpoint URL) or "
+                "azure_endpoint kwarg"
+            )
+        # AzureChatOpenAI doesn't accept the plain ``base_url`` kw —
+        # strip from common, re-thread as azure_endpoint.
+        return AzureChatOpenAI(
+            azure_deployment=model,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            **common,
+        )
+
+    elif provider == "bedrock":
+        # AWS Bedrock — credentials resolve via boto3's standard
+        # chain (env, ~/.aws/credentials, IAM role). The credential
+        # row carries optional ``aws_access_key_id`` +
+        # ``aws_secret_access_key`` we map to kwargs here.
+        from langchain_aws import ChatBedrock
+
+        region = kwargs.pop("region_name", None) or "us-east-1"
+        # ChatBedrock uses ``model_id`` (their term) and doesn't
+        # accept ``api_key`` — strip from common.
+        common.pop("api_key", None)
+        return ChatBedrock(
+            model_id=model,
+            region_name=region,
+            **common,
+        )
+
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

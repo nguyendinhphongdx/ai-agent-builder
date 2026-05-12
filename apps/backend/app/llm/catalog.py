@@ -42,6 +42,16 @@ PROVIDERS: list[ProviderEntry] = [
     ProviderEntry(id="openai", label="OpenAI", description="GPT-4o, GPT-4 Turbo, o-series"),
     ProviderEntry(id="anthropic", label="Anthropic", description="Claude Sonnet, Opus, Haiku"),
     ProviderEntry(id="google", label="Google", description="Gemini 2.5, 2.0, 1.5 Pro/Flash"),
+    ProviderEntry(
+        id="azure",
+        label="Azure OpenAI",
+        description="Same models as OpenAI, billed via your Azure tenant.",
+    ),
+    ProviderEntry(
+        id="bedrock",
+        label="AWS Bedrock",
+        description="Claude / Llama / Titan / Mistral via AWS Bedrock.",
+    ),
     ProviderEntry(id="ollama", label="Ollama (Local)", description="Llama, Mistral, Code Llama"),
 ]
 
@@ -122,6 +132,42 @@ MODEL_CATALOG: list[ModelCatalogEntry] = [
         context_window=2_000_000, max_output=8_192,
         capabilities=[ModelCapability.tools, ModelCapability.vision],
         description="Legacy 2M-context model — best-in-class context length.",
+    ),
+    # Azure OpenAI — model id format is "azure/<deployment>". The
+    # actual base model behind a deployment is decided in Azure
+    # portal; we trust the operator picked appropriately. The
+    # entries below are *placeholder shapes* — workspaces typically
+    # add their own via custom model registration once that ships.
+    ModelCatalogEntry(
+        id="azure/gpt-4o", provider="azure", model="gpt-4o", name="Azure GPT-4o",
+        context_window=128_000, max_output=16_384,
+        capabilities=[ModelCapability.tools, ModelCapability.vision, ModelCapability.json_mode],
+        description="GPT-4o on your Azure tenant. Deployment name = 'gpt-4o' by convention.",
+    ),
+    ModelCatalogEntry(
+        id="azure/gpt-4o-mini", provider="azure", model="gpt-4o-mini",
+        name="Azure GPT-4o Mini",
+        context_window=128_000, max_output=16_384,
+        capabilities=[ModelCapability.tools, ModelCapability.vision, ModelCapability.json_mode],
+        description="GPT-4o Mini deployment on Azure OpenAI.",
+    ),
+    # AWS Bedrock — Anthropic, Meta, Mistral, Amazon hosted via Bedrock.
+    # ``model`` here is the Bedrock model id (the long ARN suffix).
+    ModelCatalogEntry(
+        id="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
+        provider="bedrock", model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+        name="Claude 3.5 Sonnet (Bedrock)",
+        context_window=200_000, max_output=8_192,
+        capabilities=[ModelCapability.tools, ModelCapability.vision],
+        description="Claude 3.5 Sonnet via AWS Bedrock — Anthropic's most capable model.",
+    ),
+    ModelCatalogEntry(
+        id="bedrock/meta.llama3-1-70b-instruct-v1:0",
+        provider="bedrock", model="meta.llama3-1-70b-instruct-v1:0",
+        name="Llama 3.1 70B (Bedrock)",
+        context_window=128_000, max_output=2_048,
+        capabilities=[],
+        description="Meta Llama 3.1 70B Instruct on AWS Bedrock.",
     ),
     # Ollama
     ModelCatalogEntry(
