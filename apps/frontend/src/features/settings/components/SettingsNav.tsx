@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/context";
 import {
   Banknote,
   BarChart3,
@@ -20,12 +21,12 @@ import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: React.ElementType;
 }
 
 interface NavGroup {
-  title: string;
+  titleKey: string;
   items: NavItem[];
 }
 
@@ -37,29 +38,29 @@ interface NavGroup {
  */
 const GROUPS: NavGroup[] = [
   {
-    title: "Account",
+    titleKey: "settings.account",
     items: [
-      { href: "/settings/profile", label: "Profile", icon: UserIcon },
-      { href: "/settings/security", label: "Security", icon: ShieldCheck },
-      { href: "/settings/preferences", label: "Preferences", icon: SlidersHorizontal },
+      { href: "/settings/profile", labelKey: "settings.profile", icon: UserIcon },
+      { href: "/settings/security", labelKey: "settings.security", icon: ShieldCheck },
+      { href: "/settings/preferences", labelKey: "settings.preferences", icon: SlidersHorizontal },
     ],
   },
   {
-    title: "Workspace",
+    titleKey: "settings.workspace",
     items: [
-      { href: "/settings/workspace", label: "Workspace", icon: Building2 },
-      { href: "/settings/credentials", label: "AI Credentials", icon: Key },
-      { href: "/settings/api-tokens", label: "API Tokens", icon: KeyRound },
-      { href: "/settings/integrations", label: "Integrations", icon: Plug },
-      { href: "/settings/triggers", label: "Triggers", icon: Zap },
-      { href: "/settings/usage", label: "Usage & Cost", icon: BarChart3 },
-      { href: "/settings/billing", label: "Billing & Plan", icon: CreditCard },
-      { href: "/settings/annotations", label: "Quality & Feedback", icon: ThumbsUp },
+      { href: "/settings/workspace", labelKey: "settings.workspace", icon: Building2 },
+      { href: "/settings/credentials", labelKey: "settings.credentials", icon: Key },
+      { href: "/settings/api-tokens", labelKey: "settings.apiTokens", icon: KeyRound },
+      { href: "/settings/integrations", labelKey: "settings.integrations", icon: Plug },
+      { href: "/settings/triggers", labelKey: "settings.triggers", icon: Zap },
+      { href: "/settings/usage", labelKey: "settings.usage", icon: BarChart3 },
+      { href: "/settings/billing", labelKey: "settings.billing", icon: CreditCard },
+      { href: "/settings/annotations", labelKey: "settings.feedback", icon: ThumbsUp },
     ],
   },
   {
-    title: "Marketplace",
-    items: [{ href: "/settings/payouts", label: "Author Payouts", icon: Banknote }],
+    titleKey: "settings.marketplace",
+    items: [{ href: "/settings/payouts", labelKey: "settings.payouts", icon: Banknote }],
   },
 ];
 
@@ -67,13 +68,14 @@ const GROUPS: NavGroup[] = [
  *  so the active sub-route is deep-linkable and survives refresh. */
 export function SettingsNav() {
   const pathname = usePathname();
+  const { t } = useTranslations();
 
   return (
     <nav aria-label="Settings sections" className="space-y-5">
       {GROUPS.map((group) => (
-        <div key={group.title}>
+        <div key={group.titleKey}>
           <h2 className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {group.title}
+            {t(group.titleKey)}
           </h2>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
@@ -92,7 +94,7 @@ export function SettingsNav() {
                     )}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                   </Link>
                 </li>
               );

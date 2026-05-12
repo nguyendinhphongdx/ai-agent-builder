@@ -1,0 +1,40 @@
+{
+  "settings": {
+    "account": "Account",
+    "workspace": "Workspace",
+    "marketplace": "Marketplace",
+    "profile": "Profile",
+    "security": "Security",
+    "preferences": "Preferences",
+    "credentials": "AI Credentials",
+    "apiTokens": "API Tokens",
+    "integrations": "Integrations",
+    "triggers": "Triggers",
+    "usage": "Usage & Cost",
+    "billing": "Billing & Plan",
+    "feedback": "Quality & Feedback",
+    "payouts": "Author Payouts"
+  },
+  "nav": {
+    "home": "Home",
+    "agents": "Agents",
+    "workflows": "Workflows",
+    "knowledge": "Knowledge",
+    "hub": "Hub",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "signOut": "Sign out"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "search": "Search",
+    "language": "Language",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  }
+}

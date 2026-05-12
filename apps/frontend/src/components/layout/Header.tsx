@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useAuth, useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { WorkspaceSwitcher } from "@/features/workspaces/components/WorkspaceSwitcher";
@@ -68,6 +69,8 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
       <div className="flex-1" />
 
       <NotificationBell />
+
+      <LocaleSwitcher />
 
       <ThemeToggle />
 

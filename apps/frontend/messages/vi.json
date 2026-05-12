@@ -1,0 +1,40 @@
+{
+  "settings": {
+    "account": "Tài khoản",
+    "workspace": "Workspace",
+    "marketplace": "Marketplace",
+    "profile": "Hồ sơ",
+    "security": "Bảo mật",
+    "preferences": "Tuỳ chọn",
+    "credentials": "Credential AI",
+    "apiTokens": "API Token",
+    "integrations": "Tích hợp",
+    "triggers": "Trigger",
+    "usage": "Sử dụng & Chi phí",
+    "billing": "Thanh toán & Gói",
+    "feedback": "Chất lượng & Phản hồi",
+    "payouts": "Thanh toán cho tác giả"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "agents": "Agent",
+    "workflows": "Workflow",
+    "knowledge": "Tri thức",
+    "hub": "Hub",
+    "settings": "Cài đặt",
+    "notifications": "Thông báo",
+    "signOut": "Đăng xuất"
+  },
+  "common": {
+    "save": "Lưu",
+    "cancel": "Huỷ",
+    "delete": "Xoá",
+    "edit": "Sửa",
+    "loading": "Đang tải…",
+    "error": "Có lỗi xảy ra.",
+    "search": "Tìm kiếm",
+    "language": "Ngôn ngữ",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  }
+}
