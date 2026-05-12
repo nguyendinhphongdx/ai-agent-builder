@@ -6,19 +6,22 @@ import {
   ArrowLeft,
   BookOpen,
   FileText,
+  Loader2,
+  Plug,
   Search,
   Settings,
-  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useKnowledgeBase } from "../hooks/useKnowledge";
+import { ConnectorsTab } from "../components/connectors/ConnectorsTab";
 import { DocumentsTab } from "../components/detail/DocumentsTab";
-import { RetrievalTestingTab } from "../components/detail/RetrievalTestingTab";
 import { KBSettingsTab } from "../components/detail/KBSettingsTab";
+import { RetrievalTestingTab } from "../components/detail/RetrievalTestingTab";
 
 const TABS = [
   { id: "documents", label: "Documents", icon: FileText },
+  { id: "connectors", label: "Connectors", icon: Plug },
   { id: "retrieval", label: "Retrieval Testing", icon: Search },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
@@ -111,6 +114,7 @@ export function KnowledgeDetailView({ kbId, initialTab = "documents" }: Knowledg
       {/* Main area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {tab === "documents" && <DocumentsTab kbId={kbId} />}
+        {tab === "connectors" && <ConnectorsTab kbId={kbId} />}
         {tab === "retrieval" && <RetrievalTestingTab kbId={kbId} />}
         {tab === "settings" && <KBSettingsTab kb={kb} />}
       </div>
