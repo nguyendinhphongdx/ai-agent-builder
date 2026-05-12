@@ -22,6 +22,7 @@ from app.models.message import Message
 from app.models.message_annotation import MessageAnnotation
 from app.models.notification import Notification, NotificationPreference
 from app.models.oauth_account import OAuthAccount
+from app.models.oauth_connection import OAuthConnection, OAuthState
 from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken

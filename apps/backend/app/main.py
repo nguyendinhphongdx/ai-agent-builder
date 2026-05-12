@@ -317,6 +317,9 @@ def create_app() -> FastAPI:
     from app.notifications.router import router as notifications_router
     app.include_router(notifications_router, prefix=settings.API_PREFIX)
 
+    from app.oauth_connectors.router import router as oauth_connectors_router
+    app.include_router(oauth_connectors_router, prefix=settings.API_PREFIX)
+
     # Log validation errors (422)
     from fastapi.exceptions import RequestValidationError
     @app.exception_handler(RequestValidationError)

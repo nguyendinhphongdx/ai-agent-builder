@@ -35,11 +35,26 @@ class Settings(BaseSettings):
     # Public URLs used inside emails + OAuth callbacks
     FRONTEND_URL: str = "http://localhost:3000"
 
-    # OAuth providers (leave empty to disable that provider)
+    # OAuth providers — login (GitHub / Google). Leave empty to disable.
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+
+    # ── 3-legged OAuth for KB / data-source connectors ────────────────
+    # Distinct from the login OAuth above — these power
+    # "Connect <provider>" buttons in the connector UI. Leaving keys
+    # empty marks the provider unavailable; the FE hides its Connect
+    # button accordingly.
+    SLACK_CONNECTOR_CLIENT_ID: str = ""
+    SLACK_CONNECTOR_CLIENT_SECRET: str = ""
+    NOTION_CONNECTOR_CLIENT_ID: str = ""
+    NOTION_CONNECTOR_CLIENT_SECRET: str = ""
+    DROPBOX_CONNECTOR_CLIENT_ID: str = ""
+    DROPBOX_CONNECTOR_CLIENT_SECRET: str = ""
+    # Public URL the provider redirects back to. ``{provider}`` is
+    # filled by the OAuth service.
+    OAUTH_REDIRECT_BASE_URL: str = "http://localhost:8000"
 
     # Fernet encryption key cho ai_credentials table
     # Generate một lần: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
