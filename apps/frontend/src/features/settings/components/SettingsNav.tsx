@@ -12,6 +12,7 @@ import {
   Plug,
   ShieldCheck,
   SlidersHorizontal,
+  ThumbsUp,
   Zap,
   User as UserIcon,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const GROUPS: NavGroup[] = [
       { href: "/settings/triggers", label: "Triggers", icon: Zap },
       { href: "/settings/usage", label: "Usage & Cost", icon: BarChart3 },
       { href: "/settings/billing", label: "Billing & Plan", icon: CreditCard },
+      { href: "/settings/annotations", label: "Quality & Feedback", icon: ThumbsUp },
     ],
   },
   {

@@ -4,8 +4,9 @@ import { memo } from "react";
 import { Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatRenderMeta, Message } from "../types";
-import { StreamMarkdown } from "./StreamMarkdown";
 import { MessageAttachments } from "./MessageAttachments";
+import { MessageFeedback } from "./MessageFeedback";
+import { StreamMarkdown } from "./StreamMarkdown";
 
 export type MessageBubbleVariant = "full" | "compact";
 
@@ -138,6 +139,13 @@ export const MessageBubble = memo(function MessageBubble({
               <StreamMarkdown content={message.content} />
             </div>
           ))}
+
+        {/* Thumbs up/down only on assistant turns + only when we
+            have a server id to bind annotations to. Hidden in
+            compact (side-panel preview) — clutter. */}
+        {!isUser && !isCompact && message.id && (
+          <MessageFeedback messageId={message.id} />
+        )}
       </div>
     </div>
   );
