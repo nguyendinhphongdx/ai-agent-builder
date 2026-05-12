@@ -100,10 +100,9 @@ class Settings(BaseSettings):
     DISPATCHER_URL: str = "http://localhost:3010"  # Docker: http://dispatcher:3010
     DISPATCHER_SECRET: str = ""
 
-    # Code sandbox — direct internal call from backend (not via dispatcher).
-    # SANDBOX_SECRET must match the sandbox service's INTERNAL_TOKEN env.
-    SANDBOX_URL: str = "http://code-sandbox:8000"
-    SANDBOX_SECRET: str = ""
+    # Code sandbox is routed through the dispatcher (see
+    # ``services/dispatcher/src/config/routes.json`` → ``code-sandbox``).
+    # No SANDBOX_URL / SANDBOX_SECRET here — dispatcher owns both.
 
     # Redis — used for rate limiting (and future: caching, session store).
     # Empty disables rate limit (dev mode without Redis).

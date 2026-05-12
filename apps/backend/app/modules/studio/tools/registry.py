@@ -9,7 +9,7 @@ from pydantic import BaseModel, create_model
 
 from app.models.tool import Tool
 from app.modules.studio.tools.url_guard import assert_safe_url
-from app.platform.config import settings
+from app.platform.dispatcher_client import dispatcher
 
 
 def _render_template(template: str, kwargs: dict) -> str:
@@ -106,7 +106,7 @@ class HTTPRequestToolBuilder(ToolBuilder):
 
 
 class CodeExecToolBuilder(ToolBuilder):
-    """Builder cho tool code execution - gọi sandbox service qua HTTP."""
+    """Builder cho tool code execution - dispatcher routes to code-sandbox."""
 
     def build(self, tool_def: Tool) -> StructuredTool:
         config = tool_def.config
@@ -115,30 +115,23 @@ class CodeExecToolBuilder(ToolBuilder):
             code = _render_template(config.get("code_template", ""), kwargs)
             language = config.get("language", "python")
 
-            headers = {}
-            if settings.SANDBOX_SECRET:
-                headers["x-internal-token"] = settings.SANDBOX_SECRET
-
-            async with httpx.AsyncClient(timeout=tool_def.timeout_seconds + 5) as client:
-                try:
-                    resp = await client.post(
-                        f"{settings.SANDBOX_URL}/execute",
-                        json={
-                            "code": code,
-                            "language": language,
-                            "timeout": tool_def.timeout_seconds,
-                        },
-                        headers=headers,
-                    )
-                    resp.raise_for_status()
-                    result = resp.json()
-
-                    if result.get("error"):
-                        return f"Output:\n{result['output']}\n\nError:\n{result['error']}"
-                    return result["output"][:4000]
-
-                except httpx.ConnectError:
-                    return "Error: Code sandbox service is not available."
+            resp = await dispatcher.call(
+                target="code-sandbox",
+                path="/execute",
+                method="POST",
+                body={
+                    "code": code,
+                    "language": language,
+                    "timeout": tool_def.timeout_seconds,
+                },
+                timeout=tool_def.timeout_seconds + 5,
+            )
+            if resp.get("status", 500) >= 400:
+                return "Error: Code sandbox service is not available."
+            result = resp.get("data") or {}
+            if result.get("error"):
+                return f"Output:\n{result.get('output', '')}\n\nError:\n{result['error']}"
+            return (result.get("output") or "")[:4000]
 
         args_schema = json_schema_to_pydantic(tool_def.input_schema)
 
