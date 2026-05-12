@@ -16,13 +16,9 @@ Spec: https://discord.com/developers/docs/interactions/receiving-and-responding
 from __future__ import annotations
 
 import logging
-import time
 import uuid
 from typing import Any, Sequence
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +26,7 @@ from app.models.discord_trigger import DiscordTrigger
 from app.models.workflow import Workflow
 from app.modules.runtime.jobs import types as job_types
 from app.modules.runtime.jobs.producer import enqueue as enqueue_job
+from app.modules.runtime.triggers._signing import verify_discord_ed25519
 from app.platform.config import settings
 from app.platform.context import current_workspace_id_or_none
 
@@ -115,38 +112,15 @@ def verify_signature(
     timestamp: str | None,
     now: float | None = None,
 ) -> None:
-    """Raises HTTPException(401) on any Ed25519 verification failure."""
-    if not signature_hex or not timestamp:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "missing_signature", "detail": "X-Signature-* headers required"},
-        )
-    # Replay window — cheap check before the asymmetric crypto.
-    try:
-        ts_int = int(timestamp)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "bad_timestamp_format", "detail": "Timestamp must be an integer"},
-        ) from None
-    current = now if now is not None else time.time()
-    if abs(current - ts_int) > _REPLAY_WINDOW_SECONDS:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "stale_timestamp", "detail": "Timestamp outside replay window"},
-        )
-
-    try:
-        key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(public_key_hex))
-        key.verify(
-            bytes.fromhex(signature_hex),
-            timestamp.encode() + raw_body,
-        )
-    except (InvalidSignature, ValueError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "signature_mismatch", "detail": "Ed25519 verification failed"},
-        ) from exc
+    """Backwards-compat shim — delegates to the shared Ed25519 helper."""
+    verify_discord_ed25519(
+        raw_body=raw_body,
+        public_key_hex=public_key_hex,
+        signature_hex=signature_hex,
+        timestamp_header=timestamp,
+        window_seconds=_REPLAY_WINDOW_SECONDS,
+        now=now,
+    )
 
 
 # ─── Dispatch ──────────────────────────────────────────────────────

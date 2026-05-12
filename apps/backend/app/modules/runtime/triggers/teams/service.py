@@ -11,14 +11,10 @@ Spec:
 """
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
 import logging
 import uuid
 from typing import Any, Sequence
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +22,7 @@ from app.models.teams_trigger import TeamsTrigger
 from app.models.workflow import Workflow
 from app.modules.runtime.jobs import types as job_types
 from app.modules.runtime.jobs.producer import enqueue as enqueue_job
+from app.modules.runtime.triggers._signing import verify_teams_hmac
 from app.platform.config import settings
 from app.platform.context import current_workspace_id_or_none
 from app.platform.security.crypto import decrypt_secret, encrypt_secret
@@ -102,35 +99,15 @@ async def delete_trigger(db: AsyncSession, trigger: TeamsTrigger) -> None:
 def _verify_signature(
     trigger: TeamsTrigger, raw_body: bytes, auth_header: str | None
 ) -> None:
-    """Teams sends ``Authorization: HMAC <base64sig>``. Verify
-    constant-time against the per-trigger secret.
-
-    Raises HTTPException(401) on any failure.
-    """
-    if not auth_header or not auth_header.startswith("HMAC "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "missing_signature", "detail": "Authorization HMAC required"},
-        )
-    provided_b64 = auth_header[len("HMAC ") :].strip()
-
-    try:
-        secret_b64 = decrypt_secret(trigger.hmac_secret_enc)
-        secret_bytes = base64.b64decode(secret_b64)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("teams trigger %s: bad secret", trigger.id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "bad_secret", "detail": "Trigger secret is malformed"},
-        ) from exc
-
-    expected_bytes = hmac.new(secret_bytes, raw_body, hashlib.sha256).digest()
-    expected_b64 = base64.b64encode(expected_bytes).decode()
-    if not hmac.compare_digest(expected_b64, provided_b64):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "signature_mismatch", "detail": "HMAC does not match body"},
-        )
+    """Teams sends ``Authorization: HMAC <base64sig>``. Delegates to
+    the shared verifier in ``_signing.py``; decrypts the per-trigger
+    secret here so the helper stays crypto-only (no DB / Fernet)."""
+    secret_b64 = decrypt_secret(trigger.hmac_secret_enc) if trigger.hmac_secret_enc else None
+    verify_teams_hmac(
+        raw_body=raw_body,
+        secret_b64=secret_b64,
+        authorization_header=auth_header,
+    )
 
 
 # ─── Dispatch ──────────────────────────────────────────────────────
