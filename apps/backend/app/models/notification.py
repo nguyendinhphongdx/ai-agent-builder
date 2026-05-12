@@ -14,7 +14,7 @@ from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, UUIDMixin
+from app.platform.db.base import Base, UUIDMixin
 
 # Canonical type strings — import these instead of bare strings to
 # get type-check coverage when callers mistype an event name.

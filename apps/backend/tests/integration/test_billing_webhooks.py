@@ -5,8 +5,8 @@ Stripe's documented shape and assert the resulting DB state.
 """
 from __future__ import annotations
 
-from app.billing.plans import PLAN_FREE, PLAN_PRO, PLAN_STARTER
-from app.billing.webhooks import (
+from app.modules.billing.plans import PLAN_FREE, PLAN_PRO, PLAN_STARTER
+from app.modules.billing.webhooks import (
     handle_invoice_payment_failed,
     handle_subscription_deleted,
     handle_subscription_event,

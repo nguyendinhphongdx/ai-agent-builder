@@ -53,13 +53,13 @@ dependencies = [
     "croniter>=2.0",
     # YAML loader for plugin manifests (P3.1). Already pulled in
     # transitively by langchain but declared explicitly so
-    # ``app.plugins.manifest`` has a stable contract.
+    # ``app.modules.plugins.manifest`` has a stable contract.
     "pyyaml>=6.0",
     # TOTP for MFA. Pure Python, no native deps. Authenticator apps
     # (Google Authenticator, 1Password, Authy) all speak this format.
     "pyotp>=2.9",
     # Prometheus metric registry + ``/metrics`` text exposition.
-    # Pure Python, no native deps. Used by app.observability.metrics.
+    # Pure Python, no native deps. Used by app.platform.observability.metrics.
     "prometheus-client>=0.20",
     # OpenTelemetry SDK + OTLP exporter + auto-instrumentation for
     # FastAPI, SQLAlchemy, Redis, httpx. Tracing is OFF by default —

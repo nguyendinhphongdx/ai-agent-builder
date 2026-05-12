@@ -8,8 +8,8 @@ Doesn't exercise Stripe (Block 2 wires that). Pure logic test of:
 """
 from __future__ import annotations
 
-from app.billing import service as billing_service
-from app.billing.plans import (
+from app.modules.billing import service as billing_service
+from app.modules.billing.plans import (
     PLAN_FREE,
     PLAN_PRO,
     PLAN_STARTER,

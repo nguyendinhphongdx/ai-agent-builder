@@ -62,7 +62,11 @@ $RECYCLE.BIN/
 docker-compose.override.yml
 
 # ─── Uploads & Storage ───────────────────────────────────────────
+# Top-level uploads/ in any package root — local file-storage backend
+# writes here. Negate the rule for the *feature module* under modules/,
+# which happens to share the name.
 uploads/
+!apps/backend/app/modules/uploads/
 tmp/
 temp/
 

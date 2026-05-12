@@ -9,7 +9,7 @@ from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 
 class CustomRole(Base, UUIDMixin, TimestampMixin):
@@ -29,7 +29,7 @@ class CustomRole(Base, UUIDMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    # Array of permission strings from app.permissions.catalogue.
+    # Array of permission strings from app.platform.permissions.catalogue.
     # Service layer rejects unknown permission names before insert,
     # so consumers can trust the contents.
     permissions: Mapped[list[str]] = mapped_column(

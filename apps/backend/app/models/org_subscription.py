@@ -14,7 +14,7 @@ from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 # Stripe subscription statuses we care about. Anything not in the
 # "live" set is treated as no-subscription for quota purposes.

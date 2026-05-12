@@ -9,7 +9,7 @@ from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, Numeric, String,
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.platform.db.base import Base
 
 
 class AgentTemplate(Base):

@@ -77,7 +77,7 @@ def database_urls(postgres_container: PostgresContainer) -> tuple[str, str]:
 
 @pytest.fixture(scope="session", autouse=True)
 def _patch_settings_env(database_urls: tuple[str, str]) -> Iterator[None]:
-    """Override DATABASE_URL{,_SYNC} env BEFORE app.config is imported by
+    """Override DATABASE_URL{,_SYNC} env BEFORE app.platform.config is imported by
     tests, then reload the settings singleton so any later import sees
     the container URLs.
 
@@ -90,7 +90,7 @@ def _patch_settings_env(database_urls: tuple[str, str]) -> Iterator[None]:
     os.environ["DATABASE_URL"] = async_url
     os.environ["DATABASE_URL_SYNC"] = sync_url
 
-    # Reload settings so anything that already imported `app.config`
+    # Reload settings so anything that already imported `app.platform.config`
     # picks up the new URLs. Same trick the alembic env uses.
     from app import config as app_config  # noqa: PLC0415
 

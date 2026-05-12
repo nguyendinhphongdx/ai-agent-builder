@@ -18,7 +18,7 @@ from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 
 class EmailTrigger(Base, UUIDMixin, TimestampMixin):

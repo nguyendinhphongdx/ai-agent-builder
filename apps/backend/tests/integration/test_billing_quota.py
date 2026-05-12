@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import pytest
 
-from app.billing.plans import PLAN_FREE, PLAN_PRO, PLANS
-from app.billing.quota import (
+from app.modules.billing.plans import PLAN_FREE, PLAN_PRO, PLANS
+from app.modules.billing.quota import (
     QuotaExceeded,
     enforce_kb_queries,
     enforce_tokens,
     get_quota_state,
 )
-from app.context import reset_current_workspace_id, set_current_workspace_id
+from app.platform.context import reset_current_workspace_id, set_current_workspace_id
 from app.models.organization import Organization
 from app.models.usage_event import EVENT_KB_QUERY, EVENT_LLM_CALL, UsageEvent
 from app.models.workspace import Workspace

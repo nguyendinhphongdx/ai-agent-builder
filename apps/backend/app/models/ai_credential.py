@@ -5,7 +5,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, UUIDMixin
+from app.platform.db.base import Base, UUIDMixin
 
 
 class AICredential(Base, UUIDMixin):

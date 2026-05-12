@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections import namedtuple
 
-from app.workflows.runner import WorkflowRunner
+from app.core.workflow_runner import WorkflowRunner
 
 # Lightweight stand-in for WorkflowEdge — we only need source/target.
 Edge = namedtuple("Edge", ["source_node_id", "target_node_id", "source_handle", "target_handle"])

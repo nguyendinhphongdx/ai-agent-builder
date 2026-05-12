@@ -5,7 +5,7 @@ from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, UUIDMixin
+from app.platform.db.base import Base, UUIDMixin
 
 
 class File(Base, UUIDMixin):

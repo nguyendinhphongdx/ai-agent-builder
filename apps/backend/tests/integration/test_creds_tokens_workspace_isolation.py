@@ -9,22 +9,22 @@ from __future__ import annotations
 
 import pytest
 
-from app.ai_credentials.schemas import AICredentialCreate
-from app.ai_credentials.service import (
+from app.modules.ai_credentials.schemas import AICredentialCreate
+from app.modules.ai_credentials.service import (
     create_ai_credential,
     get_ai_credential,
     list_ai_credentials,
 )
-from app.context import (
+from app.platform.context import (
     reset_current_user_id,
     reset_current_workspace_id,
     set_current_user_id,
     set_current_workspace_id,
 )
 from app.models.ai_credential import AICredential
-from app.personal_tokens.schemas import TokenCreate
-from app.personal_tokens.service import create_token, list_tokens, revoke_token
-from app.workspaces.service import ensure_personal_workspace
+from app.modules.personal_tokens.schemas import TokenCreate
+from app.modules.personal_tokens.service import create_token, list_tokens, revoke_token
+from app.modules.workspaces.service import ensure_personal_workspace
 from tests.factories import UserFactory, create
 
 
@@ -52,7 +52,7 @@ async def test_create_credential_auto_fills_workspace_id(
     db_session, user_context, monkeypatch
 ) -> None:
     # Avoid real Fernet on test data — replace encryption with identity.
-    from app.ai_credentials import service as svc
+    from app.modules.ai_credentials import service as svc
 
     monkeypatch.setattr(svc, "_encrypt", lambda s: s)
     monkeypatch.setattr(svc, "_decrypt", lambda s: s)
@@ -81,7 +81,7 @@ async def test_create_credential_auto_fills_workspace_id(
 async def test_list_credentials_isolated_per_workspace(
     db_session, user_context, monkeypatch
 ) -> None:
-    from app.ai_credentials import service as svc
+    from app.modules.ai_credentials import service as svc
 
     monkeypatch.setattr(svc, "_encrypt", lambda s: s)
     monkeypatch.setattr(svc, "_decrypt", lambda s: s)
@@ -114,7 +114,7 @@ async def test_list_credentials_hides_null_rows_after_lock(
     caught by the lock migration's verification scan. This test
     pins the new strict-filter behavior: any NULL row that somehow
     persists is invisible in workspace-scoped listings."""
-    from app.ai_credentials import service as svc
+    from app.modules.ai_credentials import service as svc
 
     monkeypatch.setattr(svc, "_encrypt", lambda s: s)
     monkeypatch.setattr(svc, "_decrypt", lambda s: s)
@@ -139,7 +139,7 @@ async def test_list_credentials_hides_null_rows_after_lock(
 async def test_get_credential_cross_workspace_returns_none(
     db_session, user_context, monkeypatch
 ) -> None:
-    from app.ai_credentials import service as svc
+    from app.modules.ai_credentials import service as svc
 
     monkeypatch.setattr(svc, "_encrypt", lambda s: s)
     monkeypatch.setattr(svc, "_decrypt", lambda s: s)
@@ -147,7 +147,7 @@ async def test_get_credential_cross_workspace_returns_none(
     user = await create(db_session, UserFactory)
     ws_a = await ensure_personal_workspace(db_session, user)
     # Make a second team workspace for the same user.
-    from app.workspaces.service import create_team_workspace
+    from app.modules.workspaces.service import create_team_workspace
 
     ws_b = await create_team_workspace(db_session, creator=user, name="Other")
 
@@ -181,7 +181,7 @@ async def test_list_tokens_isolated_per_workspace(db_session, user_context) -> N
     """User has 2 workspaces; tokens stamped in each are not cross-visible."""
     user = await create(db_session, UserFactory)
     ws_a = await ensure_personal_workspace(db_session, user)
-    from app.workspaces.service import create_team_workspace
+    from app.modules.workspaces.service import create_team_workspace
 
     ws_b = await create_team_workspace(db_session, creator=user, name="Other")
 
@@ -202,7 +202,7 @@ async def test_revoke_token_blocked_across_workspaces(
     dual-filter hides it from get()."""
     user = await create(db_session, UserFactory)
     ws_a = await ensure_personal_workspace(db_session, user)
-    from app.workspaces.service import create_team_workspace
+    from app.modules.workspaces.service import create_team_workspace
 
     ws_b = await create_team_workspace(db_session, creator=user, name="Other")
 

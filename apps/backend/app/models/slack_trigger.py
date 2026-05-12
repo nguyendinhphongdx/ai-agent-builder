@@ -12,7 +12,7 @@ from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 # v1 event types — extend as workflows want more granularity.
 SLACK_EVENT_APP_MENTION = "app_mention"

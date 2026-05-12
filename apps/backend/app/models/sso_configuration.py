@@ -12,7 +12,7 @@ from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 # Provider enum-like values. Stored as String for the same reason
 # we use strings everywhere else (additive, no migration to add new).

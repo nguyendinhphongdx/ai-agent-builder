@@ -15,7 +15,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, UUIDMixin
+from app.platform.db.base import Base, UUIDMixin
 
 # Canonical event_type strings. Keep in sync with the service-layer
 # helpers; new types are a code change, not a migration.

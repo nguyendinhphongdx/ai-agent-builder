@@ -5,7 +5,7 @@ from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 
 class User(Base, UUIDMixin, TimestampMixin):
@@ -25,7 +25,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     # Platform-level role hierarchy (orthogonal to any future tenant role):
-    # user < moderator < support < admin. See `app.auth.permissions`.
+    # user < moderator < support < admin. See `app.modules.auth.permissions`.
     role: Mapped[str] = mapped_column(String(20), default="user", server_default="user", nullable=False)
     # Bumped when all refresh sessions must be invalidated (eg. password reset).
     # Refresh JWTs carry `ver`; mismatch → reject.
@@ -83,7 +83,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Authors register with MoMo Business out-of-band (Vietnamese business
     # registration required) and paste the resulting trio into Settings.
     # NULL = not connected; VND checkout falls back to platform-collects
-    # using settings.MOMO_*. Secret values encrypted via app.security.crypto.
+    # using settings.MOMO_*. Secret values encrypted via app.platform.security.crypto.
     momo_partner_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     momo_access_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     momo_secret_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)

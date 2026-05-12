@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.tools.url_guard import _is_blocked_ip, assert_safe_url
+from app.modules.tools.url_guard import _is_blocked_ip, assert_safe_url
 
 
 def test_blocks_private_ipv4():

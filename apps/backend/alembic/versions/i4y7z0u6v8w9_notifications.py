@@ -1,7 +1,7 @@
 """notifications + notification_preferences (P3.5 Block 1)
 
 Persistent inbox layer on top of the existing socket-relay
-(`app.notifications.service`). Each user has rows here that survive
+(`app.modules.notifications.service`). Each user has rows here that survive
 session close; the bell-icon UI reads from them. Real-time push is
 fire-and-forget on top, not the source of truth.
 

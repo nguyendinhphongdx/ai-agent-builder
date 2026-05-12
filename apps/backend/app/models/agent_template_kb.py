@@ -19,7 +19,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.platform.db.base import Base
 
 
 class AgentTemplateKbDocument(Base):

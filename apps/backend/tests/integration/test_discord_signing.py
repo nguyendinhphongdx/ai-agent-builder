@@ -10,7 +10,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import HTTPException
 
-from app.discord_triggers.service import verify_signature
+from app.modules.discord_triggers.service import verify_signature
 
 
 def _make_keys() -> tuple[Ed25519PrivateKey, str]:

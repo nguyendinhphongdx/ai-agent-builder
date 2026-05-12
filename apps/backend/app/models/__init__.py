@@ -48,6 +48,8 @@ __all__ = [
     "User",
     "AuthToken",
     "OAuthAccount",
+    "OAuthConnection",
+    "OAuthState",
     "Organization",
     "OrgSubscription",
     "Workspace",

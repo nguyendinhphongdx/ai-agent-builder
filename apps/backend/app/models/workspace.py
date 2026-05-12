@@ -3,7 +3,7 @@
 Every agent / tool / knowledge base / workflow / conversation belongs
 to exactly one workspace. Queries that don't filter by ``workspace_id``
 are a tenancy bug — services must read the current workspace from
-``app.context.current_workspace_id()`` and scope every SELECT.
+``app.platform.context.current_workspace_id()`` and scope every SELECT.
 
 A user can be a member of many workspaces (across organizations).
 Membership + role lives in :class:`WorkspaceMember`.
@@ -16,7 +16,7 @@ from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 
 class Workspace(Base, UUIDMixin, TimestampMixin):

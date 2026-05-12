@@ -13,7 +13,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, UUIDMixin
+from app.platform.db.base import Base, UUIDMixin
 
 
 class PersonalAccessToken(Base, UUIDMixin):

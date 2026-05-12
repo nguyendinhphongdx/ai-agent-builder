@@ -8,7 +8,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from app.platform.db.base import Base
 
 
 class AdminAction(Base):

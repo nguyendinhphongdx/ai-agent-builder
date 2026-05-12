@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(length=64), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        # Array of permission strings (from app.permissions.catalogue).
+        # Array of permission strings (from app.platform.permissions.catalogue).
         # Validated at the service layer — unknown strings are rejected
         # before insert.
         sa.Column(

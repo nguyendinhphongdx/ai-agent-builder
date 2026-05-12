@@ -19,8 +19,8 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Init Sentry before app construction so its integrations can hook the
 # Starlette ASGI app + asyncio event loop. No-op when SENTRY_DSN is unset.
-from app.config import settings as _settings  # noqa: E402
-from app.observability import init_sentry, install_json_formatter  # noqa: E402
+from app.platform.config import settings as _settings  # noqa: E402
+from app.platform.observability import init_sentry, install_json_formatter  # noqa: E402
 
 init_sentry()
 
@@ -29,75 +29,80 @@ init_sentry()
 if _settings.LOG_FORMAT == "json":
     install_json_formatter()
 
-from app.admin.router import router as admin_router
-from app.agents.router import router as agents_router
-from app.annotations.router import router as annotations_router
-from app.ai_credentials.router import router as ai_credentials_router
-from app.audit.router import org_router as org_audit_router
-from app.auth.oauth_router import router as oauth_router
-from app.auth.router import router as auth_router
-from app.billing.router import router as billing_router
-from app.config import settings
-from app.conversations.router import router as conversations_router
-from app.dashboard.router import router as dashboard_router
-from app.discord_triggers.router import events_router as discord_events_router
-from app.discord_triggers.router import router as discord_triggers_router
-from app.email_triggers.router import router as email_triggers_router
-from app.external.router import router as external_router
-from app.hub.router import auth_router as hub_auth_router
-from app.hub.router import public_router as hub_public_router
-from app.integrations.router import router as integrations_router
-from app.internal.router import router as internal_router
-from app.jobs.router import router as jobs_router
-from app.knowledge.connectors.router import router as kb_connectors_router
-from app.knowledge.router import router as knowledge_router
-from app.llm.router import router as llm_router
-from app.mfa.router import router as mfa_router
-from app.multi_agent.router import router as multi_agent_router
-from app.payments.webhooks import momo_router as momo_webhook_router
-from app.payments.webhooks import stripe_router as stripe_webhook_router
-from app.payouts.router import router as payouts_router
-from app.permissions.router import router as permissions_router
-from app.personal_tokens.router import router as personal_tokens_router
-from app.plugins.router import router as plugins_router
-from app.scim.router import router as scim_router
-from app.share.router import router as share_router
-from app.slack_triggers.router import events_router as slack_events_router
-from app.slack_triggers.router import router as slack_triggers_router
-from app.sso.oidc_router import router as sso_oidc_router
-from app.sso.router import router as sso_admin_router
-from app.teams_triggers.router import events_router as teams_events_router
-from app.teams_triggers.router import router as teams_triggers_router
-from app.tools.router import router as tools_router
-from app.usage.router import router as usage_router
-from app.webhooks.router import router as webhooks_router
-from app.workflows.router import router as workflows_router
-from app.workspaces.router import router as workspaces_router
+from app.modules.admin.router import router as admin_router
+from app.modules.agents.router import router as agents_router
+from app.modules.ai_credentials.router import router as ai_credentials_router
+from app.modules.annotations.router import router as annotations_router
+from app.modules.audit.router import org_router as org_audit_router
+from app.modules.auth.oauth_router import router as oauth_router
+from app.modules.auth.router import router as auth_router
+from app.modules.billing.router import router as billing_router
+from app.modules.conversations.router import router as conversations_router
+from app.modules.dashboard.router import router as dashboard_router
+from app.modules.discord_triggers.router import events_router as discord_events_router
+from app.modules.discord_triggers.router import router as discord_triggers_router
+from app.modules.email_triggers.router import router as email_triggers_router
+from app.modules.external.router import router as external_router
+from app.modules.hub.router import auth_router as hub_auth_router
+from app.modules.hub.router import public_router as hub_public_router
+from app.modules.integrations.router import router as integrations_router
+from app.modules.internal.router import router as internal_router
+from app.modules.jobs.router import router as jobs_router
+from app.modules.knowledge.connectors.router import router as kb_connectors_router
+from app.modules.knowledge.router import router as knowledge_router
+from app.modules.llm.router import router as llm_router
+from app.modules.mfa.router import router as mfa_router
+from app.modules.multi_agent.router import router as multi_agent_router
+from app.modules.payments.webhooks import momo_router as momo_webhook_router
+from app.modules.payments.webhooks import stripe_router as stripe_webhook_router
+from app.modules.payouts.router import router as payouts_router
+from app.modules.personal_tokens.router import router as personal_tokens_router
+from app.modules.plugins.router import router as plugins_router
+from app.modules.scim.router import router as scim_router
+from app.modules.share.router import router as share_router
+from app.modules.slack_triggers.router import events_router as slack_events_router
+from app.modules.slack_triggers.router import router as slack_triggers_router
+from app.modules.sso.oidc_router import router as sso_oidc_router
+from app.modules.sso.router import router as sso_admin_router
+from app.modules.teams_triggers.router import events_router as teams_events_router
+from app.modules.teams_triggers.router import router as teams_triggers_router
+from app.modules.tools.router import router as tools_router
+from app.modules.usage.router import router as usage_router
+from app.modules.webhooks.router import router as webhooks_router
+from app.modules.workflows.router import router as workflows_router
+from app.modules.workspaces.router import router as workspaces_router
+from app.platform.config import settings
+from app.platform.permissions.router import router as permissions_router
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     """App-wide startup/shutdown hooks. Boots background services
-    that share the API process; add new ones here as they land."""
-    from app.audit import purge as audit_purge
-    from app.billing import usage_reporter as billing_reporter
-    from app.email_triggers import scheduler as email_scheduler
-    from app.knowledge.connectors import scheduler as connector_scheduler
-    from app.scheduled_triggers import scheduler
+    that share the API process; add new ones here as they land.
 
-    scheduler.start()
+    All loops live under ``app.background`` and expose the same
+    ``start()`` / async ``stop()`` contract."""
+    from app.background import (
+        audit_purge,
+        billing_reporter,
+        email_poll,
+        kb_sync,
+        scheduled_triggers,
+    )
+
+    scheduled_triggers.start()
     audit_purge.start()
-    connector_scheduler.start()
+    kb_sync.start()
     billing_reporter.start()
-    email_scheduler.start()
+    email_poll.start()
     try:
         yield
     finally:
-        await email_scheduler.stop()
+        await email_poll.stop()
         await billing_reporter.stop()
-        await connector_scheduler.stop()
+        await kb_sync.stop()
         await audit_purge.stop()
-        await scheduler.stop()
+        await scheduled_triggers.stop()
 
 
 def create_app() -> FastAPI:
@@ -113,7 +118,7 @@ def create_app() -> FastAPI:
     # Install before the other middleware so it wraps every route and
     # sees the matched-route template (PrometheusMiddleware reads
     # request.scope["route"]).
-    from app.observability import metrics as prom_metrics
+    from app.platform.observability import metrics as prom_metrics
 
     prom_metrics.install(app)
 
@@ -121,14 +126,14 @@ def create_app() -> FastAPI:
     # is set. The SQLAlchemy engine needs to exist before we hook it,
     # so import + grab it here rather than letting tracing.init build
     # its own.
-    from app.db.session import engine as db_engine
-    from app.observability import tracing
+    from app.platform.db.session import engine as db_engine
+    from app.platform.observability import tracing
 
     tracing.init(app=app, engine=db_engine)
 
     # Request id + structured access log. Order matters: RequestId runs first
     # so the access log line (and any deeper logger.* calls) carries the id.
-    from app.observability import (
+    from app.platform.observability import (
         RequestIdMiddleware,
         StructuredAccessLogMiddleware,
     )
@@ -314,10 +319,10 @@ def create_app() -> FastAPI:
     # the static `/uploads/` mount above. The dedicated upload router was
     # never written — re-add this import only if/when `app/uploads/` exists.
 
-    from app.notifications.router import router as notifications_router
+    from app.modules.notifications.router import router as notifications_router
     app.include_router(notifications_router, prefix=settings.API_PREFIX)
 
-    from app.oauth_connectors.router import router as oauth_connectors_router
+    from app.modules.oauth_connectors.router import router as oauth_connectors_router
     app.include_router(oauth_connectors_router, prefix=settings.API_PREFIX)
 
     # Log validation errors (422)
@@ -337,7 +342,7 @@ def create_app() -> FastAPI:
 
     # Liveness + readiness at the root (not under /api/) so infra probes hit
     # them directly. Legacy `/api/health` kept for backwards compat.
-    from app.observability import health_router
+    from app.platform.observability import health_router
 
     app.include_router(health_router)
 

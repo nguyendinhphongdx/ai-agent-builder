@@ -11,7 +11,7 @@ import hmac
 
 import pytest
 
-from app.slack_triggers.signing import SlackAuthError, verify
+from app.modules.slack_triggers.signing import SlackAuthError, verify
 
 
 def _make_sig(secret: str, ts: int, body: bytes) -> str:

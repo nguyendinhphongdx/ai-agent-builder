@@ -9,7 +9,7 @@ from sqlalchemy import TIMESTAMP, ForeignKey, Integer, String, Text, UniqueConst
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.platform.db.base import Base, TimestampMixin, UUIDMixin
 
 # State machine (one direction):
 #   queued → running → completed
