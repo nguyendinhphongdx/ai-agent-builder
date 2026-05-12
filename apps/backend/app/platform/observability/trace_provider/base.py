@@ -43,7 +43,7 @@ class LLMTrace:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
-    # USD cost computed via app.modules.usage.pricing.
+    # USD cost computed via app.modules.commerce.usage.pricing.
     cost_usd: float | None = None
     # End-to-end latency from request start to final token.
     latency_ms: int | None = None

@@ -617,9 +617,10 @@ Frontend NDV panels:
 ## 8. File Structure
 
 ```
-app/workflows/
-├── runner.py                    # WorkflowRunner (replaces compiler.py)
-├── compiler.py                  # DELETED — replaced by runner.py
+app/core/
+└── workflow_runner.py           # WorkflowRunner (the execution engine, replaces compiler.py)
+
+app/modules/studio/workflows/
 ├── router.py                    # API endpoints (add NDV endpoint)
 ├── schemas.py                   # Pydantic models (add NodeExecution)
 ├── service.py                   # DB CRUD

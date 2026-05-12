@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentForge — Product Overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============ TOPBAR ============ -->
+<nav class="topbar">
+  <a href="#hero" class="logo">
+    <div class="logo-mark">🔥</div>
+    <span>AgentForge</span>
+  </a>
+  <div class="topbar-nav">
+    <a href="#why">01 · Why</a>
+    <a href="#build">02 · What you build</a>
+    <a href="#how">03 · How it works</a>
+    <a href="#stories">04 · Customer stories</a>
+    <a href="#start">05 · Get started</a>
+  </div>
+</nav>
+
+<div class="nav-dots" id="navDots"></div>
+
+<!-- ============ S00 · HERO ============ -->
+<section class="slide hero section-vision" id="hero">
+  <div class="slide-meta">00 / 16</div>
+  <div class="slide-inner">
+    <div class="hero-pill">Product Overview</div>
+    <h1>Build AI agents<br>for <span class="gradient-rainbow">your business.</span></h1>
+    <p class="lead">
+      AgentForge is a complete platform for building, deploying, and running AI agents —
+      with your data, on your infrastructure, integrated into your existing systems.
+    </p>
+    <div class="pill-row" style="justify-content: center;">
+      <span class="pill">✦ Visual builder</span>
+      <span class="pill">✦ Connect your data</span>
+      <span class="pill">✦ Self-host or cloud</span>
+      <span class="pill">✦ Enterprise ready</span>
+    </div>
+  </div>
+  <div class="scroll-hint">SCROLL ↓</div>
+</section>
+
+<!-- ============ SECTION 01 · WHY ============ -->
+
+<section class="slide divider section-vision" id="why">
+  <div class="slide-meta">01 / 16</div>
+  <div class="slide-inner">
+    <div class="divider-num">SECTION 01</div>
+    <h1 class="gradient">Why AgentForge</h1>
+    <div class="divider-bar"></div>
+    <p class="divider-sub">The pain of building AI today — and how one platform solves it.</p>
+  </div>
+</section>
+
+<!-- The problem -->
+<section class="slide section-vision">
+  <div class="slide-meta">02 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Why · The pain</div>
+    <h2>Shipping AI today<br>takes <span class="gradient">months, not days.</span></h2>
+    <p class="lead">Most teams stitch together 5+ tools just to launch their first agent. The result: long engineering cycles, vendor lock-in risk, and unclear answers about where your data goes.</p>
+    <div class="grid c4">
+      <div class="card">
+        <div class="card-icon">⏱️</div>
+        <div class="card-title">Engineering bottleneck</div>
+        <div class="card-desc">Building, hosting, and operating an AI agent takes a senior dev 6–12 weeks before the first customer touches it.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧩</div>
+        <div class="card-title">Vendor sprawl</div>
+        <div class="card-desc">Builder, runtime, vector DB, observability, billing — each from a different vendor. Five invoices, no integration.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔒</div>
+        <div class="card-title">Compliance unknowns</div>
+        <div class="card-desc">Where does customer data go? Which provider sees what? Hard to answer when 5 tools sit in the data path.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚓</div>
+        <div class="card-title">Lock-in risk</div>
+        <div class="card-desc">Built on one vendor's cloud and they pivot, raise prices, or go down — your AI product goes with them.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The solution overview diagram -->
+<section class="slide section-vision">
+  <div class="slide-meta">03 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Why · One platform</div>
+    <h2>Everything you need <span class="gradient">in one place.</span></h2>
+    <p class="lead">AgentForge replaces the patchwork. Build, deploy, integrate, monitor, and bill — all from one platform you control.</p>
+
+    <div class="diag-layers">
+      <div class="diag-layer">
+        <div class="diag-layer-label">Where users meet AI</div>
+        <div class="diag-layer-items">
+          <div class="dbox"><span class="dbox-emoji">💬</span> Embedded chat</div>
+          <div class="dbox"><span class="dbox-emoji">🔌</span> Public API</div>
+          <div class="dbox"><span class="dbox-emoji">📧</span> Email</div>
+          <div class="dbox"><span class="dbox-emoji">💼</span> Slack · Teams · Discord</div>
+          <div class="dbox"><span class="dbox-emoji">🌐</span> Webhooks</div>
+        </div>
+      </div>
+      <div class="diag-layer-connector">▼</div>
+      <div class="diag-layer">
+        <div class="diag-layer-label">Agent intelligence</div>
+        <div class="diag-layer-items">
+          <div class="dbox primary"><span class="dbox-emoji">🤖</span> Agents</div>
+          <div class="dbox primary"><span class="dbox-emoji">🔀</span> Workflows</div>
+          <div class="dbox primary"><span class="dbox-emoji">🎯</span> Multi-agent</div>
+          <div class="dbox primary"><span class="dbox-emoji">🛠️</span> Tools</div>
+        </div>
+      </div>
+      <div class="diag-layer-connector">▼</div>
+      <div class="diag-layer">
+        <div class="diag-layer-label">Your knowledge</div>
+        <div class="diag-layer-items">
+          <div class="dbox"><span class="dbox-emoji">📓</span> Notion</div>
+          <div class="dbox"><span class="dbox-emoji">📁</span> Google Drive</div>
+          <div class="dbox"><span class="dbox-emoji">📚</span> Confluence</div>
+          <div class="dbox"><span class="dbox-emoji">📂</span> SharePoint</div>
+          <div class="dbox"><span class="dbox-emoji">📦</span> Dropbox · S3 · GCS</div>
+          <div class="dbox"><span class="dbox-emoji">📄</span> Uploads (PDF · DOCX)</div>
+        </div>
+      </div>
+      <div class="diag-layer-connector">▼</div>
+      <div class="diag-layer">
+        <div class="diag-layer-label">LLM providers</div>
+        <div class="diag-layer-items">
+          <div class="dbox muted">OpenAI</div>
+          <div class="dbox muted">Anthropic</div>
+          <div class="dbox muted">Google</div>
+          <div class="dbox muted">Ollama (on-prem)</div>
+          <div class="dbox muted">Your own model</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 02 · WHAT YOU BUILD ============ -->
+
+<section class="slide divider section-revenue" id="build">
+  <div class="slide-meta">04 / 16</div>
+  <div class="slide-inner">
+    <div class="divider-num">SECTION 02</div>
+    <h1 class="gradient">What you can build</h1>
+    <div class="divider-bar"></div>
+    <p class="divider-sub">Five capabilities · one platform · zero glue code.</p>
+  </div>
+</section>
+
+<!-- Agent Builder -->
+<section class="slide section-revenue">
+  <div class="slide-meta">05 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Build · Visual agent editor</div>
+    <h2>Design agents <span class="gradient">in minutes.</span></h2>
+    <div class="two-col">
+      <div>
+        <p class="lead">Split-view editor: configure on the left, chat with the agent live on the right. No code. No deploy step.</p>
+        <ul class="check-list">
+          <li><span class="ck">✓</span><div><strong>Pick any model</strong> — OpenAI, Anthropic, Google, or your own Ollama instance</div></li>
+          <li><span class="ck">✓</span><div><strong>Attach knowledge bases</strong> — retrieval happens automatically</div></li>
+          <li><span class="ck">✓</span><div><strong>Add tools</strong> — APIs, database queries, code execution</div></li>
+          <li><span class="ck">✓</span><div><strong>Test live</strong> — every change reflects in the preview instantly</div></li>
+        </ul>
+      </div>
+      <div class="diag-mockup">
+        <div class="diag-mockup-bar">agents · support-bot</div>
+        <div class="diag-mockup-body">
+          <div class="diag-mockup-panel left">
+            <div class="mockup-field">
+              <div class="mockup-label">Name</div>
+              <div class="mockup-value">Support Bot</div>
+            </div>
+            <div class="mockup-field">
+              <div class="mockup-label">Model</div>
+              <div class="mockup-value">Claude 4.6 Sonnet</div>
+            </div>
+            <div class="mockup-field">
+              <div class="mockup-label">Knowledge bases</div>
+              <div class="mockup-value">📚 Help Center (Notion)</div>
+            </div>
+            <div class="mockup-field">
+              <div class="mockup-label">Tools</div>
+              <div class="mockup-value">🔧 Ticket lookup · Refund</div>
+            </div>
+          </div>
+          <div class="diag-mockup-panel">
+            <div class="mockup-label">Live preview</div>
+            <div class="mockup-chat">
+              <div class="mockup-msg user">How do I reset my password?</div>
+              <div class="mockup-msg bot">You can reset it from Settings → Security. I can also send a reset link to your email — want me to?</div>
+              <div class="mockup-msg user">Yes please</div>
+              <div class="mockup-msg bot">✓ Reset link sent. Anything else?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Workflows -->
+<section class="slide section-revenue">
+  <div class="slide-meta">06 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Build · Visual workflows</div>
+    <h2>Chain logic, agents, and tools <span class="gradient">without code.</span></h2>
+    <p class="lead">When a single agent isn't enough, drag-and-drop workflow nodes to model branching, loops, parallel calls, and human-in-the-loop approval.</p>
+
+    <div class="diag-svg-wrap">
+      <svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="rgba(255,255,255,0.4)"/>
+          </marker>
+          <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Start -->
+        <rect x="20" y="100" width="100" height="48" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="70" y="129" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">Start</text>
+
+        <line x1="125" y1="124" x2="165" y2="124" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+
+        <!-- LLM Classify -->
+        <rect x="170" y="100" width="140" height="48" rx="8" fill="url(#accent)" opacity="0.18" stroke="rgba(255,255,255,0.22)"/>
+        <text x="240" y="123" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">Classify intent</text>
+        <text x="240" y="138" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="10" font-family="JetBrains Mono">LLM</text>
+
+        <line x1="315" y1="124" x2="355" y2="124" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+
+        <!-- Branch -->
+        <polygon points="360,124 405,95 450,124 405,153" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)"/>
+        <text x="405" y="120" text-anchor="middle" fill="white" font-size="12" font-family="Inter" font-weight="600">Intent?</text>
+        <text x="405" y="135" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9" font-family="JetBrains Mono">branch</text>
+
+        <!-- Top branch (refund) -->
+        <line x1="450" y1="105" x2="490" y2="60" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <line x1="490" y1="60" x2="540" y2="60" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="475" y="78" fill="rgba(255,255,255,0.55)" font-size="10" font-family="JetBrains Mono">refund</text>
+
+        <rect x="545" y="36" width="130" height="48" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="610" y="60" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">Refund tool</text>
+        <text x="610" y="75" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10" font-family="JetBrains Mono">tool</text>
+
+        <line x1="680" y1="60" x2="720" y2="60" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <line x1="720" y1="60" x2="720" y2="105" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+
+        <!-- Middle branch (lookup) -->
+        <line x1="450" y1="124" x2="540" y2="124" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="475" y="118" fill="rgba(255,255,255,0.55)" font-size="10" font-family="JetBrains Mono">FAQ</text>
+
+        <rect x="545" y="100" width="130" height="48" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="610" y="123" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">RAG search</text>
+        <text x="610" y="138" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10" font-family="JetBrains Mono">retrieval</text>
+
+        <!-- Bottom branch (human) -->
+        <line x1="450" y1="143" x2="490" y2="188" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <line x1="490" y1="188" x2="540" y2="188" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="475" y="180" fill="rgba(255,255,255,0.55)" font-size="10" font-family="JetBrains Mono">complex</text>
+
+        <rect x="545" y="164" width="130" height="48" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="610" y="187" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">Escalate</text>
+        <text x="610" y="202" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10" font-family="JetBrains Mono">human-in-loop</text>
+
+        <line x1="680" y1="188" x2="720" y2="188" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <line x1="720" y1="188" x2="720" y2="143" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <line x1="680" y1="124" x2="720" y2="124" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+
+        <!-- Merge to reply -->
+        <line x1="720" y1="124" x2="755" y2="124" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#arrow)"/>
+
+        <rect x="760" y="100" width="120" height="48" rx="8" fill="rgba(99,102,241,0.18)" stroke="rgba(255,255,255,0.22)"/>
+        <text x="820" y="129" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">Reply</text>
+      </svg>
+    </div>
+    <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 12px;">
+      Drag nodes · connect edges · test live. Every workflow compiles to a production-grade execution graph.
+    </p>
+  </div>
+</section>
+
+<!-- Knowledge & RAG -->
+<section class="slide section-revenue">
+  <div class="slide-meta">07 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Build · Knowledge bases</div>
+    <h2>Ground your agent <span class="gradient">in your data.</span></h2>
+    <p class="lead">Connect the sources your team already uses. AgentForge keeps the knowledge fresh and lets agents cite their sources.</p>
+
+    <div class="diag-flow">
+      <div class="dbox dbox-center" style="min-width: 110px;"><div><span class="dbox-emoji">📓</span><br>Notion</div></div>
+      <div class="dbox dbox-center" style="min-width: 110px;"><div><span class="dbox-emoji">📁</span><br>Drive</div></div>
+      <div class="dbox dbox-center" style="min-width: 110px;"><div><span class="dbox-emoji">📚</span><br>Confluence</div></div>
+      <div class="dbox dbox-center" style="min-width: 110px;"><div><span class="dbox-emoji">📂</span><br>SharePoint</div></div>
+      <div class="dbox dbox-center" style="min-width: 110px;"><div><span class="dbox-emoji">📄</span><br>Uploads</div></div>
+      <span class="diag-arrow">→</span>
+      <div class="dbox primary dbox-center"><div>Parse &amp; chunk<div class="dbox-sub">PDF · DOCX · HTML · MD</div></div></div>
+      <span class="diag-arrow">→</span>
+      <div class="dbox primary dbox-center"><div>Embed<div class="dbox-sub">vector representation</div></div></div>
+      <span class="diag-arrow">→</span>
+      <div class="dbox primary dbox-center"><div>Store<div class="dbox-sub">pgvector</div></div></div>
+      <span class="diag-arrow">→</span>
+      <div class="dbox dbox-center"><div><span class="dbox-emoji">🤖</span> Agent retrieves<br>with citations</div></div>
+    </div>
+
+    <div class="grid c3" style="margin-top: 24px;">
+      <div class="card"><div class="card-icon">🔄</div><div class="card-title">Auto-sync</div><div class="card-desc">Connectors poll your sources on a schedule. Updates flow into the agent without manual re-uploads.</div></div>
+      <div class="card"><div class="card-icon">📑</div><div class="card-title">Source-cited answers</div><div class="card-desc">Every agent answer can link back to the original document — auditable and trusted.</div></div>
+      <div class="card"><div class="card-icon">🔐</div><div class="card-title">Permission-aware</div><div class="card-desc">Respects source permissions. A user only sees what they're authorized to read.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Triggers -->
+<section class="slide section-revenue">
+  <div class="slide-meta">08 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Build · Triggers</div>
+    <h2>Meet users <span class="gradient">where they already are.</span></h2>
+    <p class="lead">Your agent doesn't need a dedicated app. Receive input from six channels — and reply through the same channel automatically.</p>
+
+    <div class="diag-fanin">
+      <div class="diag-fanin-sources">
+        <div class="dbox"><span class="dbox-emoji">🌐</span> Webhook</div>
+        <div class="dbox"><span class="dbox-emoji">📧</span> Email</div>
+        <div class="dbox"><span class="dbox-emoji">💼</span> Slack</div>
+        <div class="dbox"><span class="dbox-emoji">🎮</span> Discord</div>
+        <div class="dbox"><span class="dbox-emoji">👥</span> Teams</div>
+        <div class="dbox"><span class="dbox-emoji">⏰</span> Schedule</div>
+      </div>
+      <div class="diag-fanin-arrow">→</div>
+      <div class="diag-fanin-target">
+        <div style="font-size: 22px; margin-bottom: 6px;">🔥</div>
+        AgentForge<br>
+        <span style="font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 400;">Routes to the right agent / workflow</span>
+      </div>
+      <div class="diag-fanin-arrow">→</div>
+      <div class="diag-fanin-outputs">
+        <div class="dbox"><span class="dbox-emoji">💬</span> Reply in channel</div>
+        <div class="dbox"><span class="dbox-emoji">📤</span> Push to CRM</div>
+        <div class="dbox"><span class="dbox-emoji">🎫</span> Create ticket</div>
+        <div class="dbox"><span class="dbox-emoji">📊</span> Update database</div>
+        <div class="dbox"><span class="dbox-emoji">📨</span> Send email</div>
+        <div class="dbox"><span class="dbox-emoji">🔔</span> Notify team</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Multi-agent -->
+<section class="slide section-revenue">
+  <div class="slide-meta">09 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Build · Multi-agent</div>
+    <h2>Specialize and <span class="gradient">collaborate.</span></h2>
+    <p class="lead">Hard problems are solved by teams. AgentForge supports supervisor / worker and peer collaboration patterns — mix providers, split responsibilities, get better results.</p>
+
+    <div class="two-col">
+      <div class="diag-tree">
+        <div class="diag-tree-root">🎯 Supervisor agent<div style="font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.5); margin-top: 4px;">Plans · delegates · synthesizes</div></div>
+        <div class="diag-tree-children">
+          <div class="dbox dbox-center"><div><span class="dbox-emoji">🔎</span> Research agent<br><span class="dbox-sub">Searches KBs</span></div></div>
+          <div class="dbox dbox-center"><div><span class="dbox-emoji">✍️</span> Writer agent<br><span class="dbox-sub">Drafts content</span></div></div>
+          <div class="dbox dbox-center"><div><span class="dbox-emoji">✅</span> Reviewer agent<br><span class="dbox-sub">Checks quality</span></div></div>
+        </div>
+      </div>
+      <div>
+        <ul class="check-list">
+          <li><span class="ck">✓</span><div><strong>Supervisor pattern</strong> — coordinator delegates subtasks to specialists, then synthesizes the final answer</div></li>
+          <li><span class="ck">✓</span><div><strong>Peer collaboration</strong> — agents pass work in sequence (research → write → review)</div></li>
+          <li><span class="ck">✓</span><div><strong>Mixed providers</strong> — use Claude for reasoning, GPT-4 for code, Gemini for vision — in one team</div></li>
+          <li><span class="ck">✓</span><div><strong>Full traceability</strong> — see who said what, which agent called which tool, end-to-end</div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 03 · HOW IT WORKS ============ -->
+
+<section class="slide divider section-architecture" id="how">
+  <div class="slide-meta">10 / 16</div>
+  <div class="slide-inner">
+    <div class="divider-num">SECTION 03</div>
+    <h1 class="gradient">How it works</h1>
+    <div class="divider-bar"></div>
+    <p class="divider-sub">Deployment options · security model · what runs where.</p>
+  </div>
+</section>
+
+<!-- Deployment modes -->
+<section class="slide section-architecture">
+  <div class="slide-meta">11 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">How · Deployment</div>
+    <h2>Run it your way.</h2>
+    <p class="lead">Same software, three deployment options. Pick the one that fits your compliance, data residency, and team size.</p>
+    <div class="grid c3">
+      <div class="card glow">
+        <div class="card-tag">Cloud SaaS</div>
+        <div class="card-title">Managed for you</div>
+        <div class="card-desc">Sign up, log in, build. We run the infrastructure. Best for teams that want zero ops.</div>
+        <div class="diag-deploy">
+          <div class="diag-deploy-row">
+            <div class="dbox" style="min-width: 70px;">👤 You</div>
+            <span class="diag-arrow">→</span>
+            <div class="diag-deploy-cloud" style="flex: 1;">
+              <div class="diag-deploy-cloud-label">AgentForge Cloud</div>
+              <div class="dbox muted">App</div>
+              <div class="dbox muted">Data</div>
+              <div class="dbox muted">LLMs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card glow">
+        <div class="card-tag">Self-hosted</div>
+        <div class="card-title">Inside your VPC</div>
+        <div class="card-desc">Docker Compose or Helm. Your network, your servers, your data. Best for regulated industries.</div>
+        <div class="diag-deploy">
+          <div class="diag-deploy-cloud">
+            <div class="diag-deploy-cloud-label">Your VPC</div>
+            <div class="dbox" style="min-width: 60px;">👤 You</div>
+            <span class="diag-arrow">→</span>
+            <div class="dbox muted">App</div>
+            <div class="dbox muted">Data</div>
+            <div class="dbox muted">LLMs*</div>
+          </div>
+          <div style="font-size: 11px; color: rgba(255,255,255,0.4); padding-left: 4px;">* Optional on-prem LLM (Ollama / vLLM)</div>
+        </div>
+      </div>
+      <div class="card glow">
+        <div class="card-tag">Hybrid</div>
+        <div class="card-title">Best of both</div>
+        <div class="card-desc">UI in our cloud, data and runtime in yours. Best for mid-market with data residency rules.</div>
+        <div class="diag-deploy">
+          <div class="diag-deploy-row">
+            <div class="diag-deploy-cloud" style="flex: 1;">
+              <div class="diag-deploy-cloud-label">AgentForge</div>
+              <div class="dbox muted">UI</div>
+              <div class="dbox muted">Billing</div>
+            </div>
+            <span class="diag-arrow">⇄</span>
+            <div class="diag-deploy-cloud" style="flex: 1;">
+              <div class="diag-deploy-cloud-label">Your VPC</div>
+              <div class="dbox muted">Data</div>
+              <div class="dbox muted">Runtime</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Security & data flow -->
+<section class="slide section-architecture">
+  <div class="slide-meta">12 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">How · Security & data</div>
+    <h2>Built for <span class="gradient">trust.</span></h2>
+    <p class="lead">Every layer is designed so you know where your data lives, who can access it, and how it's protected.</p>
+    <div class="grid c4">
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <div class="card-title">Auth & access</div>
+        <div class="card-desc">JWT in httpOnly cookies · MFA · SSO (SAML / OIDC) · SCIM provisioning · role-based access control per workspace.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📜</div>
+        <div class="card-title">Audit & traces</div>
+        <div class="card-desc">Every action logged · every LLM call traced · cost dashboard per workspace · export to your SIEM.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧪</div>
+        <div class="card-title">Sandboxed execution</div>
+        <div class="card-desc">User-provided code runs in isolated VMs · SSRF protection on tool requests · virus scan on uploads.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌍</div>
+        <div class="card-title">Data residency</div>
+        <div class="card-desc">Pick US / EU / SG regions on cloud · run fully on-prem with self-host · zero outbound calls when air-gapped.</div>
+      </div>
+    </div>
+    <div class="pill-row" style="margin-top: 24px; justify-content: center;">
+      <span class="pill">SOC 2 (in progress)</span>
+      <span class="pill">GDPR-ready</span>
+      <span class="pill">HIPAA-compatible (self-host + BAA)</span>
+      <span class="pill">ISO 27001 (roadmap)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 04 · CUSTOMER STORIES ============ -->
+
+<section class="slide divider section-usecase" id="stories">
+  <div class="slide-meta">13 / 16</div>
+  <div class="slide-inner">
+    <div class="divider-num">SECTION 04</div>
+    <h1 class="gradient">What customers build</h1>
+    <div class="divider-bar"></div>
+    <p class="divider-sub">Three real-world flows · drawn end-to-end.</p>
+  </div>
+</section>
+
+<!-- UC: Customer support -->
+<section class="slide section-usecase">
+  <div class="slide-meta">14 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Story 01 · Customer support automation</div>
+    <h2>Resolve tickets <span class="gradient">in seconds, not hours.</span></h2>
+
+    <div class="diag-svg-wrap">
+      <svg viewBox="0 0 920 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="rgba(255,255,255,0.4)"/>
+          </marker>
+        </defs>
+
+        <rect x="20" y="80" width="120" height="56" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="80" y="105" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">👤 Customer</text>
+        <text x="80" y="122" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">emails support</text>
+
+        <line x1="145" y1="108" x2="185" y2="108" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#ar2)"/>
+
+        <rect x="190" y="80" width="130" height="56" rx="10" fill="rgba(236,72,153,0.18)" stroke="rgba(255,255,255,0.22)"/>
+        <text x="255" y="105" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">📧 Email trigger</text>
+        <text x="255" y="122" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">parses message</text>
+
+        <line x1="325" y1="108" x2="365" y2="108" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#ar2)"/>
+
+        <rect x="370" y="80" width="160" height="56" rx="10" fill="rgba(236,72,153,0.18)" stroke="rgba(255,255,255,0.22)"/>
+        <text x="450" y="105" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">🤖 Support agent</text>
+        <text x="450" y="122" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">RAG on help docs</text>
+
+        <!-- Branch high confidence -->
+        <line x1="535" y1="92" x2="600" y2="50" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#ar2)"/>
+        <text x="555" y="68" fill="rgba(110,231,183,0.85)" font-size="10" font-family="JetBrains Mono">high confidence</text>
+
+        <rect x="605" y="22" width="160" height="56" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="685" y="47" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">✉️ Auto-reply</text>
+        <text x="685" y="64" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">resolved · cited</text>
+
+        <!-- Branch low confidence -->
+        <line x1="535" y1="124" x2="600" y2="166" stroke="rgba(255,255,255,0.4)" stroke-width="2" marker-end="url(#ar2)"/>
+        <text x="555" y="160" fill="rgba(251,191,36,0.85)" font-size="10" font-family="JetBrains Mono">low confidence</text>
+
+        <rect x="605" y="138" width="160" height="56" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)"/>
+        <text x="685" y="163" text-anchor="middle" fill="white" font-size="13" font-family="Inter" font-weight="600">🙋 Human escalation</text>
+        <text x="685" y="180" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">Slack #support</text>
+
+        <!-- Outcome box -->
+        <line x1="770" y1="50" x2="810" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+        <line x1="770" y1="166" x2="810" y2="136" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+
+        <rect x="810" y="80" width="100" height="56" rx="10" fill="rgba(110,231,183,0.12)" stroke="rgba(110,231,183,0.35)"/>
+        <text x="860" y="105" text-anchor="middle" fill="#6ee7b7" font-size="13" font-family="Inter" font-weight="700">Resolved</text>
+        <text x="860" y="122" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="11" font-family="Inter">60% auto</text>
+      </svg>
+    </div>
+
+    <div class="grid c4" style="margin-top: 16px;">
+      <div class="card"><div class="card-title">📚 Sources</div><div class="card-desc">Help Center in Notion, past tickets in Zendesk</div></div>
+      <div class="card"><div class="card-title">⚙️ Build time</div><div class="card-desc">2–3 days from sign-up to first live ticket</div></div>
+      <div class="card"><div class="card-title">📈 Result</div><div class="card-desc">60% tickets auto-resolved, CSAT +12 points</div></div>
+      <div class="card"><div class="card-title">👥 Owner</div><div class="card-desc">Head of CX / Support Ops</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- UC: Knowledge + Doc workflow -->
+<section class="slide section-usecase">
+  <div class="slide-meta">15 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Story 02–03 · Internal copilot &amp; document processing</div>
+    <div class="grid c2">
+      <div class="card glow">
+        <div class="card-tag">Story 02</div>
+        <div class="card-title">Internal data copilot</div>
+        <div class="diag-flow" style="margin-top: 16px; padding: 14px;">
+          <div class="dbox dbox-center" style="min-width: 90px;"><div><span class="dbox-emoji">💼</span><br>Slack</div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox primary dbox-center" style="min-width: 110px;"><div>Agent<div class="dbox-sub">SQL writer</div></div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox dbox-center" style="min-width: 100px;"><div><span class="dbox-emoji">🗄️</span><br>BI database</div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox primary dbox-center" style="min-width: 100px;"><div>Format<div class="dbox-sub">chart · table</div></div></div>
+        </div>
+        <ul class="check-list" style="margin-top: 12px;">
+          <li><span class="ck">✓</span><div>Anyone asks data questions in plain English</div></li>
+          <li><span class="ck">✓</span><div>Agent writes SQL, executes safely, returns chart</div></li>
+          <li><span class="ck">✓</span><div>BI team reclaims time for real analysis</div></li>
+        </ul>
+      </div>
+
+      <div class="card glow">
+        <div class="card-tag">Story 03</div>
+        <div class="card-title">Contract review automation</div>
+        <div class="diag-flow" style="margin-top: 16px; padding: 14px;">
+          <div class="dbox dbox-center" style="min-width: 90px;"><div><span class="dbox-emoji">📄</span><br>PDF upload</div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox primary dbox-center" style="min-width: 100px;"><div>Extract<div class="dbox-sub">clauses</div></div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox primary dbox-center" style="min-width: 100px;"><div>Analyze<div class="dbox-sub">risk · flags</div></div></div>
+          <span class="diag-arrow">→</span>
+          <div class="dbox dbox-center" style="min-width: 100px;"><div><span class="dbox-emoji">📋</span><br>Report</div></div>
+        </div>
+        <ul class="check-list" style="margin-top: 12px;">
+          <li><span class="ck">✓</span><div>Drop a contract — get a structured summary back</div></li>
+          <li><span class="ck">✓</span><div>Highlighted risk clauses with citations</div></li>
+          <li><span class="ck">✓</span><div>2-hour reviews become 5 minutes</div></li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout" style="margin-top: 24px;">
+      Same platform, three very different workflows — built by different teams in your company, each ready in days.
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 05 · GET STARTED ============ -->
+
+<section class="slide section-vision" id="start">
+  <div class="slide-meta">16 / 16</div>
+  <div class="slide-inner">
+    <div class="section-tag">Get started</div>
+    <h2>Up and running <span class="gradient">in four steps.</span></h2>
+    <div class="diag-steps">
+      <div class="diag-step">
+        <div class="diag-step-num">1</div>
+        <div class="diag-step-title">Install</div>
+        <div class="diag-step-desc">Sign up on cloud — or run <code style="background: rgba(0,0,0,0.4); padding: 1px 6px; border-radius: 4px;">docker compose up</code> on your servers.</div>
+      </div>
+      <div class="diag-step">
+        <div class="diag-step-num">2</div>
+        <div class="diag-step-title">Connect</div>
+        <div class="diag-step-desc">Link your knowledge sources (Notion, Drive, Confluence...) and LLM provider — OAuth handled for you.</div>
+      </div>
+      <div class="diag-step">
+        <div class="diag-step-num">3</div>
+        <div class="diag-step-title">Build</div>
+        <div class="diag-step-desc">Create your first agent or workflow in the visual editor. Test live in the preview pane.</div>
+      </div>
+      <div class="diag-step">
+        <div class="diag-step-num">4</div>
+        <div class="diag-step-title">Ship</div>
+        <div class="diag-step-desc">Embed as a widget, expose as API, or wire up a trigger — your agent goes live.</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top: 40px; text-align: center; font-size: 20px;">
+      <strong>From sign-up to live agent — usually within an afternoon.</strong>
+    </div>
+
+    <div style="text-align: center; margin-top: 48px;">
+      <div class="hero-pill" style="margin-bottom: 12px;">Let's talk</div>
+      <h3 style="margin-bottom: 20px;">Want a walkthrough on your data?</h3>
+      <div class="pill-row" style="justify-content: center;">
+        <span class="pill">📧 hello@agentforge.io</span>
+        <span class="pill">💬 discord.gg/agentforge</span>
+        <span class="pill">🌐 agentforge.io</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

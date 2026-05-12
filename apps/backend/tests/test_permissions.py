@@ -6,7 +6,7 @@ of truth.
 """
 from __future__ import annotations
 
-from app.modules.auth.permissions import UserRole, has_role
+from app.modules.identity.auth.permissions import UserRole, has_role
 
 
 def test_admin_is_superset_of_all():

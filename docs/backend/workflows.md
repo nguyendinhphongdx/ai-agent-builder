@@ -9,7 +9,7 @@ summary: Workflow system that compiles a graph of nodes and edges into a LangGra
 
 # Workflow Engine
 
-Source: `apps/backend/app/workflows/`
+Source: `apps/backend/app/modules/studio/workflows/` (HTTP layer) + `apps/backend/app/core/workflow_runner.py` (execution engine)
 
 ## Overview
 

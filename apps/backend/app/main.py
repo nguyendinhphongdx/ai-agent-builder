@@ -29,48 +29,48 @@ init_sentry()
 if _settings.LOG_FORMAT == "json":
     install_json_formatter()
 
-from app.modules.admin.router import router as admin_router
-from app.modules.agents.router import router as agents_router
-from app.modules.ai_credentials.router import router as ai_credentials_router
-from app.modules.annotations.router import router as annotations_router
-from app.modules.audit.router import org_router as org_audit_router
-from app.modules.auth.oauth_router import router as oauth_router
-from app.modules.auth.router import router as auth_router
-from app.modules.billing.router import router as billing_router
-from app.modules.conversations.router import router as conversations_router
-from app.modules.dashboard.router import router as dashboard_router
-from app.modules.discord_triggers.router import events_router as discord_events_router
-from app.modules.discord_triggers.router import router as discord_triggers_router
-from app.modules.email_triggers.router import router as email_triggers_router
-from app.modules.external.router import router as external_router
-from app.modules.hub.router import auth_router as hub_auth_router
-from app.modules.hub.router import public_router as hub_public_router
-from app.modules.integrations.router import router as integrations_router
-from app.modules.internal.router import router as internal_router
-from app.modules.jobs.router import router as jobs_router
-from app.modules.knowledge.connectors.router import router as kb_connectors_router
-from app.modules.knowledge.router import router as knowledge_router
-from app.modules.llm.router import router as llm_router
-from app.modules.mfa.router import router as mfa_router
-from app.modules.multi_agent.router import router as multi_agent_router
-from app.modules.payments.webhooks import momo_router as momo_webhook_router
-from app.modules.payments.webhooks import stripe_router as stripe_webhook_router
-from app.modules.payouts.router import router as payouts_router
-from app.modules.personal_tokens.router import router as personal_tokens_router
-from app.modules.plugins.router import router as plugins_router
-from app.modules.scim.router import router as scim_router
-from app.modules.share.router import router as share_router
-from app.modules.slack_triggers.router import events_router as slack_events_router
-from app.modules.slack_triggers.router import router as slack_triggers_router
-from app.modules.sso.oidc_router import router as sso_oidc_router
-from app.modules.sso.router import router as sso_admin_router
-from app.modules.teams_triggers.router import events_router as teams_events_router
-from app.modules.teams_triggers.router import router as teams_triggers_router
-from app.modules.tools.router import router as tools_router
-from app.modules.usage.router import router as usage_router
-from app.modules.webhooks.router import router as webhooks_router
-from app.modules.workflows.router import router as workflows_router
-from app.modules.workspaces.router import router as workspaces_router
+from app.modules.api.admin.router import router as admin_router
+from app.modules.api.external.router import router as external_router
+from app.modules.api.internal.router import router as internal_router
+from app.modules.commerce.hub.router import auth_router as hub_auth_router
+from app.modules.commerce.hub.router import public_router as hub_public_router
+from app.modules.commerce.payments.checkout.webhooks import momo_router as momo_webhook_router
+from app.modules.commerce.payments.checkout.webhooks import stripe_router as stripe_webhook_router
+from app.modules.commerce.payments.payouts.router import router as payouts_router
+from app.modules.commerce.payments.subscriptions.router import router as billing_router
+from app.modules.commerce.usage.router import router as usage_router
+from app.modules.identity.auth.mfa.router import router as mfa_router
+from app.modules.identity.auth.oauth_router import router as oauth_router
+from app.modules.identity.auth.router import router as auth_router
+from app.modules.identity.auth.scim.router import router as scim_router
+from app.modules.identity.auth.sso.oidc_router import router as sso_oidc_router
+from app.modules.identity.auth.sso.router import router as sso_admin_router
+from app.modules.identity.tokens.router import router as personal_tokens_router
+from app.modules.identity.workspaces.router import router as workspaces_router
+from app.modules.integrations.connectors.kb.router import router as kb_connectors_router
+from app.modules.integrations.llm.credentials.router import router as ai_credentials_router
+from app.modules.integrations.llm.router import router as llm_router
+from app.modules.integrations.mcp.router import router as integrations_router
+from app.modules.ops.audit.router import org_router as org_audit_router
+from app.modules.ops.dashboard.router import router as dashboard_router
+from app.modules.runtime.chat.annotations.router import router as annotations_router
+from app.modules.runtime.chat.conversations.router import router as conversations_router
+from app.modules.runtime.chat.share.router import router as share_router
+from app.modules.runtime.jobs.router import router as jobs_router
+from app.modules.runtime.triggers.discord.router import events_router as discord_events_router
+from app.modules.runtime.triggers.discord.router import router as discord_triggers_router
+from app.modules.runtime.triggers.email.router import router as email_triggers_router
+from app.modules.runtime.triggers.http.router import router as webhooks_router
+from app.modules.runtime.triggers.slack.router import events_router as slack_events_router
+from app.modules.runtime.triggers.slack.router import router as slack_triggers_router
+from app.modules.runtime.triggers.teams.router import events_router as teams_events_router
+from app.modules.runtime.triggers.teams.router import router as teams_triggers_router
+from app.modules.studio.agents.orchestration.router import router as multi_agent_router
+from app.modules.studio.agents.router import router as agents_router
+from app.modules.studio.knowledge.router import router as knowledge_router
+from app.modules.studio.plugins.router import router as plugins_router
+from app.modules.studio.tools.router import router as tools_router
+from app.modules.studio.workflows.router import router as workflows_router
 from app.platform.config import settings
 from app.platform.permissions.router import router as permissions_router
 
@@ -319,10 +319,10 @@ def create_app() -> FastAPI:
     # the static `/uploads/` mount above. The dedicated upload router was
     # never written — re-add this import only if/when `app/uploads/` exists.
 
-    from app.modules.notifications.router import router as notifications_router
+    from app.modules.runtime.notifications.router import router as notifications_router
     app.include_router(notifications_router, prefix=settings.API_PREFIX)
 
-    from app.modules.oauth_connectors.router import router as oauth_connectors_router
+    from app.modules.integrations.connectors.oauth.router import router as oauth_connectors_router
     app.include_router(oauth_connectors_router, prefix=settings.API_PREFIX)
 
     # Log validation errors (422)

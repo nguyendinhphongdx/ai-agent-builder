@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.email_trigger import EmailTrigger
-from app.modules.email_triggers.service import poll_once
+from app.modules.runtime.triggers.email.service import poll_once
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")

@@ -9,7 +9,7 @@ summary: Documents the supervisor and peer collaboration endpoints and the provi
 
 # Multi-Agent API Endpoints
 
-**Router:** `app/multi_agent/router.py`  
+**Router:** `app/modules/studio/agents/orchestration/router.py`  
 **Prefix:** `/api/multi-agent`  
 **Auth:** Supervisor and peer endpoints require `get_current_user`.
 

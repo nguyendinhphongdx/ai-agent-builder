@@ -28,19 +28,28 @@ This project has an MCP server at `mcp-docs/` registered in `.mcp.json`. Use it 
 - **Frontend**: Feature-based arch. Thin App Router. TanStack Query for server state. Zustand UI-only.
 - **shadcn/ui on radix-ui**: components import from `radix-ui` (composed package), not `@base-ui/react`. `asChild` prop works as expected. Prefer `buttonVariants()` for `<Link>` styling so the anchor stays a real `<a>`.
 - **Auth**: JWT in httpOnly secure cookies. NOT localStorage.
-- **Request context**: `app.platform.context.current_user_id()` reads the authenticated user from a `ContextVar` set by `get_current_user`. New service code should read it directly instead of threading `user_id` through every signature. **Keep explicit in:** login flow (`modules/auth/tokens.py`), workflow runner, ingestion pipeline, webhook background tasks (anything reachable from `asyncio.create_task` outside an HTTP request). For background tasks that *do* need to inherit, wrap with `run_in_request_context(user_id, coro)`.
+- **Request context**: `app.platform.context.current_user_id()` reads the authenticated user from a `ContextVar` set by `get_current_user`. New service code should read it directly instead of threading `user_id` through every signature. **Keep explicit in:** login flow (`modules/identity/auth/tokens.py`), workflow runner, ingestion pipeline, webhook background tasks (anything reachable from `asyncio.create_task` outside an HTTP request). For background tasks that *do* need to inherit, wrap with `run_in_request_context(user_id, coro)`.
 - **Database**: snake_case plural tables. UUID PKs. JSONB for configs. pgvector for embeddings.
 
 ## Backend layout (`apps/backend/app/`)
 
 ```text
-main.py                ← FastAPI entry + lifespan
-core/                  ← heavy engines (workflow_runner, retrieval, ingestion, kb_connectors)
-background/            ← async loops (audit_purge, billing_reporter, email_poll, kb_sync, scheduled_triggers)
-platform/              ← cross-cutting infra (config, context, db, security, storage, observability, permissions, schemas, extractors, cli, rate_limit, dispatcher_client)
-modules/<feature>/     ← business features (~37) following the 4-layer pattern
-models/                ← SQLAlchemy registry — kept at root so alembic env.py + every feature import it the same way
+main.py        FastAPI entry + lifespan
+core/          heavy engines (workflow_runner, retrieval, ingestion, kb_connectors)
+background/    async loops, uniform start()/stop() (audit_purge, billing_reporter, email_poll, kb_sync, scheduled_triggers)
+platform/      cross-cutting infra (config, context, db, security, storage, observability, permissions, schemas, extractors, cli, rate_limit, dispatcher_client)
+models/        SQLAlchemy registry — kept at root so alembic env.py sees it
+modules/       7 bucket taxonomy:
+  studio/         what users BUILD       agents (+orchestration/), workflows, knowledge, tools, plugins
+  runtime/        HOW it activates       chat/{conversations,share,annotations}, triggers/{scheduled,email,slack,teams,discord,http}, jobs, notifications, uploads
+  identity/       WHO can act            auth (+mfa/, sso/, scim/), workspaces, tokens
+  integrations/   external systems       connectors/{oauth,kb}, llm (+credentials/), mcp
+  commerce/       money flow             payments/{subscriptions,checkout,payouts}, usage, hub
+  ops/            visibility             audit, dashboard
+  api/            audience layers        external (public API), internal (jobs callback), admin
 ```
+
+**Where to add a new feature**: pick a bucket from the table above by asking "what role does this play?" — avoid creating a new top-level bucket. Each bucket's `__init__.py` documents what fits.
 
 Dependency direction: `modules/*` may import `core/*` + `platform/*` + `models/*`; `core/*` and `background/*` may import `platform/*` + `models/*`; `platform/*` imports only `models/*` and stdlib. Never import upward (no `platform → modules`).
 

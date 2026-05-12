@@ -28,8 +28,8 @@ from app.models.custom_role import CustomRole
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_member import WORKSPACE_ROLES, WorkspaceMember
-from app.modules.audit import service as audit_service
-from app.modules.auth.dependencies import get_current_user
+from app.modules.identity.auth.dependencies import get_current_user
+from app.modules.ops.audit import service as audit_service
 from app.platform.db.session import get_db
 from app.platform.permissions.catalogue import ALL_PERMISSIONS, is_known_permission
 from app.platform.permissions.roles import BUILTIN_ROLE_PERMISSIONS
@@ -95,7 +95,7 @@ async def _require_org_admin(
     db: AsyncSession, user: User, org_id: uuid.UUID
 ) -> None:
     """Reuse the SSO router's helper — same semantics here."""
-    from app.modules.sso.router import _require_org_admin as _impl
+    from app.modules.identity.auth.sso.router import _require_org_admin as _impl
 
     await _impl(db, user, org_id)
 

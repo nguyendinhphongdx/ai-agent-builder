@@ -163,7 +163,7 @@ class Extractor:
         SSRF blocklist — important when the URL ultimately came from
         user-supplied storage config.
         """
-        from app.modules.tools.url_guard import safe_get
+        from app.modules.studio.tools.url_guard import safe_get
 
         suffix = f".{file_type}" if file_type else ""
         try:

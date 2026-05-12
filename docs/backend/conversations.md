@@ -128,13 +128,13 @@ Listing excludes archived conversations (`is_archived == False`), ordered by
 ## File Structure
 
 ```
-apps/backend/app/conversations/
+apps/backend/app/modules/runtime/chat/conversations/
   __init__.py
   router.py          # REST endpoints
   schemas.py         # Conversation/Message create/response schemas
   service.py         # CRUD + save_message
   ws.py              # WebSocket handler
-apps/backend/app/agents/
+apps/backend/app/modules/studio/agents/
   executor.py        # execute_agent_stream, build_agent_tools, AgentStreamEvent
 apps/backend/app/models/
   conversation.py    # Conversation ORM model

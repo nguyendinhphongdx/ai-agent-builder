@@ -25,7 +25,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     # Platform-level role hierarchy (orthogonal to any future tenant role):
-    # user < moderator < support < admin. See `app.modules.auth.permissions`.
+    # user < moderator < support < admin. See `app.modules.identity.auth.permissions`.
     role: Mapped[str] = mapped_column(String(20), default="user", server_default="user", nullable=False)
     # Bumped when all refresh sessions must be invalidated (eg. password reset).
     # Refresh JWTs carry `ver`; mismatch → reject.

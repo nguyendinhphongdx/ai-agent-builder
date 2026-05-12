@@ -6,7 +6,7 @@ enqueues a workflow.run.scheduled job, then advances next_run_at
 via croniter.
 
 Lifecycle: rows are upserted whenever a workflow's graph is saved
-(see ``app.modules.scheduled_triggers.service.sync_from_workflow``). Pause
+(see ``app.modules.runtime.triggers.scheduled.service.sync_from_workflow``). Pause
 by flipping ``is_active=False``; delete when the trigger node is
 removed.
 

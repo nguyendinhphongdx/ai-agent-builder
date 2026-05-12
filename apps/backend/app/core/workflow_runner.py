@@ -21,16 +21,16 @@ logger = logging.getLogger("agentforge")
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.workflow import Workflow
-from app.modules.workflows.nodes.base import (
+from app.modules.studio.workflows.nodes.base import (
     ExecutionContext,
     NodeExecution,
     NodeResult,
     RunResult,
     now_iso,
 )
-from app.modules.workflows.nodes.registry import get_executor
-from app.modules.workflows.service import create_workflow_run, update_workflow_run
-from app.modules.workflows.socket_emitter import (
+from app.modules.studio.workflows.nodes.registry import get_executor
+from app.modules.studio.workflows.service import create_workflow_run, update_workflow_run
+from app.modules.studio.workflows.socket_emitter import (
     emit_node_completed,
     emit_node_failed,
     emit_node_running,
@@ -146,7 +146,7 @@ class WorkflowRunner:
                 TYPE_WORKFLOW_FAILED,
                 TYPE_WORKFLOW_SUCCEEDED,
             )
-            from app.modules.notifications import inbox as inbox_service
+            from app.modules.runtime.notifications import inbox as inbox_service
 
             if status == "completed":
                 type_ = TYPE_WORKFLOW_SUCCEEDED

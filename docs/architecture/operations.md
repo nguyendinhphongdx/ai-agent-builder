@@ -23,11 +23,11 @@ Order matters — migrations must succeed before any seed CLI runs.
 docker compose exec backend alembic upgrade head
 
 # Root admin (idempotent — promotes if email exists, optionally resets password)
-docker compose exec backend python -m app.cli.seed_admin \
+docker compose exec backend python -m app.platform.cli.seed_admin \
     --email admin@example.com --password 'S3cret!'
 
 # 5 starter templates owned by the admin (used by /welcome onboarding wizard)
-docker compose exec backend python -m app.cli.seed_starter_templates \
+docker compose exec backend python -m app.platform.cli.seed_starter_templates \
     --owner-email admin@example.com
 ```
 
@@ -52,7 +52,7 @@ Slugs are hard-coded. Re-running upserts metadata + replaces the
 `is_current` version's snapshot in place; `fork_count` and rating
 aggregates survive the re-seed.
 
-To edit the starter copy itself, change `app/cli/_starter_templates.py`
+To edit the starter copy itself, change `app/platform/cli/_starter_templates.py`
 and re-run the CLI.
 
 ---
@@ -210,10 +210,10 @@ commit. PRs skip this job — only master pushes burn the release quota.
 
 ## 5. Buyer-side checkout — multi-provider
 
-`app.payments` is a Strategy + Registry abstraction:
+`app.modules.commerce.payments.checkout` is a Strategy + Registry abstraction:
 
 ```
-app/payments/
+app/modules/commerce/payments/checkout/
   base.py                     ← `PaymentProvider` ABC
   service.py                  ← dispatcher: pick by template.currency
   providers/
@@ -296,8 +296,8 @@ payout schedule end-to-end — we don't need a payout cron.
 
 | Event | Handler | Effect |
 |---|---|---|
-| `checkout.session.completed` | `hub.payment.handle_checkout_completed` | Mark Purchase paid, fork agent, bump fork_count. Idempotent (re-deliveries are no-ops). |
-| `account.updated` | `payouts.service.sync_account_from_event` | Mirror `charges_enabled` / `payouts_enabled` onto the User row. |
+| `checkout.session.completed` | `commerce.hub.payment.handle_checkout_completed` | Mark Purchase paid, fork agent, bump fork_count. Idempotent (re-deliveries are no-ops). |
+| `account.updated` | `commerce.payments.payouts.service.sync_account_from_event` | Mirror `charges_enabled` / `payouts_enabled` onto the User row. |
 
 All other event types are explicitly accepted-and-ignored — return 200
 so Stripe doesn't retry.
@@ -352,18 +352,18 @@ VND template returns 503; `/api/webhooks/momo` returns 404).
 # backend venv activated. They use the same DATABASE_URL the API uses.
 
 # Promote / create root admin
-python -m app.cli.seed_admin --email admin@example.com [--password ...] [--promote-only]
+python -m app.platform.cli.seed_admin --email admin@example.com [--password ...] [--promote-only]
 
 # Refresh the 5 starter templates
-python -m app.cli.seed_starter_templates --owner-email admin@example.com
+python -m app.platform.cli.seed_starter_templates --owner-email admin@example.com
 
-# Migrations (alembic — not under app.cli)
+# Migrations (alembic — not under app.platform.cli)
 alembic upgrade head
 alembic downgrade -1
 alembic history
 ```
 
-Adding a new CLI: drop `apps/backend/app/cli/<name>.py`, expose a
+Adding a new CLI: drop `apps/backend/app/platform/cli/<name>.py`, expose a
 `main()` entrypoint, and document its flags here.
 
 ---

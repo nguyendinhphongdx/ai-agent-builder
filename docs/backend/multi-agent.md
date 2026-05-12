@@ -9,7 +9,7 @@ summary: Two multi-agent patterns built on LangGraph -- supervisor (hub-and-spok
 
 # Multi-Agent Orchestration
 
-Source: `apps/backend/app/multi_agent/`
+Source: `apps/backend/app/modules/studio/agents/orchestration/`
 
 ## Overview
 

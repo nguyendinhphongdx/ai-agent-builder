@@ -23,8 +23,8 @@ import sys
 from sqlalchemy import select
 
 from app.models.user import User
-from app.modules.auth.permissions import UserRole
-from app.modules.auth.service import hash_password
+from app.modules.identity.auth.permissions import UserRole
+from app.modules.identity.auth.service import hash_password
 from app.platform.db.session import async_session_factory
 
 
@@ -68,7 +68,7 @@ async def _seed(
             # Admins still get a personal workspace — they need somewhere
             # to land when they hit the dashboard, same as any user. Their
             # platform-level admin role is orthogonal to workspace tenancy.
-            from app.modules.workspaces.service import ensure_personal_workspace
+            from app.modules.identity.workspaces.service import ensure_personal_workspace
             await ensure_personal_workspace(session, user)
             print(f"✓ Created admin {email} (id={user.id})")
 

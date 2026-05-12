@@ -111,12 +111,13 @@ All endpoints require authentication via `get_current_user`.
 ## File Structure
 
 ```
-apps/backend/app/agents/
+apps/backend/app/modules/studio/agents/
   __init__.py
   executor.py        # LangGraph agent execution (see conversations doc)
   router.py          # FastAPI endpoints
   schemas.py         # AgentCreate, AgentUpdate, AgentResponse, etc.
   service.py         # CRUD + attach/detach functions
+  orchestration/     # supervisor + peer multi-agent (see multi-agent doc)
 apps/backend/app/models/
   agent.py           # Agent, AgentTool, AgentKnowledgeBase ORM models
 ```

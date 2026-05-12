@@ -105,13 +105,17 @@ chunks = await retriever.retrieve(query, knowledge_base_ids, top_k=5)
 ## File Structure
 
 ```
-apps/backend/app/knowledge/
+apps/backend/app/modules/studio/knowledge/
   __init__.py
-  ingestion.py       # DocumentParser, ingest_document, compute_file_hash
-  retriever.py       # KnowledgeRetriever, RetrievedChunk
   router.py          # FastAPI endpoints
   schemas.py         # KB/Document create/update/response schemas
   service.py         # CRUD for KBs and documents
+apps/backend/app/core/
+  ingestion.py       # DocumentParser, ingest_document, compute_file_hash
+  retrieval.py       # KnowledgeRetriever, RetrievedChunk
+  kb_connectors/     # external sync (Drive, Notion, S3, etc.)
+apps/backend/app/modules/integrations/connectors/kb/
+                     # router/service for managing KB connector instances
 apps/backend/app/models/
   knowledge_base.py  # KnowledgeBase ORM model
   document.py        # Document ORM model

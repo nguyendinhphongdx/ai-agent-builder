@@ -1,4 +1,4 @@
-"""Tests for ``app.modules.workspaces.service.ensure_personal_workspace``."""
+"""Tests for ``app.modules.identity.workspaces.service.ensure_personal_workspace``."""
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.models.organization import ORG_PLAN_FREE, Organization
 from app.models.workspace import Workspace
 from app.models.workspace_member import WORKSPACE_ROLE_OWNER, WorkspaceMember
-from app.modules.workspaces.service import (
+from app.modules.identity.workspaces.service import (
     PERSONAL_WORKSPACE_SLUG,
     _personal_org_slug,
     ensure_personal_workspace,

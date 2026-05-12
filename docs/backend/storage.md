@@ -9,7 +9,7 @@ summary: Local filesystem storage layer for uploaded files with UUID-based namin
 
 # File Storage
 
-Source: `apps/backend/app/storage/base.py`
+Source: `apps/backend/app/platform/storage/base.py`
 
 ## Overview
 

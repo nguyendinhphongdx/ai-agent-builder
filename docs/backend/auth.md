@@ -105,12 +105,15 @@ async def get_current_user(
 ## File Structure
 
 ```
-apps/backend/app/auth/
+apps/backend/app/modules/identity/auth/
   __init__.py
   dependencies.py    # get_current_user
   router.py          # /auth endpoints
   schemas.py         # Pydantic request/response models
   service.py         # JWT creation/decode, password hashing, user queries
+  mfa/               # TOTP, WebAuthn, recovery codes
+  sso/               # SAML, OIDC
+  scim/              # SCIM 2.0 user/group provisioning
 ```
 
 ## Key Functions / Classes
@@ -132,7 +135,7 @@ apps/backend/app/auth/
 
 ```python
 # Protecting a route
-from app.auth.dependencies import get_current_user
+from app.modules.identity.auth.dependencies import get_current_user
 
 @router.get("/my-resource")
 async def my_endpoint(user: User = Depends(get_current_user)):

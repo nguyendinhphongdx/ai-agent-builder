@@ -32,10 +32,10 @@ from app.core.kb_connectors import (
 )
 from app.models.document import Document
 from app.models.kb_connector import KBConnector as KBConnectorRow
-from app.modules.jobs import types as job_types
-from app.modules.jobs.producer import enqueue as enqueue_job
-from app.modules.knowledge.service import get_knowledge_base_unscoped
-from app.modules.oauth_connectors.service import get_access_token
+from app.modules.integrations.connectors.oauth.service import get_access_token
+from app.modules.runtime.jobs import types as job_types
+from app.modules.runtime.jobs.producer import enqueue as enqueue_job
+from app.modules.studio.knowledge.service import get_knowledge_base_unscoped
 from app.platform.config import settings
 from app.platform.security.crypto import decrypt_secret
 from app.platform.storage import generate_storage_key, get_storage

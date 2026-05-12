@@ -75,7 +75,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 ## File Structure
 
 ```
-apps/backend/app/db/
+apps/backend/app/platform/db/
   __init__.py
   base.py            # Base, UUIDMixin, TimestampMixin
   session.py          # engine, async_session_factory, get_db
@@ -95,8 +95,8 @@ apps/backend/app/db/
 ## Examples
 
 ```python
-from app.db.session import get_db
-from app.db.base import Base, UUIDMixin, TimestampMixin
+from app.platform.db.session import get_db
+from app.platform.db.base import Base, UUIDMixin, TimestampMixin
 
 # Defining a model
 class Widget(Base, UUIDMixin, TimestampMixin):

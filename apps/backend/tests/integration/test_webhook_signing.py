@@ -12,7 +12,7 @@ import hmac
 
 import pytest
 
-from app.modules.webhooks.signing import (
+from app.modules.runtime.triggers.http.signing import (
     WebhookAuthError,
     verify_signature,
     verify_timestamp,

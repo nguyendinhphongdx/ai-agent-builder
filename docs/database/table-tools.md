@@ -59,7 +59,7 @@ Inherits: `Base`, `UUIDMixin`, `TimestampMixin`
 ```json
 {
   "function_name": "calculate_compound_interest",
-  "module_path": "app.tools.builtins.finance",
+  "module_path": "app.modules.studio.tools.builtins.finance",
   "allowed_imports": ["math", "decimal"]
 }
 ```

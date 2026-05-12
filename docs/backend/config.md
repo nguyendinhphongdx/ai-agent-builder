@@ -61,14 +61,14 @@ from `pydantic-settings`.
 Module-level singleton. Import with:
 
 ```python
-from app.config import settings
+from app.platform.config import settings
 ```
 
 ## Examples
 
 ```python
 # Reading a value
-from app.config import settings
+from app.platform.config import settings
 
 engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 ```

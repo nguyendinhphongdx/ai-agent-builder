@@ -9,7 +9,7 @@ summary: Documents Workflow CRUD, graph save, execute, and run history endpoints
 
 # Workflow API Endpoints
 
-**Router:** `app/workflows/router.py`  
+**Router:** `app/modules/studio/workflows/router.py`  
 **Prefix:** `/api/workflows`  
 **Auth:** All endpoints require `get_current_user`.
 

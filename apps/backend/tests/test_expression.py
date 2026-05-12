@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.modules.workflows.expression import evaluate_template
-from app.modules.workflows.template_utils import render_template
+from app.modules.studio.workflows.expression import evaluate_template
+from app.modules.studio.workflows.template_utils import render_template
 
 # ─── Backward compat with the legacy {{key}} syntax ───────────────────
 

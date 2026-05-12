@@ -131,7 +131,7 @@ For legacy `.doc` / `.xls` / `.ppt` (OLE-based): require LibreOffice or use `ant
 
 ### 6.2 Upload config — extend
 ```python
-# apps/backend/app/uploads/config.py
+# apps/backend/app/modules/runtime/uploads/config.py
 "attachment": UploadTypeConfig(
     max_size=10 * 1024 * 1024,
     allowed_extensions=(
@@ -152,7 +152,7 @@ For legacy `.doc` / `.xls` / `.ppt` (OLE-based): require LibreOffice or use `ant
 
 ### 6.3 Parsers module — new
 
-`apps/backend/app/uploads/extractors.py`
+`apps/backend/app/modules/runtime/uploads/extractors.py`
 ```python
 def extract_text(file_path: str, extension: str) -> str:
     """Route to the matching parser. Raises on failure."""

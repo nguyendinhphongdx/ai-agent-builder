@@ -9,7 +9,7 @@ summary: Documents all Agent CRUD endpoints plus tool and knowledge base attach/
 
 # Agent API Endpoints
 
-**Router:** `app/agents/router.py`  
+**Router:** `app/modules/studio/agents/router.py`  
 **Prefix:** `/api/agents`  
 **Auth:** All endpoints require `get_current_user` dependency.
 

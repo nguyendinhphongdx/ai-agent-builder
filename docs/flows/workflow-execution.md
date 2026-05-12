@@ -82,7 +82,7 @@ Each node executor receives the state and returns an updated state. The state fl
 
 ### 7. Node Types and Executors
 
-Each `node_type` has a corresponding executor in `app/workflows/nodes/executor.py`:
+Each `node_type` has a corresponding executor in `app/modules/studio/workflows/nodes/executor.py`:
 
 | Node Type            | Behavior                                           |
 |----------------------|----------------------------------------------------|

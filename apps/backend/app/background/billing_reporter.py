@@ -43,7 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.org_subscription import LIVE_STATUSES, OrgSubscription
 from app.models.usage_event import EVENT_LLM_CALL, UsageEvent
-from app.modules.billing import stripe_client
+from app.modules.commerce.payments.subscriptions import stripe_client
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")

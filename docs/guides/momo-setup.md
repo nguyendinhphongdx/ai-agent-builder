@@ -110,7 +110,7 @@ Requirements:
 - **Publicly reachable.** No IP allow-listing on MoMo's side; rely on
   HMAC signature for trust.
 - **Path:** `POST /api/webhooks/momo` (mounted by
-  `app.payments.webhooks.momo`).
+  `app.modules.commerce.payments.checkout.webhooks.momo`).
 - **Body:** JSON. Each request carries a `signature` field.
 
 Local development:

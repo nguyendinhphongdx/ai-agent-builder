@@ -13,7 +13,7 @@ summary: Documents the full WebSocket protocol for chat streaming in both direct
 
 **URL:** `ws://{host}/api/ws/chat/{conversation_id}`
 
-**Backend handler:** `app/conversations/ws.py` -> `chat_websocket()`
+**Backend handler:** `app/modules/runtime/chat/conversations/ws.py` -> `chat_websocket()`
 
 ### Handshake
 

@@ -13,7 +13,7 @@ import asyncio
 import contextlib
 import logging
 
-from app.modules.audit.service import purge_older_than
+from app.modules.ops.audit.service import purge_older_than
 from app.platform.config import settings
 from app.platform.db.session import async_session_factory
 

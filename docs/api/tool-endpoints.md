@@ -9,7 +9,7 @@ summary: Documents Tool CRUD endpoints and the test endpoint that builds and inv
 
 # Tool API Endpoints
 
-**Router:** `app/tools/router.py`  
+**Router:** `app/modules/studio/tools/router.py`  
 **Prefix:** `/api/tools`  
 **Auth:** All endpoints require `get_current_user`.
 

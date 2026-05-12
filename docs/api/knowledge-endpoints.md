@@ -9,7 +9,7 @@ summary: Documents Knowledge Base CRUD, document upload (multipart), and semanti
 
 # Knowledge Base API Endpoints
 
-**Router:** `app/knowledge/router.py`  
+**Router:** `app/modules/studio/knowledge/router.py`  
 **Prefix:** `/api/knowledge-bases`  
 **Auth:** All endpoints require `get_current_user`.
 

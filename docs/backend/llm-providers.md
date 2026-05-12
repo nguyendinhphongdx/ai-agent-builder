@@ -115,9 +115,10 @@ AVAILABLE_MODELS = {
 ## File Structure
 
 ```
-apps/backend/app/llm/
+apps/backend/app/modules/integrations/llm/
   __init__.py
   provider.py        # build_llm, build_llm_from_agent, DEFAULT_MODELS, AVAILABLE_MODELS
+  credentials/       # ai_credentials sub-module (encrypted per-workspace API keys)
 ```
 
 ## Key Functions / Classes
@@ -132,7 +133,7 @@ apps/backend/app/llm/
 ## Examples
 
 ```python
-from app.llm.provider import build_llm, build_llm_from_agent
+from app.modules.integrations.llm.provider import build_llm, build_llm_from_agent
 
 # Direct construction
 llm = build_llm(provider="anthropic", model="claude-sonnet-4-20250514", temperature=0.3)

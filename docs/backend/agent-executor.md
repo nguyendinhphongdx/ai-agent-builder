@@ -9,7 +9,7 @@ summary: LangGraph-based agent executor that builds LLM instances, assembles too
 
 # Agent Executor
 
-Source: `apps/backend/app/agents/executor.py`
+Source: `apps/backend/app/modules/studio/agents/executor.py`
 
 ## Overview
 
@@ -44,7 +44,7 @@ Both paths emit a final `done` event.
 
 ## LLM Construction
 
-The LLM instance is built by `build_llm_from_agent(agent)` (in `app.llm.provider`), which reads `agent.llm_provider`, `agent.llm_model`, and `agent.llm_config` to construct the appropriate LangChain chat model.
+The LLM instance is built by `build_llm_from_agent(agent)` (in `app.modules.integrations.llm.provider`), which reads `agent.llm_provider`, `agent.llm_model`, and `agent.llm_config` to construct the appropriate LangChain chat model.
 
 ## AgentStreamEvent
 

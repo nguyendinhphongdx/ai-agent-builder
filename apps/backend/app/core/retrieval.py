@@ -26,8 +26,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
-from app.modules.knowledge.embedding import build_for_kb
-from app.modules.knowledge.reranker import build_for_kb as build_reranker_for_kb
+from app.modules.studio.knowledge.embedding import build_for_kb
+from app.modules.studio.knowledge.reranker import build_for_kb as build_reranker_for_kb
 
 # Reciprocal Rank Fusion constant. Lower k → top ranks dominate
 # harder; 60 is the original Cormack/Clarke/Buettcher value and
@@ -67,7 +67,7 @@ class KnowledgeRetriever:
         # Quota guard — 402s if the org is over its KB-query cap and
         # lacks a metered overage price. Runs before the embedding
         # call so we don't burn LLM credit on a query we'll block.
-        from app.modules.billing.quota import enforce_kb_queries
+        from app.modules.commerce.payments.subscriptions.quota import enforce_kb_queries
 
         await enforce_kb_queries(self.db)
 

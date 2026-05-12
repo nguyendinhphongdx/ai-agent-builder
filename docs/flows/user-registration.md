@@ -34,7 +34,7 @@ Body: { email, password, full_name }
 
 ### 3. Backend Creates User
 
-**Handler:** `app/auth/router.py` -> `register()`
+**Handler:** `app/modules/identity/auth/router.py` -> `register()`
 
 1. Checks if email already exists -> 409 if duplicate
 2. Calls `create_user(db, email, password, full_name)` which hashes the password

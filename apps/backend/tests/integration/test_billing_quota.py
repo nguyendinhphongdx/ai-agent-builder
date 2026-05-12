@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.modules.billing.plans import PLAN_FREE, PLAN_PRO, PLANS
-from app.modules.billing.quota import (
+from app.modules.commerce.payments.subscriptions.plans import PLAN_FREE, PLAN_PRO, PLANS
+from app.modules.commerce.payments.subscriptions.quota import (
     QuotaExceeded,
     enforce_kb_queries,
     enforce_tokens,

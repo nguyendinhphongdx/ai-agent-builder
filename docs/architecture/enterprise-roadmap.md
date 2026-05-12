@@ -163,10 +163,10 @@ workspace_invitations (
 ### Code thay đổi
 
 **Backend**:
-- [context.py](../../apps/backend/app/context.py): thêm `current_workspace_id()` ContextVar
+- [platform/context.py](../../apps/backend/app/platform/context.py): thêm `current_workspace_id()` ContextVar
 - Middleware đọc workspace từ header `X-Workspace-Id` hoặc subdomain
-- Mới: `app/workspaces/` module (router/service/schemas)
-- Mới: `app/organizations/` module
+- Mới: `app/modules/identity/workspaces/` module (router/service/schemas)
+- Mới: `app/modules/identity/organizations/` module
 - **Mọi service query** phải filter `WHERE workspace_id = current_workspace_id()` — review hết ~25 modules
 - Decorator `@require_workspace_role("admin")` cho privileged ops
 
@@ -192,7 +192,7 @@ workspace_invitations (
 
 ## 🔴 P1.2 — Job Queue (RabbitMQ wired đúng nghĩa)
 
-**Tại sao**: Hiện [webhooks/router.py](../../apps/backend/app/webhooks/router.py) dùng `asyncio.create_task()`. KB ingestion chạy đồng bộ. Workflow run block API thread. Sập với traffic enterprise.
+**Tại sao**: Hiện [modules/runtime/triggers/http/router.py](../../apps/backend/app/modules/runtime/triggers/http/router.py) dùng `asyncio.create_task()`. KB ingestion chạy đồng bộ. Workflow run block API thread. Sập với traffic enterprise.
 
 ### Architecture
 
@@ -213,7 +213,7 @@ API container ──publish──> RabbitMQ ──consume──> Worker containe
 
 **Library**: `aio-pika` (async-native, đã có RabbitMQ trong compose).
 
-**Job types** (define trong `app/jobs/types.py`):
+**Job types** (define trong `app/modules/runtime/jobs/types.py`):
 ```python
 class JobType(str, Enum):
     KB_INGEST_DOCUMENT = "kb.ingest.document"
@@ -233,11 +233,11 @@ class JobType(str, Enum):
 - `dlq_after` (move to dead letter queue)
 
 **Files mới**:
-- `app/jobs/__init__.py` — Producer (publish)
-- `app/jobs/consumer.py` — Worker entry point
-- `app/jobs/handlers/` — 1 file/job type
-- `app/jobs/idempotency.py` — Redis-backed dedup
-- `app/jobs/dlq.py` — DLQ inspection API
+- `app/modules/runtime/jobs/__init__.py` — Producer (publish)
+- `app/modules/runtime/jobs/consumer.py` — Worker entry point
+- `app/modules/runtime/jobs/handlers/` — 1 file/job type
+- `app/modules/runtime/jobs/idempotency.py` — Redis-backed dedup
+- `app/modules/runtime/jobs/dlq.py` — DLQ inspection API
 - `services/worker/Dockerfile` — Worker image
 - `services/worker/docker-compose.yml`
 
@@ -267,7 +267,7 @@ class JobType(str, Enum):
 
 ## 🔴 P1.3 — SSO Enterprise (SAML 2.0 + OIDC + SCIM)
 
-**Tại sao**: Doanh nghiệp VN dùng Microsoft 365 (Azure AD) hoặc Google Workspace. Fortune 500 yêu cầu Okta/Ping. Hiện chỉ có OAuth Google/GitHub social login ở [auth/oauth.py](../../apps/backend/app/auth/oauth.py).
+**Tại sao**: Doanh nghiệp VN dùng Microsoft 365 (Azure AD) hoặc Google Workspace. Fortune 500 yêu cầu Okta/Ping. Hiện chỉ có OAuth Google/GitHub social login ở [modules/identity/auth/oauth.py](../../apps/backend/app/modules/identity/auth/oauth.py).
 
 ### Implementation
 
@@ -337,10 +337,10 @@ workspace_ip_rules (
 - Recovery flow qua admin
 
 **Files**:
-- `app/auth/sso/saml.py`
-- `app/auth/sso/oidc.py`
-- `app/auth/scim/`
-- `app/auth/mfa.py`
+- `app/modules/identity/auth/sso/saml.py`
+- `app/modules/identity/auth/sso/oidc.py`
+- `app/modules/identity/auth/scim/`
+- `app/modules/identity/auth/mfa/`
 - Frontend: `/settings/security/mfa`, `/admin/sso-config`
 
 ### Acceptance Criteria
@@ -644,9 +644,9 @@ usage_events (
 - Monthly report email với usage breakdown
 
 **Files**:
-- `app/billing/plans.py` — define plans
-- `app/billing/quota.py` — enforcement
-- `app/billing/metering.py` — Stripe usage publish
+- `app/modules/commerce/payments/subscriptions/plans.py` — define plans
+- `app/modules/commerce/payments/subscriptions/quota.py` — enforcement
+- `app/modules/commerce/payments/subscriptions/metering.py` — Stripe usage publish
 - Frontend: `/settings/billing/`, `/settings/billing/invoices/`
 
 **Effort**: 3 tuần.
@@ -723,7 +723,7 @@ Mỗi nền tảng = 1 trigger node + 1 OAuth setup flow trong settings.
 
 ## 🟢 P3.1 — Plugin / Extension System
 
-**Inspired by**: Dify Plugin Daemon. Hiện [integrations/mcp.py](../../apps/backend/app/integrations/mcp.py) chỉ expose AgentForge as MCP server, chưa **consume** plugins/MCP servers ngoài.
+**Inspired by**: Dify Plugin Daemon. Hiện [modules/integrations/mcp/](../../apps/backend/app/modules/integrations/mcp/) chỉ expose AgentForge as MCP server, chưa **consume** plugins/MCP servers ngoài.
 
 ### Architecture
 
@@ -783,7 +783,7 @@ Tạo abstraction `LLMProvider` rồi implement:
 - DeepSeek
 - Qwen (cho thị trường Châu Á)
 
-**Files**: `app/llm/providers/{name}.py` mỗi provider.
+**Files**: `app/modules/integrations/llm/providers/{name}.py` mỗi provider.
 
 ### Thêm Vector DB backends
 

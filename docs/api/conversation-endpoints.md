@@ -9,7 +9,7 @@ summary: Documents Conversation CRUD and message listing with pagination, includ
 
 # Conversation API Endpoints
 
-**Router:** `app/conversations/router.py`  
+**Router:** `app/modules/runtime/chat/conversations/router.py`  
 **Prefix:** `/api/conversations`  
 **Auth:** All endpoints require `get_current_user`.
 

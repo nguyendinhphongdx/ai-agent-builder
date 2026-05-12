@@ -11,10 +11,13 @@ summary: "Backend uses 4-layer module pattern: router.py (endpoints) → service
 
 ## Module Pattern (MUST follow)
 
-Every feature module has exactly 4 files:
+Feature modules live under `app/modules/<bucket>/<feature>/` (see
+[arch-project-structure](../architecture/project-structure.md) for the 7-bucket
+taxonomy: `studio`, `runtime`, `identity`, `integrations`, `commerce`, `ops`,
+`api`). Every feature module has exactly 4 files:
 
 ```
-app/{module}/
+app/modules/<bucket>/<feature>/
 ├── __init__.py
 ├── router.py       # FastAPI endpoints (APIRouter)
 ├── service.py      # Business logic (pure functions, DB queries)
@@ -22,11 +25,17 @@ app/{module}/
 └── (optional)      # Extra files per module needs (executor.py, registry.py, etc.)
 ```
 
+Examples: `app/modules/studio/agents/`, `app/modules/runtime/chat/conversations/`,
+`app/modules/identity/auth/`, `app/modules/commerce/payments/checkout/`.
+
 ### Rules
 1. **router.py** - Only HTTP concerns. Delegates to service. Never contains DB queries directly
-2. **service.py** - Pure async functions. Receives `db: AsyncSession` as first arg. Returns ORM models
+2. **service.py** - Pure async functions. Reads the caller from `app.platform.context.current_user_id()` (and `current_workspace_id()`); does **not** thread `user_id` through every signature. Returns ORM models
 3. **schemas.py** - Pydantic BaseModel classes. `model_config = {"from_attributes": True}` for ORM mapping
-4. **models/** - Centralized in `app/models/`, not per-module
+4. **models/** - Centralized in `app/models/` (flat — alembic depends on this), not per-module
+5. **Engines vs modules** - Heavy non-HTTP code (workflow runner, retrieval, ingestion) lives in `app/core/`, not in the feature module. Modules call into core engines.
+6. **Background loops** - Async loops with `start()/stop()` live in `app/background/`, not inside the module that owns the data they operate on.
+7. **Infra** - Cross-cutting concerns (config, db, security, storage, observability, permissions, rate_limit, CLI) live under `app/platform/`. Import as `app.platform.config`, `app.platform.db.session`, etc.
 
 ## Naming
 

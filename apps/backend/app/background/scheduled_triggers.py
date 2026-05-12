@@ -28,9 +28,9 @@ import contextlib
 import logging
 from datetime import datetime, timezone
 
-from app.modules.jobs import types as job_types
-from app.modules.jobs.producer import enqueue as enqueue_job
-from app.modules.scheduled_triggers.service import claim_due
+from app.modules.runtime.jobs import types as job_types
+from app.modules.runtime.jobs.producer import enqueue as enqueue_job
+from app.modules.runtime.triggers.scheduled.service import claim_due
 from app.platform.config import settings
 from app.platform.db.session import async_session_factory
 

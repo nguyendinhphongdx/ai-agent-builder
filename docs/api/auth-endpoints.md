@@ -9,7 +9,7 @@ summary: Documents POST register/login/refresh/logout and GET me endpoints with 
 
 # Auth API Endpoints
 
-**Router:** `app/auth/router.py`  
+**Router:** `app/modules/identity/auth/router.py`  
 **Prefix:** `/api/auth`
 
 ## Authentication Model

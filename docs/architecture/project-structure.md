@@ -30,46 +30,118 @@ lc-agent/
 
 ## Backend Structure (`apps/backend/`)
 
+The backend is organised into **5 top-level packages** under `app/`. Feature
+modules live in `modules/`, grouped into 7 buckets by purpose (build-time vs
+runtime vs identity, etc.). Engines, infra, and the ORM registry sit beside
+`modules/` rather than under it.
+
 ```
 apps/backend/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py               # FastAPI app factory, router registration, WebSocket
-│   ├── config.py              # Settings (pydantic-settings, env vars)
-│   ├── db/
-│   │   ├── base.py            # DeclarativeBase, UUIDMixin, TimestampMixin
-│   │   └── session.py         # async_session_factory, get_db dependency
-│   ├── models/                # SQLAlchemy ORM models (16 tables)
+│   │
+│   ├── core/                 # Engines (heavy runtime code, not HTTP-shaped)
+│   │   ├── workflow_runner.py
+│   │   ├── retrieval.py
+│   │   ├── ingestion.py
+│   │   └── kb_connectors/
+│   │
+│   ├── background/           # Async loops — each implements start()/stop() ABC
+│   │   ├── audit_purge.py
+│   │   ├── billing_reporter.py
+│   │   ├── email_poll.py
+│   │   ├── kb_sync.py
+│   │   └── scheduled_triggers.py
+│   │
+│   ├── platform/             # Cross-cutting infrastructure
+│   │   ├── config.py          # Settings (pydantic-settings, env vars)
+│   │   ├── context.py         # Request-scoped ContextVars (user_id, workspace_id)
+│   │   ├── db/                # base.py, session.py
+│   │   ├── security/          # JWT, password hashing, dependencies
+│   │   ├── storage/           # File upload backend
+│   │   ├── observability/     # Logging, Sentry, OTEL
+│   │   ├── permissions/       # Role / workspace gating
+│   │   ├── schemas/           # Shared pydantic primitives
+│   │   ├── extractors/        # File text extraction
+│   │   ├── cli/               # Operator CLIs (seed_admin, seed_starter_templates)
+│   │   ├── rate_limit/        # Redis-backed limiter
+│   │   └── dispatcher_client/ # External dispatcher RPC
+│   │
+│   ├── models/               # SQLAlchemy ORM registry (flat — alembic depends on this)
 │   │   ├── user.py
-│   │   ├── agent.py           # Agent + AgentTool + AgentKnowledgeBase
-│   │   ├── tool.py
-│   │   ├── knowledge_base.py
-│   │   ├── document.py
-│   │   ├── document_chunk.py  # pgvector embedding column
-│   │   ├── workflow.py
-│   │   ├── workflow_node.py
-│   │   ├── workflow_edge.py
-│   │   ├── workflow_run.py
-│   │   ├── conversation.py
-│   │   ├── message.py
-│   │   └── api_key.py
-│   ├── auth/                  # router.py, service.py, schemas.py, dependencies.py
-│   ├── agents/                # router.py, service.py, schemas.py, executor.py
-│   ├── tools/                 # router.py, service.py, schemas.py, registry.py
-│   │   └── builtins/          # Built-in tool builders
-│   ├── knowledge/             # router.py, service.py, schemas.py, ingestion.py, retriever.py
-│   ├── workflows/             # router.py, service.py, schemas.py, compiler.py
-│   │   └── nodes/             # Node type executors
-│   ├── conversations/         # router.py, service.py, schemas.py, ws.py
-│   ├── multi_agent/           # router.py, supervisor.py, peer.py, schemas.py
-│   ├── llm/                   # provider.py (LLM factory)
-│   └── storage/               # base.py (file upload)
-├── alembic/                   # Database migrations
+│   │   ├── agent.py
+│   │   ├── ...               # one file per table
+│   │
+│   └── modules/              # Feature modules grouped into 7 buckets
+│       ├── studio/           # What users BUILD
+│       │   ├── agents/       # (+ orchestration/ for supervisor + peer multi-agent)
+│       │   ├── workflows/
+│       │   ├── knowledge/
+│       │   ├── tools/
+│       │   └── plugins/
+│       │
+│       ├── runtime/          # HOW things activate / interact
+│       │   ├── chat/         # conversations/, share/, annotations/
+│       │   ├── triggers/     # scheduled/, email/, slack/, teams/, discord/, http/
+│       │   ├── jobs/
+│       │   ├── notifications/
+│       │   └── uploads/
+│       │
+│       ├── identity/         # WHO can act
+│       │   ├── auth/         # (+ mfa/, sso/, scim/)
+│       │   ├── workspaces/
+│       │   └── tokens/       # personal access tokens
+│       │
+│       ├── integrations/     # External systems we plug into
+│       │   ├── connectors/   # oauth/, kb/
+│       │   ├── llm/          # (+ credentials/ for ai_credentials)
+│       │   └── mcp/
+│       │
+│       ├── commerce/         # Money flow
+│       │   ├── payments/     # subscriptions/, checkout/, payouts/
+│       │   ├── usage/
+│       │   └── hub/          # marketplace
+│       │
+│       ├── ops/              # Operational visibility
+│       │   ├── audit/
+│       │   └── dashboard/
+│       │
+│       └── api/              # Audience layers
+│           ├── external/     # public API
+│           ├── internal/     # jobs-callback / service-to-service
+│           └── admin/
+├── alembic/                  # Database migrations
 ├── pyproject.toml
 ├── Dockerfile
 ├── .env.example
 └── .env
 ```
+
+### Bucket rationale
+
+| Bucket | Question it answers | Contents |
+| --- | --- | --- |
+| `studio/` | What users **build** | agents, workflows, knowledge bases, tools, plugins |
+| `runtime/` | **How** things activate / interact | chat, triggers, jobs, notifications, uploads |
+| `identity/` | **Who** can act | auth (+ mfa, sso, scim), workspaces, tokens |
+| `integrations/` | External systems we plug into | connectors (oauth, kb), llm, mcp |
+| `commerce/` | Money flow | payments (subs, checkout, payouts), usage, hub |
+| `ops/` | Operational visibility | audit, dashboard |
+| `api/` | Audience layers | external (public), internal (jobs callback), admin |
+
+### Import conventions
+
+- Feature code: `from app.modules.<bucket>.<feature> import service` — e.g.
+  `app.modules.studio.agents.service`, `app.modules.runtime.chat.conversations.ws`.
+- Infrastructure: `from app.platform.<area> import ...` — e.g.
+  `app.platform.config`, `app.platform.db.session`, `app.platform.context`.
+- Engines: `from app.core.<engine> import ...` — e.g. `app.core.workflow_runner`,
+  `app.core.retrieval`.
+- Background loops: `from app.background.<loop> import ...` — e.g.
+  `app.background.kb_sync`.
+- ORM models stay flat at `app.models.<table>` because alembic autogenerate
+  scans a single registry.
 
 ## Frontend Structure (`apps/frontend/`)
 

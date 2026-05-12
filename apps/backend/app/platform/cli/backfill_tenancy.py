@@ -36,7 +36,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
-from app.modules.workspaces.service import ensure_personal_workspace
+from app.modules.identity.workspaces.service import ensure_personal_workspace
 from app.platform.db.session import async_session_factory
 
 # (table, parent_table, parent_fk_column, parent_id_column)

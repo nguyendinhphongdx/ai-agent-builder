@@ -17,8 +17,8 @@ from app.models.workspace_member import (
     WORKSPACE_ROLE_OWNER,
     WORKSPACE_ROLE_VIEWER,
 )
-from app.modules.workspaces import service
-from app.modules.workspaces.permissions import role_at_least
+from app.modules.identity.workspaces import service
+from app.modules.identity.workspaces.permissions import role_at_least
 from tests.factories import (
     OrganizationFactory,
     UserFactory,

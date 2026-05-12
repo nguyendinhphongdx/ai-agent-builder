@@ -55,7 +55,7 @@ async def parse_document(file_path: str, file_type: str) -> str:
 async def _emit_progress(user_id: uuid.UUID, kb_id: uuid.UUID, doc: Document) -> None:
     """Relay document phase/progress to the user's socket room. Best-effort."""
     try:
-        from app.modules.notifications.service import notify_user
+        from app.modules.runtime.notifications.service import notify_user
 
         await notify_user(
             str(user_id),
@@ -76,7 +76,7 @@ async def _emit_progress(user_id: uuid.UUID, kb_id: uuid.UUID, doc: Document) ->
 
 # ─── Main ingestion ──────────────────────────────────────────────────
 
-from app.modules.knowledge.embedding import build_for_kb
+from app.modules.studio.knowledge.embedding import build_for_kb
 
 
 async def ingest_document(
@@ -305,7 +305,7 @@ async def _notify_inbox(
     """
     try:
         from app.models.notification import TYPE_KB_FAILED, TYPE_KB_PROCESSED
-        from app.modules.notifications import inbox as inbox_service
+        from app.modules.runtime.notifications import inbox as inbox_service
 
         title = (
             f"“{document.title or document.file_path}” added to {kb.name}"

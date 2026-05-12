@@ -136,7 +136,7 @@ The test endpoint builds the tool, invokes it with `input_data`, and returns
 ## File Structure
 
 ```
-apps/backend/app/tools/
+apps/backend/app/modules/studio/tools/
   __init__.py
   builtins/           # Reserved for future built-in tool modules
   registry.py         # ToolRegistry, builders, json_schema_to_pydantic
@@ -163,7 +163,7 @@ apps/backend/app/models/
 ## Examples
 
 ```python
-from app.tools.registry import tool_registry
+from app.modules.studio.tools.registry import tool_registry
 
 # Build a single tool from DB record
 lc_tool = tool_registry.build(tool_record)
