@@ -35,6 +35,10 @@ def build_connector(connector_type: str) -> KBConnector | None:
         from app.knowledge.connectors.providers.web import WebCrawlerConnector
 
         return WebCrawlerConnector()
+    if provider == "notion":
+        from app.knowledge.connectors.providers.notion import NotionConnector
+
+        return NotionConnector()
     # Other providers (Notion, web, GDrive, …) land in follow-up
     # blocks — same lazy-import pattern.
     return None
