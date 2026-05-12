@@ -59,6 +59,7 @@ from app.payments.webhooks import stripe_router as stripe_webhook_router
 from app.payouts.router import router as payouts_router
 from app.permissions.router import router as permissions_router
 from app.personal_tokens.router import router as personal_tokens_router
+from app.plugins.router import router as plugins_router
 from app.scim.router import router as scim_router
 from app.share.router import router as share_router
 from app.slack_triggers.router import events_router as slack_events_router
@@ -283,6 +284,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router, prefix=settings.API_PREFIX)
     app.include_router(permissions_router, prefix=settings.API_PREFIX)
     app.include_router(personal_tokens_router, prefix=settings.API_PREFIX)
+    app.include_router(plugins_router, prefix=settings.API_PREFIX)
     app.include_router(share_router, prefix=settings.API_PREFIX)
     app.include_router(sso_oidc_router, prefix=settings.API_PREFIX)
     app.include_router(sso_admin_router, prefix=settings.API_PREFIX)

@@ -1,0 +1,27 @@
+id: sample-echo
+version: 1.0.0
+name: Echo Tool
+description: Reference plugin — echoes its input back verbatim. Use as a template for new plugins.
+runtime: python
+entrypoint: main.py
+capabilities:
+  - tool
+permissions:
+  http_outbound: []
+  secrets: []
+tools:
+  - name: echo
+    description: Return the input unchanged.
+    input_schema:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Text to echo back.
+      required:
+        - message
+    output_schema:
+      type: object
+      properties:
+        message:
+          type: string

@@ -25,6 +25,7 @@ from app.models.oauth_account import OAuthAccount
 from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
+from app.models.plugin import Plugin
 from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.scim_token import SCIMToken
 from app.models.slack_trigger import SlackTrigger
@@ -85,6 +86,7 @@ __all__ = [
     "File",
     "Job",
     "PersonalAccessToken",
+    "Plugin",
     "ScheduledTrigger",
     "SCIMToken",
     "SlackTrigger",

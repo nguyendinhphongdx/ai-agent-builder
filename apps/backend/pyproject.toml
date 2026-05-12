@@ -45,6 +45,10 @@ dependencies = [
     # Cron expression parser for the workflow scheduled-trigger node.
     # Lightweight, no native deps — pure Python.
     "croniter>=2.0",
+    # YAML loader for plugin manifests (P3.1). Already pulled in
+    # transitively by langchain but declared explicitly so
+    # ``app.plugins.manifest`` has a stable contract.
+    "pyyaml>=6.0",
     # TOTP for MFA. Pure Python, no native deps. Authenticator apps
     # (Google Authenticator, 1Password, Authy) all speak this format.
     "pyotp>=2.9",
