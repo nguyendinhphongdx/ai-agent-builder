@@ -8,13 +8,13 @@ Doesn't exercise Stripe (Block 2 wires that). Pure logic test of:
 """
 from __future__ import annotations
 
+from app.models.organization import Organization
 from app.modules.commerce.payments.subscriptions import service as billing_service
 from app.modules.commerce.payments.subscriptions.plans import (
     PLAN_FREE,
     PLAN_PRO,
     PLAN_STARTER,
 )
-from app.models.organization import Organization
 from tests.factories import UserFactory, create
 
 

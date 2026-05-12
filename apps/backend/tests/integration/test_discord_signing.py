@@ -10,7 +10,30 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import HTTPException
 
-from app.modules.runtime.triggers.discord.service import verify_signature
+from app.modules.runtime.triggers._signing import (
+    verify_discord_ed25519,
+)
+
+
+def verify_signature(
+    *,
+    public_key_hex: str,
+    raw_body: bytes,
+    signature_hex: str | None,
+    timestamp: str | None,
+    now: float | None = None,
+) -> None:
+    """Test-local wrapper preserving the legacy keyword shape so the
+    existing assertions stay readable. Delegates to the shared helper
+    with Discord's standard 5-minute replay window."""
+    verify_discord_ed25519(
+        raw_body=raw_body,
+        public_key_hex=public_key_hex,
+        signature_hex=signature_hex,
+        timestamp_header=timestamp,
+        window_seconds=300,
+        now=now,
+    )
 
 
 def _make_keys() -> tuple[Ed25519PrivateKey, str]:

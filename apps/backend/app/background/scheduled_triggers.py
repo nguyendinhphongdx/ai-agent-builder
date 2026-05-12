@@ -28,10 +28,9 @@ import contextlib
 import logging
 from datetime import datetime, timezone
 
-from app.modules.runtime.jobs import types as job_types
-from app.modules.runtime.jobs.producer import enqueue as enqueue_job
+from app.models.trigger import TRIGGER_TYPE_SCHEDULED
+from app.modules.runtime.triggers._registry import get_handler
 from app.modules.runtime.triggers.scheduled.service import claim_due
-from app.platform.config import settings
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
@@ -42,41 +41,22 @@ _TICK_SECONDS = 60
 async def _tick_once() -> int:
     """Run one scheduler iteration. Returns the number of fired rows.
 
-    Each fired row is committed independently — partial progress
-    survives a crash mid-tick rather than re-firing rows we already
-    enqueued.
-    """
+    ``claim_due`` advances ``next_run_at`` (and pauses bad-cron rows)
+    under FOR UPDATE SKIP LOCKED so multiple replicas don't double-
+    fire. The ScheduledHandler then enqueues a workflow run for each
+    claimed row using the shared dispatcher."""
     fired = 0
+    handler = get_handler(TRIGGER_TYPE_SCHEDULED)
     async with async_session_factory() as db:
         rows = await claim_due(db, now=datetime.now(timezone.utc))
         if not rows:
             return 0
         for row in rows:
             try:
-                await enqueue_job(
-                    db,
-                    job_type=job_types.JOB_WORKFLOW_RUN_SCHEDULED,
-                    target="backend",
-                    path=f"{settings.API_PREFIX}/internal/workflows/run",
-                    payload={
-                        "workflow_id": str(row.workflow_id),
-                        "user_id": str(row.created_by) if row.created_by else None,
-                        "input_data": row.payload,
-                    },
-                    workspace_id=row.workspace_id,
-                    user_id=row.created_by,
-                    priority="normal",
-                    retry={
-                        "maxAttempts": 3,
-                        "backoffMs": 10_000,
-                        "backoffMultiplier": 2,
-                    },
-                    timeout_ms=600_000,
-                )
-                fired += 1
+                fired += await handler.tick(db, row)
             except Exception:  # noqa: BLE001
                 logger.exception(
-                    "scheduler: enqueue failed for trigger %s — will retry next tick",
+                    "scheduler: tick failed for trigger %s — will retry next tick",
                     row.id,
                 )
         await db.commit()

@@ -58,13 +58,10 @@ from app.modules.runtime.chat.conversations.router import router as conversation
 from app.modules.runtime.chat.share.router import router as share_router
 from app.modules.runtime.jobs.router import router as jobs_router
 from app.modules.runtime.triggers.discord.router import events_router as discord_events_router
-from app.modules.runtime.triggers.discord.router import router as discord_triggers_router
-from app.modules.runtime.triggers.email.router import router as email_triggers_router
 from app.modules.runtime.triggers.http.router import router as webhooks_router
+from app.modules.runtime.triggers.router import router as triggers_router
 from app.modules.runtime.triggers.slack.router import events_router as slack_events_router
-from app.modules.runtime.triggers.slack.router import router as slack_triggers_router
 from app.modules.runtime.triggers.teams.router import events_router as teams_events_router
-from app.modules.runtime.triggers.teams.router import router as teams_triggers_router
 from app.modules.studio.agents.orchestration.router import router as multi_agent_router
 from app.modules.studio.agents.router import router as agents_router
 from app.modules.studio.knowledge.router import router as knowledge_router
@@ -276,12 +273,12 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix=settings.API_PREFIX)
     app.include_router(multi_agent_router, prefix=settings.API_PREFIX)
     app.include_router(webhooks_router, prefix=settings.API_PREFIX)
-    app.include_router(email_triggers_router, prefix=settings.API_PREFIX)
-    app.include_router(slack_triggers_router, prefix=settings.API_PREFIX)
+    # Unified trigger CRUD — replaces 4 per-type CRUD routers.
+    app.include_router(triggers_router, prefix=settings.API_PREFIX)
+    # Per-type event receivers stay split (each has its own signature
+    # scheme so a unified handler would be more wiring than clarity).
     app.include_router(slack_events_router, prefix=settings.API_PREFIX)
-    app.include_router(teams_triggers_router, prefix=settings.API_PREFIX)
     app.include_router(teams_events_router, prefix=settings.API_PREFIX)
-    app.include_router(discord_triggers_router, prefix=settings.API_PREFIX)
     app.include_router(discord_events_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)

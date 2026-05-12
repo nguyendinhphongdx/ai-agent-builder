@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import pytest
 
+from app.models.ai_credential import AICredential
+from app.modules.identity.tokens.schemas import TokenCreate
+from app.modules.identity.tokens.service import create_token, list_tokens, revoke_token
+from app.modules.identity.workspaces.service import ensure_personal_workspace
 from app.modules.integrations.llm.credentials.schemas import AICredentialCreate
 from app.modules.integrations.llm.credentials.service import (
     create_ai_credential,
@@ -21,10 +25,6 @@ from app.platform.context import (
     set_current_user_id,
     set_current_workspace_id,
 )
-from app.models.ai_credential import AICredential
-from app.modules.identity.tokens.schemas import TokenCreate
-from app.modules.identity.tokens.service import create_token, list_tokens, revoke_token
-from app.modules.identity.workspaces.service import ensure_personal_workspace
 from tests.factories import UserFactory, create
 
 

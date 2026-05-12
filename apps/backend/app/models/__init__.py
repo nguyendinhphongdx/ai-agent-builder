@@ -10,10 +10,8 @@ from app.models.audit_log import AuditLog
 from app.models.auth_token import AuthToken
 from app.models.conversation import Conversation
 from app.models.custom_role import CustomRole
-from app.models.discord_trigger import DiscordTrigger
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
-from app.models.email_trigger import EmailTrigger
 from app.models.file import File
 from app.models.job import Job
 from app.models.kb_connector import KBConnector
@@ -27,12 +25,17 @@ from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.plugin import Plugin
-from app.models.scheduled_trigger import ScheduledTrigger
 from app.models.scim_token import SCIMToken
-from app.models.slack_trigger import SlackTrigger
 from app.models.sso_configuration import SSOConfiguration
-from app.models.teams_trigger import TeamsTrigger
 from app.models.tool import Tool
+from app.models.trigger import (
+    TRIGGER_TYPE_DISCORD,
+    TRIGGER_TYPE_EMAIL,
+    TRIGGER_TYPE_SCHEDULED,
+    TRIGGER_TYPE_SLACK,
+    TRIGGER_TYPE_TEAMS,
+    Trigger,
+)
 from app.models.usage_event import UsageEvent
 from app.models.user import User
 from app.models.workflow import Workflow
@@ -67,15 +70,18 @@ __all__ = [
     "AdminAction",
     "AuditLog",
     "CustomRole",
-    "DiscordTrigger",
-    "EmailTrigger",
     "KBConnector",
     "MessageAnnotation",
     "Notification",
     "NotificationPreference",
-    "TeamsTrigger",
     "UsageEvent",
     "Tool",
+    "Trigger",
+    "TRIGGER_TYPE_SLACK",
+    "TRIGGER_TYPE_TEAMS",
+    "TRIGGER_TYPE_DISCORD",
+    "TRIGGER_TYPE_EMAIL",
+    "TRIGGER_TYPE_SCHEDULED",
     "KnowledgeBase",
     "Document",
     "DocumentChunk",
@@ -90,9 +96,7 @@ __all__ = [
     "Job",
     "PersonalAccessToken",
     "Plugin",
-    "ScheduledTrigger",
     "SCIMToken",
-    "SlackTrigger",
     "SSOConfiguration",
     "WorkspaceIPRule",
 ]

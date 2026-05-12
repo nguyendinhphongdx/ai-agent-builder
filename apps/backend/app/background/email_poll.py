@@ -24,8 +24,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.email_trigger import EmailTrigger
-from app.modules.runtime.triggers.email.service import poll_once
+from app.models.trigger import TRIGGER_TYPE_EMAIL, Trigger
+from app.modules.runtime.triggers._registry import get_handler
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
@@ -34,18 +34,22 @@ _SWEEP_INTERVAL_SECONDS = 30
 _INITIAL_DELAY_SECONDS = 30
 
 
-async def _due_triggers(db: AsyncSession) -> list[EmailTrigger]:
+async def _due_triggers(db: AsyncSession) -> list[Trigger]:
+    """Return active email-type triggers whose last poll is older than
+    their configured ``poll_interval_seconds`` (default 300 if unset)."""
     now = datetime.now(timezone.utc)
-    stmt = select(EmailTrigger).where(EmailTrigger.is_active.is_(True))
+    stmt = select(Trigger).where(
+        Trigger.type == TRIGGER_TYPE_EMAIL,
+        Trigger.is_active.is_(True),
+    )
     rows = (await db.execute(stmt)).scalars().all()
-    out: list[EmailTrigger] = []
+    out: list[Trigger] = []
     for row in rows:
         if row.last_polled_at is None:
             out.append(row)
             continue
-        if row.last_polled_at + timedelta(
-            seconds=row.poll_interval_seconds
-        ) <= now:
+        interval = int((row.config or {}).get("poll_interval_seconds", 300))
+        if row.last_polled_at + timedelta(seconds=interval) <= now:
             out.append(row)
     return out
 
@@ -53,15 +57,14 @@ async def _due_triggers(db: AsyncSession) -> list[EmailTrigger]:
 async def _sweep_once() -> int:
     """One sweep — returns the total number of messages dispatched."""
     total = 0
+    handler = get_handler(TRIGGER_TYPE_EMAIL)
     async with async_session_factory() as db:
         triggers = await _due_triggers(db)
         for trigger in triggers:
             try:
-                total += await poll_once(db, trigger)
+                total += await handler.tick(db, trigger)
             except Exception:  # noqa: BLE001
-                logger.exception(
-                    "email_trigger %s: sweep crashed", trigger.id
-                )
+                logger.exception("email trigger %s: sweep crashed", trigger.id)
                 await db.rollback()
                 continue
             await db.commit()

@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import pytest
 
+from app.models.organization import Organization
+from app.models.usage_event import EVENT_KB_QUERY, EVENT_LLM_CALL, UsageEvent
+from app.models.workspace import Workspace
 from app.modules.commerce.payments.subscriptions.plans import PLAN_FREE, PLAN_PRO, PLANS
 from app.modules.commerce.payments.subscriptions.quota import (
     QuotaExceeded,
@@ -15,9 +18,6 @@ from app.modules.commerce.payments.subscriptions.quota import (
     get_quota_state,
 )
 from app.platform.context import reset_current_workspace_id, set_current_workspace_id
-from app.models.organization import Organization
-from app.models.usage_event import EVENT_KB_QUERY, EVENT_LLM_CALL, UsageEvent
-from app.models.workspace import Workspace
 from tests.factories import UserFactory, create
 
 

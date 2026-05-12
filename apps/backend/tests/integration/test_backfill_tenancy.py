@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from app.platform.cli.backfill_tenancy import _phase_a_users, _phase_b_resources
 from app.models.agent import Agent
 from app.models.knowledge_base import KnowledgeBase
+from app.platform.cli.backfill_tenancy import _phase_a_users, _phase_b_resources
 from tests.factories import UserFactory, create
 
 

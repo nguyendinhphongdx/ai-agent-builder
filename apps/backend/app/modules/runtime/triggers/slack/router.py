@@ -1,100 +1,39 @@
-"""Slack trigger CRUD + public Slack events receiver.
+"""Public Slack events receiver.
 
-Two routers exported:
-  router        — CRUD on /api/slack-triggers (cookie auth, workspace
-                  scoped)
-  events_router — public /api/slack/events (no auth; Slack signs
-                  the request)
+Single endpoint for Events API + slash commands. The Slack signing
+secret is deployment-wide, so we verify *before* looking up which
+trigger row (if any) matches the team_id in the body.
+
+CRUD for Slack triggers now lives in the unified
+``modules.runtime.triggers.router`` — this file only exports
+``events_router`` (no auth dep; Slack signs the request).
 """
 from __future__ import annotations
 
 import json
 import logging
-import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from app.modules.runtime.triggers.slack import service
-from app.modules.runtime.triggers.slack.schemas import (
-    SlackTriggerCreate,
-    SlackTriggerResponse,
-    SlackTriggerUpdate,
-)
-from app.modules.runtime.triggers.slack.signing import verify as verify_slack_signature
+from app.models.trigger import TRIGGER_TYPE_SLACK, Trigger
+from app.modules.runtime.triggers._dispatch import enqueue_workflow_run
+from app.modules.runtime.triggers._registry import get_handler
+from app.modules.runtime.triggers._signing import verify_slack_v0
 from app.platform.config import settings
-from app.platform.db.session import async_session_factory, get_db
+from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
 
-router = APIRouter(prefix="/slack-triggers", tags=["slack-triggers"])
 events_router = APIRouter(prefix="/slack", tags=["slack-events"])
 
 
-# ─── CRUD ──────────────────────────────────────────────────────────
-
-
-@router.get("", response_model=list[SlackTriggerResponse])
-async def list_endpoint(
-    workflow_id: uuid.UUID | None = None,
-    db: AsyncSession = Depends(get_db),
-):
-    rows = await service.list_triggers(db, workflow_id=workflow_id)
-    return [SlackTriggerResponse.model_validate(r) for r in rows]
-
-
-@router.post("", response_model=SlackTriggerResponse, status_code=201)
-async def create_endpoint(
-    payload: SlackTriggerCreate,
-    db: AsyncSession = Depends(get_db),
-):
-    try:
-        row = await service.create_trigger(db, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    await db.commit()
-    return SlackTriggerResponse.model_validate(row)
-
-
-@router.patch("/{trigger_id}", response_model=SlackTriggerResponse)
-async def update_endpoint(
-    trigger_id: uuid.UUID,
-    payload: SlackTriggerUpdate,
-    db: AsyncSession = Depends(get_db),
-):
-    row = await service.get_trigger(db, trigger_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="trigger_not_found")
-    row = await service.update_trigger(db, row, payload)
-    await db.commit()
-    return SlackTriggerResponse.model_validate(row)
-
-
-@router.delete("/{trigger_id}", status_code=204)
-async def delete_endpoint(
-    trigger_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-):
-    row = await service.get_trigger(db, trigger_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="trigger_not_found")
-    await service.delete_trigger(db, row)
-    await db.commit()
-    return None
-
-
-# ─── Public Slack events receiver ──────────────────────────────────
-
-
-def _normalise_slash_command_payload(form: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    """Slack slash commands arrive as form-encoded. Lift them into
-    the same shape as Events API messages for downstream dispatch.
-
-    Returns (team_id, event_dict).
-    """
-    return form.get("team_id", ""), {
+def _normalise_slash_command(form: dict[str, Any]) -> dict[str, Any]:
+    """Slack slash commands arrive form-encoded; lift to the same
+    shape Events API messages use so downstream matching is one path."""
+    return {
         "command": form.get("command"),
         "text": form.get("text"),
         "user_id": form.get("user_id"),
@@ -108,87 +47,75 @@ def _normalise_slash_command_payload(form: dict[str, Any]) -> tuple[str, dict[st
 
 @events_router.post("/events")
 async def slack_events(request: Request):
-    """Single endpoint for Events API + slash commands.
+    """Receive Events API callbacks + slash commands.
 
-    Slack signing verification first, then branch on the payload
-    shape. Returns immediately so Slack's 3s deadline isn't blown
-    by the workflow execution (queued out-of-band).
-    """
+    Returns 200 quickly (Slack's 3s deadline) — workflow dispatch
+    runs synchronously here but the enqueue is fast; the workflow
+    itself runs out-of-band on a worker."""
     if not settings.SLACK_SIGNING_SECRET:
         raise HTTPException(status_code=503, detail="slack_disabled")
 
     raw_body = await request.body()
-    verify_slack_signature(
+    verify_slack_v0(
         raw_body=raw_body,
         signing_secret=settings.SLACK_SIGNING_SECRET,
-        provided_signature=request.headers.get("x-slack-signature"),
-        provided_timestamp=request.headers.get("x-slack-request-timestamp"),
+        signature_header=request.headers.get("x-slack-signature"),
+        timestamp_header=request.headers.get("x-slack-request-timestamp"),
         window_seconds=settings.SLACK_REPLAY_WINDOW_SECONDS,
     )
 
-    # Slack sends JSON for Events API, form-urlencoded for slash
-    # commands. Sniff the content-type.
     content_type = request.headers.get("content-type", "")
+    handler = get_handler(TRIGGER_TYPE_SLACK)
 
     if "application/json" in content_type:
         body: dict[str, Any] = json.loads(raw_body or b"{}")
-        # Slack URL verification handshake — first call after
-        # adding the endpoint in the app config. Echo the challenge
-        # so the dashboard marks it valid.
+        # URL verification handshake — Slack dashboard sends this once
+        # to confirm we own the endpoint.
         if body.get("type") == "url_verification":
             return PlainTextResponse(content=body.get("challenge", ""))
 
         if body.get("type") == "event_callback":
             event = body.get("event") or {}
-            event_type = event.get("type") or ""
             team_id = body.get("team_id") or event.get("team") or ""
+            parsed = {
+                "envelope": body,
+                "team_id": team_id,
+                "event_type": event.get("type") or "",
+                "event": event,
+            }
             async with async_session_factory() as db:
                 try:
-                    await service.dispatch_event(
-                        db,
-                        team_id=team_id,
-                        event_type=event_type,
-                        event=event,
-                    )
+                    await _dispatch_matching(db, handler, parsed)
                     await db.commit()
                 except Exception:
                     logger.exception("slack event dispatch failed")
                     await db.rollback()
-                    # Still return 200 so Slack doesn't retry every
-                    # event; the failure is logged + retryable via
-                    # the FE "test now" handle.
             return JSONResponse({"ok": True})
 
-        # Unknown JSON shape — acknowledge but don't dispatch.
         return JSONResponse({"ok": True, "skipped": True})
 
-    # Form-encoded → slash command.
+    # Slash command — form-encoded.
     form = await request.form()
     form_dict = {k: str(v) for k, v in form.items()}
-    team_id, event = _normalise_slash_command_payload(form_dict)
+    parsed = {
+        "envelope": form_dict,
+        "team_id": form_dict.get("team_id", ""),
+        "event_type": "slash_command",
+        "event": _normalise_slash_command(form_dict),
+    }
+
+    dispatched = 0
     async with async_session_factory() as db:
         try:
-            dispatched = await service.dispatch_event(
-                db,
-                team_id=team_id,
-                event_type=service.SLACK_EVENT_SLASH_COMMAND,
-                event=event,
-            )
+            dispatched = await _dispatch_matching(db, handler, parsed)
             await db.commit()
         except Exception:
             logger.exception("slack slash-command dispatch failed")
             await db.rollback()
-            dispatched = 0
 
-    # Slash commands expect a JSON response Slack renders to the
-    # invoking user. Tiny ack here; richer responses can come from
-    # the workflow's later POST to response_url.
     if dispatched > 0:
         return JSONResponse(
-            {
-                "response_type": "ephemeral",
-                "text": "Working on it…",
-            }
+            {"response_type": "ephemeral", "text": "Working on it…"}
         )
     return JSONResponse(
         {
@@ -196,3 +123,35 @@ async def slack_events(request: Request):
             "text": "No workflow is configured for this command.",
         }
     )
+
+
+async def _dispatch_matching(db, handler, parsed: dict[str, Any]) -> int:
+    """Look up active Slack triggers for ``(team_id, event_type)``,
+    apply the handler's matcher, enqueue runs for survivors. Returns
+    dispatch count.
+
+    Uses the partial expression index
+    ``ix_triggers_slack_dispatch`` to keep this cheap on busy
+    workspaces.
+    """
+    rows = (
+        await db.execute(
+            select(Trigger).where(
+                Trigger.type == TRIGGER_TYPE_SLACK,
+                Trigger.is_active.is_(True),
+                Trigger.config["slack_team_id"].astext == parsed["team_id"],
+                Trigger.config["filter_event_type"].astext == parsed["event_type"],
+            )
+        )
+    ).scalars().all()
+
+    dispatched = 0
+    for trigger in rows:
+        if not await handler.matches(trigger, parsed):
+            continue
+        ok = await enqueue_workflow_run(
+            db, trigger, source_payload=parsed["envelope"]
+        )
+        if ok:
+            dispatched += 1
+    return dispatched

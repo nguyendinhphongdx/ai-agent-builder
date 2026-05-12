@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.modules.identity.workspaces.service import ensure_personal_workspace
 from app.modules.studio.agents.service import create_agent, get_agent, list_agents
 from app.platform.context import (
     reset_current_user_id,
@@ -19,7 +20,6 @@ from app.platform.context import (
     set_current_user_id,
     set_current_workspace_id,
 )
-from app.modules.identity.workspaces.service import ensure_personal_workspace
 from tests.factories import UserFactory, create
 
 
