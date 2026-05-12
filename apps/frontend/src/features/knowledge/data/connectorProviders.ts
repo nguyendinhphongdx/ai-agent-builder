@@ -30,6 +30,15 @@ export interface ConnectorField {
   help?: string;
   required?: boolean;
   default?: string | number | boolean;
+  /**
+   * When set, the form renders a dropdown of the workspace's
+   * existing OAuth connections for this provider instead of a
+   * plain input. The selected connection's UUID is what gets
+   * persisted under ``key`` (typically ``oauth_connection_id``).
+   * Connect-now button bounces to the OAuth start flow when the
+   * user has zero connections for the provider yet.
+   */
+  oauthPickerProvider?: string;
 }
 
 export interface ConnectorProvider {
@@ -39,7 +48,7 @@ export interface ConnectorProvider {
   /** Lucide icon name to render in the picker. */
   icon: string;
   /** Auth flavour — surfaced as a chip in the picker. */
-  authStyle: "none" | "api-key" | "oauth-token" | "sa-json" | "app-only";
+  authStyle: "none" | "api-key" | "oauth-token" | "oauth-connection" | "sa-json" | "app-only";
   configFields: ConnectorField[];
   credentialFields: ConnectorField[];
 }
@@ -344,6 +353,38 @@ export const CONNECTOR_PROVIDERS: ConnectorProvider[] = [
         help: "Generate at dropbox.com/developers/apps with files.metadata.read + files.content.read scopes.",
       },
     ],
+  },
+  {
+    id: "slack",
+    label: "Slack files",
+    description: "Pull files shared in channels the bot has been invited to.",
+    icon: "MessageCircle",
+    authStyle: "oauth-connection",
+    configFields: [
+      {
+        key: "oauth_connection_id",
+        label: "Slack workspace",
+        type: "text",
+        required: true,
+        oauthPickerProvider: "slack",
+        help: "Pick a connected Slack workspace, or hit Connect to start the OAuth dance.",
+      },
+      {
+        key: "channel",
+        label: "Channel id (optional)",
+        type: "text",
+        placeholder: "C0123ABCD",
+        help: "Restrict to one channel. Bot must be /invited. Empty = every channel the bot can see.",
+      },
+      {
+        key: "types",
+        label: "File types (optional)",
+        type: "text",
+        placeholder: "pdf,docx,txt",
+        help: "Comma-separated Slack filetypes to keep. Empty = every downloadable type.",
+      },
+    ],
+    credentialFields: [],
   },
 ];
 

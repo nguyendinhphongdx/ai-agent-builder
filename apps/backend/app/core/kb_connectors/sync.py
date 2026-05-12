@@ -3,11 +3,14 @@
 One entry point — :func:`run_connector(db, connector)` — that:
   1. Resolves the provider via the registry.
   2. Decrypts credentials.
-  3. Iterates the provider's resources.
-  4. Per-resource: dedupes against existing Documents by
+  3. If config carries ``oauth_connection_id``, resolves a fresh
+     bearer token via the OAuth connections service and injects it
+     into the credentials dict — providers stay DB-free.
+  4. Iterates the provider's resources.
+  5. Per-resource: dedupes against existing Documents by
      content_hash, persists a new Document row, hands it off to
      the existing KB ingestion pipeline via the jobs queue.
-  5. Advances + persists the cursor.
+  6. Advances + persists the cursor.
 
 The orchestrator is provider-agnostic — adding a new connector
 needs zero changes here.
@@ -17,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -31,6 +35,7 @@ from app.models.kb_connector import KBConnector as KBConnectorRow
 from app.modules.jobs import types as job_types
 from app.modules.jobs.producer import enqueue as enqueue_job
 from app.modules.knowledge.service import get_knowledge_base_unscoped
+from app.modules.oauth_connectors.service import get_access_token
 from app.platform.config import settings
 from app.platform.security.crypto import decrypt_secret
 from app.platform.storage import generate_storage_key, get_storage
@@ -46,6 +51,38 @@ def _decrypt_credentials(encrypted: str | None) -> dict | None:
     except (ValueError, json.JSONDecodeError):
         logger.exception("connector: failed to decrypt credentials blob")
         return None
+
+
+async def _maybe_inject_oauth_token(
+    db: AsyncSession,
+    *,
+    config: dict,
+    credentials: dict | None,
+) -> dict | None:
+    """OAuth-backed connectors store the connection id in ``config``
+    rather than a long-lived secret in ``credentials_encrypted``.
+
+    Resolve the connection id to a fresh access token (refreshing if
+    needed) and inject it as ``credentials.access_token`` so the
+    provider implementation can stay stateless.
+
+    Returns the (possibly enriched) credentials dict, or the original
+    if no OAuth binding is configured.
+    """
+    raw_id = (config or {}).get("oauth_connection_id")
+    if not raw_id:
+        return credentials
+    try:
+        conn_id = uuid.UUID(str(raw_id))
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"invalid oauth_connection_id in connector config: {raw_id!r}"
+        )
+    token = await get_access_token(db, conn_id)
+    merged = dict(credentials or {})
+    merged["access_token"] = token
+    merged["oauth_connection_id"] = str(conn_id)
+    return merged
 
 
 async def run_connector(
@@ -69,6 +106,15 @@ async def run_connector(
         return KBConnectorRunResult(errors=[connector.last_error])
 
     credentials = _decrypt_credentials(connector.credentials_encrypted)
+    try:
+        credentials = await _maybe_inject_oauth_token(
+            db, config=connector.config or {}, credentials=credentials
+        )
+    except ValueError as exc:
+        # OAuth resolution failed (missing connection, expired refresh,
+        # bad provider). Surface so the UI can prompt re-connect.
+        connector.last_error = f"OAuth: {exc}"
+        return KBConnectorRunResult(errors=[connector.last_error])
     cursor = dict(connector.sync_cursor or {})
     run_started = datetime.now(timezone.utc)
     result = KBConnectorRunResult(new_cursor=cursor)

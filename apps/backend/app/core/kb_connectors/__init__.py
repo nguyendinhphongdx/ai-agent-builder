@@ -75,6 +75,15 @@ def build_connector(connector_type: str) -> KBConnector | None:
         )
 
         return DropboxConnector()
+    if provider == "slack":
+        # OAuth-backed — the access token is resolved in sync.py
+        # from ``config.oauth_connection_id`` before this connector
+        # runs.
+        from app.core.kb_connectors.providers.slack import (
+            SlackFilesConnector,
+        )
+
+        return SlackFilesConnector()
     return None
 
 
