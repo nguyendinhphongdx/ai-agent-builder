@@ -9,6 +9,7 @@
     "credentials": "AI Credentials",
     "apiTokens": "API Tokens",
     "integrations": "Integrations",
+    "connections": "Connections",
     "triggers": "Triggers",
     "usage": "Usage & Cost",
     "billing": "Billing & Plan",

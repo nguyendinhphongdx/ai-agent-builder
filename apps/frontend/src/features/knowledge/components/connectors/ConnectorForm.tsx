@@ -10,6 +10,7 @@ import {
   type ConnectorProvider,
 } from "../../data/connectorProviders";
 import { kbConnectorsService } from "@/lib/api/kbConnectorsService";
+import { OAuthConnectionPicker } from "@/features/connections";
 
 interface ConnectorFormProps {
   kbId: string;
@@ -179,6 +180,23 @@ function Field({
   value: unknown;
   onChange: (v: unknown) => void;
 }) {
+  if (field.oauthPickerProvider) {
+    // Dropdown of the workspace's existing OAuth connections for
+    // the named provider + a Connect-new CTA. Replaces the plain
+    // text input ConnectorForm would render otherwise; the form
+    // still sees a plain string (the connection UUID) flow through
+    // ``onChange``, so ``normaliseConfig`` keeps working unchanged.
+    return (
+      <FieldShell field={field}>
+        <OAuthConnectionPicker
+          provider={field.oauthPickerProvider}
+          value={String(value ?? "")}
+          onChange={onChange}
+          required={field.required}
+        />
+      </FieldShell>
+    );
+  }
   if (field.type === "boolean") {
     return (
       <label className="flex items-center gap-2 text-xs">
