@@ -55,8 +55,26 @@ def build_connector(connector_type: str) -> KBConnector | None:
         )
 
         return GoogleDriveConnector()
-    # Confluence / SharePoint / OneDrive / Dropbox land in
-    # follow-up blocks. Same lazy-import pattern.
+    if provider == "confluence":
+        from app.knowledge.connectors.providers.confluence import (
+            ConfluenceConnector,
+        )
+
+        return ConfluenceConnector()
+    if provider == "msgraph":
+        # Single connector serves SharePoint document libraries +
+        # OneDrive — both expose Drive in Graph.
+        from app.knowledge.connectors.providers.msgraph import (
+            MSGraphConnector,
+        )
+
+        return MSGraphConnector()
+    if provider == "dropbox":
+        from app.knowledge.connectors.providers.dropbox import (
+            DropboxConnector,
+        )
+
+        return DropboxConnector()
     return None
 
 
