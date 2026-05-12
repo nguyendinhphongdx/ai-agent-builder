@@ -25,8 +25,14 @@ def build_connector(connector_type: str) -> KBConnector | None:
     provider = (connector_type or "").lower().strip()
     if provider == "local_fs":
         return LocalFilesystemConnector()
-    # S3 / GCS / GDrive / Notion implementations land in follow-ups —
-    # adding them is a registry entry + provider module.
+    if provider == "s3":
+        # Lazy import keeps boto3 out of cold-start for tenants
+        # who never use S3.
+        from app.knowledge.connectors.providers.s3 import S3Connector
+
+        return S3Connector()
+    # Other providers (Notion, web, GDrive, …) land in follow-up
+    # blocks — same lazy-import pattern.
     return None
 
 
