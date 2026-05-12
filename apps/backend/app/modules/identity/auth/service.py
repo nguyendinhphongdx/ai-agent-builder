@@ -12,6 +12,12 @@ from app.platform.config import settings
 # Cấu hình mã hóa mật khẩu sử dụng bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# JWT signing algorithm. HS256 (HMAC-SHA256) is the only algorithm we
+# support — switching would require key-shape changes + token-rotation
+# story, neither of which is on the roadmap. Hardcoded here so it never
+# accidentally drifts via env.
+_JWT_ALGORITHM = "HS256"
+
 
 def hash_password(password: str) -> str:
     """Mã hóa mật khẩu plain text thành bcrypt hash."""
@@ -30,7 +36,7 @@ def create_token(data: dict, expires_delta: timedelta) -> str:
     """Tạo JWT token với payload và thời gian hết hạn."""
     to_encode = data.copy()
     to_encode["exp"] = datetime.now(timezone.utc) + expires_delta
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=_JWT_ALGORITHM)
 
 
 def create_access_token(user_id: str) -> str:
@@ -72,7 +78,7 @@ def create_refresh_token(
 def decode_token(token: str) -> dict | None:
     """Giải mã JWT token, trả về payload hoặc None nếu token không hợp lệ."""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[_JWT_ALGORITHM])
         return payload
     except JWTError:
         return None

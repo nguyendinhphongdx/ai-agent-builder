@@ -19,12 +19,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/lc_agent"
     DATABASE_URL_SYNC: str = "postgresql://postgres:postgres@localhost:5432/lc_agent"
 
-    # Cấu hình xác thực JWT
+    # Cấu hình xác thực JWT. The signing algorithm (HS256) is hardcoded
+    # in ``identity/auth/service.py``  — security-critical, no reason to
+    # env-tune.
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     REMEMBER_ME_EXPIRE_DAYS: int = 30
-    ALGORITHM: str = "HS256"
 
     # Auth token TTLs.
     # Short for the verification code (brute-forceable 6 digits); long for the
