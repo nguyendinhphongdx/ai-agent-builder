@@ -506,33 +506,6 @@ async def update_me(
     return UserResponse.model_validate(current_user).release()
 
 
-def _set_auth_cookies(response: Response, user_id: str, token_version: int) -> None:
-    """Re-issue access + refresh cookies on the same response. Used by
-    self-change endpoints that bump `token_version` so the active session
-    isn't accidentally logged out."""
-    access = create_access_token(user_id)
-    refresh = create_refresh_token(user_id, token_version=token_version)
-    secure = not settings.DEBUG
-    response.set_cookie(
-        "access_token",
-        access,
-        httponly=True,
-        secure=secure,
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        path="/",
-    )
-    response.set_cookie(
-        "refresh_token",
-        refresh,
-        httponly=True,
-        secure=secure,
-        samesite="lax",
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path=f"{settings.API_PREFIX}/auth",
-    )
-
-
 @router.post(
     "/me/password",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -567,7 +540,9 @@ async def change_password(
     current_user.token_version = (current_user.token_version or 0) + 1
     await db.flush()
 
-    _set_auth_cookies(response, str(current_user.id), current_user.token_version)
+    _set_auth_cookies(
+        response, str(current_user.id), token_version=current_user.token_version
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -646,7 +621,9 @@ async def confirm_email_change(
     current_user.token_version = (current_user.token_version or 0) + 1
     await db.flush()
 
-    _set_auth_cookies(response, str(current_user.id), current_user.token_version)
+    _set_auth_cookies(
+        response, str(current_user.id), token_version=current_user.token_version
+    )
     return {"email": new_email}
 
 
