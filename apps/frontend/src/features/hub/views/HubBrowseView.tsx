@@ -14,7 +14,7 @@ export function HubBrowseView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
-      <header className="mb-6 flex items-end justify-between">
+      <header className="mb-6 flex items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-heading text-2xl font-semibold">Hub</h1>
           <p className="text-sm text-muted-foreground">
@@ -23,42 +23,33 @@ export function HubBrowseView() {
         </div>
         <Link
           href="/hub/me"
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           My templates →
         </Link>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-        {/* Left: filters */}
-        <aside>
-          <div className="sticky top-4">
-            <HubFilters filters={filters} onChange={setFilters} />
-          </div>
-        </aside>
-
-        {/* Right: grid */}
-        <div>
-          {isLoading ? (
-            <div className="flex h-60 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : !data || data.items.length === 0 ? (
-            <EmptyState query={filters.q} />
-          ) : (
-            <>
-              <div className="mb-3 text-xs text-muted-foreground">
-                {data.total} template{data.total !== 1 ? "s" : ""}
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {data.items.map((t) => (
-                  <TemplateCard key={t.id} template={t} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+      <div className="mb-5">
+        <HubFilters
+          filters={filters}
+          onChange={setFilters}
+          resultCount={data?.total}
+        />
       </div>
+
+      {isLoading ? (
+        <div className="flex h-60 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : !data || data.items.length === 0 ? (
+        <EmptyState query={filters.q} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {data.items.map((t) => (
+            <TemplateCard key={t.id} template={t} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
