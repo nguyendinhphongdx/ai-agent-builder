@@ -46,7 +46,7 @@ export function AuditTab() {
                 </span>
               )}
             </div>
-            {Object.keys(row.details).length > 0 && (
+            {Object.keys(row.details ?? {}).length > 0 && (
               <pre className="mt-1 overflow-x-auto rounded bg-muted/40 p-1.5 text-[10px] font-mono text-muted-foreground">
                 {JSON.stringify(row.details, null, 2)}
               </pre>
