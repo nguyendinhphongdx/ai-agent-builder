@@ -32,7 +32,10 @@ from app.models.workspace_member import (
 from app.modules.identity.auth.dependencies import get_current_user
 from app.modules.identity.workspaces.service import get_member
 from app.platform.db.session import get_db
-from app.platform.permissions.service import has_permission_async
+from app.platform.permissions.service import (
+    has_org_permission_async,
+    has_permission_async,
+)
 
 # Ordered low → high. ``rank[role]`` gives the integer rank used by
 # the comparison in ``require_workspace_role``.
@@ -159,5 +162,46 @@ def require_active_permission(permission: str):
                 detail=f"Missing permission: {permission}",
             )
         return member
+
+    return _check
+
+
+def require_org_permission(permission: str):
+    """Dependency factory — 403 unless the caller has the ORG-tier
+    ``permission`` in the request's active organization.
+
+    Resolution:
+      1. ``get_current_user`` seeds ``current_organization_id`` in the
+         ContextVar from X-Organization-Id header or the active
+         workspace's parent (else ``user.default_organization_id``).
+      2. This dep reads it back, looks up ``organization_members.role``
+         for ``(user_id, org_id)``, checks ``ORG_ROLE_BINDINGS``.
+
+    No active org context (background tasks, freshly-signed-up users
+    before personal_org backfill) → 403 with ``no_active_organization``.
+    """
+
+    async def _check(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> uuid.UUID:
+        from app.platform.context import current_organization_id_or_none
+
+        organization_id = current_organization_id_or_none()
+        if organization_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="no_active_organization",
+            )
+
+        ok = await has_org_permission_async(
+            db, current_user.id, organization_id, permission
+        )
+        if not ok:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing org permission: {permission}",
+            )
+        return organization_id
 
     return _check

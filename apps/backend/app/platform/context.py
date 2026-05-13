@@ -34,6 +34,13 @@ _current_user_id: contextvars.ContextVar[uuid.UUID | None] = contextvars.Context
 _current_workspace_id: contextvars.ContextVar[uuid.UUID | None] = contextvars.ContextVar(
     "current_workspace_id", default=None
 )
+# Active organization for the request. Set by the auth dependency from
+# the workspace's ``organization_id`` (or an ``X-Organization-Id``
+# override header). Services scoped to org-level resources read this —
+# see :func:`current_organization_id_or_none`.
+_current_organization_id: contextvars.ContextVar[uuid.UUID | None] = contextvars.ContextVar(
+    "current_organization_id", default=None
+)
 
 
 def set_current_user_id(user_id: uuid.UUID) -> contextvars.Token[uuid.UUID | None]:
@@ -57,6 +64,24 @@ def set_current_workspace_id(
 def reset_current_workspace_id(token: contextvars.Token[uuid.UUID | None]) -> None:
     """Restore the previous value (paired with ``set_current_workspace_id``)."""
     _current_workspace_id.reset(token)
+
+
+def set_current_organization_id(
+    organization_id: uuid.UUID | None,
+) -> contextvars.Token[uuid.UUID | None]:
+    return _current_organization_id.set(organization_id)
+
+
+def reset_current_organization_id(token: contextvars.Token[uuid.UUID | None]) -> None:
+    _current_organization_id.reset(token)
+
+
+def current_organization_id_or_none() -> uuid.UUID | None:
+    """Return the active org id (workspace's parent), or ``None`` outside
+    a tenant-scoped request. Same caveats as
+    :func:`current_workspace_id_or_none` — use for queries that scope by
+    organization (billing, SSO config, member lists)."""
+    return _current_organization_id.get()
 
 
 def current_user_id() -> uuid.UUID:
@@ -117,19 +142,25 @@ def run_in_request_context(
 
 
 def run_in_request_context_with_workspace(
-    user_id: uuid.UUID, workspace_id: uuid.UUID | None, coro: Awaitable[T]
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
+    coro: Awaitable[T],
+    *,
+    organization_id: uuid.UUID | None = None,
 ) -> Awaitable[T]:
     """Like :func:`run_in_request_context` but also propagates the
-    workspace. Use for background jobs spawned from inside a tenant-
-    scoped request (webhook delivery, async ingestion) so they keep
-    seeing the same tenant in service queries."""
+    workspace + organization. Use for background jobs spawned from
+    inside a tenant-scoped request (webhook delivery, async ingestion)
+    so they keep seeing the same tenant in service queries."""
 
     async def _runner() -> T:
         u_token = set_current_user_id(user_id)
         w_token = set_current_workspace_id(workspace_id)
+        o_token = set_current_organization_id(organization_id)
         try:
             return await coro
         finally:
+            reset_current_organization_id(o_token)
             reset_current_workspace_id(w_token)
             reset_current_user_id(u_token)
 

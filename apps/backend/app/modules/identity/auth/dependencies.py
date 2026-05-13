@@ -19,7 +19,11 @@ from app.models.user import User
 from app.models.workspace import Workspace
 from app.modules.identity.auth.service import decode_token, get_user_by_id
 from app.modules.identity.tokens.service import verify_plaintext
-from app.platform.context import set_current_user_id, set_current_workspace_id
+from app.platform.context import (
+    set_current_organization_id,
+    set_current_user_id,
+    set_current_workspace_id,
+)
 from app.platform.db.session import get_db
 
 # Paths exempt from the ``force_mfa`` workspace gate. The user has to
@@ -49,6 +53,7 @@ async def get_current_user(
     access_token: str | None = Cookie(default=None),
     authorization: str | None = Header(default=None),
     x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+    x_organization_id: str | None = Header(default=None, alias="X-Organization-Id"),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Resolve the current user from API token (header) or cookie session.
@@ -77,7 +82,12 @@ async def get_current_user(
         # for which tenant this request can see. Legacy tokens with
         # workspace_id IS NULL fall back to the user's default
         # workspace, matching pre-Phase-1.1 behavior.
-        set_current_workspace_id(token.workspace_id or user.default_workspace_id)
+        ws_id = token.workspace_id or user.default_workspace_id
+        set_current_workspace_id(ws_id)
+        set_current_organization_id(
+            await _resolve_organization_for_workspace(db, ws_id)
+            or user.default_organization_id
+        )
         return user
 
     # ── 2. Cookie session ────────────────────────────────────────────
@@ -111,7 +121,7 @@ async def get_current_user(
         )
 
     set_current_user_id(user.id)
-    _seed_workspace_context(user, x_workspace_id)
+    await _seed_tenant_context(db, user, x_workspace_id, x_organization_id)
     await _enforce_workspace_mfa(request, user, db)
     await _enforce_workspace_ip_allowlist(request, db)
     return user
@@ -198,34 +208,60 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-def _seed_workspace_context(user: User, header_value: str | None) -> None:
-    """Pick the active workspace for this request and stash it in the
-    ContextVar.
+async def _resolve_organization_for_workspace(
+    db: AsyncSession, workspace_id, /
+):
+    """Look up a workspace's parent org. Returns ``None`` for unknown /
+    missing workspace id — caller falls back to the user's default
+    org. Single DB hit; cached implicitly by the SQLAlchemy session for
+    the rest of the request."""
+    if workspace_id is None:
+        return None
+    return await db.scalar(
+        select(Workspace.organization_id).where(Workspace.id == workspace_id)
+    )
 
-    Resolution order:
-      1. ``X-Workspace-Id`` header — explicit override from the client.
-         Membership/permission enforcement is the responsibility of
-         workspace-scoped routers; this dep just propagates the value.
-      2. ``user.default_workspace_id`` — set during ``ensure_personal_
-         workspace`` at signup / first login.
-      3. ``None`` — pre-multi-tenancy users that haven't been backfilled
-         yet. Service queries during the transition treat this as
-         "no workspace scope".
 
-    Bad header values silently fall back to the default rather than
-    erroring — same forgiveness model as Accept-Language.
+async def _seed_tenant_context(
+    db: AsyncSession,
+    user: User,
+    workspace_header: str | None,
+    org_header: str | None,
+) -> None:
+    """Resolve + set the workspace + organization ContextVars from
+    headers/defaults.
+
+    Resolution:
+      workspace = X-Workspace-Id header (parsed) ?? user.default_workspace_id
+      organization =
+        X-Organization-Id header (parsed)
+        else workspace's parent org
+        else user.default_organization_id
+
+    Membership / permission enforcement happens later in scoped
+    routers — this dep just plumbs the values through. Bad header
+    UUIDs silently fall back (same forgiveness as Accept-Language).
     """
-    import uuid as _uuid  # local import keeps the module's public surface tight
+    import uuid as _uuid
 
-    chosen: _uuid.UUID | None = None
-    if header_value:
+    def _parse(value: str | None):
+        if not value:
+            return None
         try:
-            chosen = _uuid.UUID(header_value)
+            return _uuid.UUID(value)
         except ValueError:
-            chosen = None
-    if chosen is None:
-        chosen = user.default_workspace_id
-    set_current_workspace_id(chosen)
+            return None
+
+    workspace_id = _parse(workspace_header) or user.default_workspace_id
+    set_current_workspace_id(workspace_id)
+
+    org_id = _parse(org_header)
+    if org_id is None:
+        org_id = (
+            await _resolve_organization_for_workspace(db, workspace_id)
+            or user.default_organization_id
+        )
+    set_current_organization_id(org_id)
 
 
 def require_scope(scope: str):

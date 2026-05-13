@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.organization import ORG_PLAN_FREE, Organization
+from app.models.organization_member import ORG_ROLE_OWNER, OrganizationMember
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_invitation import WorkspaceInvitation
@@ -101,6 +102,8 @@ async def ensure_personal_workspace(db: AsyncSession, user: User) -> Workspace:
         )
         if existing_personal is not None:
             user.default_workspace_id = existing_personal.id
+            user.default_organization_id = existing_org.id
+            await _ensure_org_owner_member(db, existing_org.id, user.id)
             await db.flush()
             return existing_personal
         # Org without personal workspace — likely manual cleanup. Reuse
@@ -115,6 +118,8 @@ async def ensure_personal_workspace(db: AsyncSession, user: User) -> Workspace:
         )
         db.add(org)
         await db.flush()
+
+    await _ensure_org_owner_member(db, org.id, user.id)
 
     workspace = Workspace(
         organization_id=org.id,
@@ -136,8 +141,35 @@ async def ensure_personal_workspace(db: AsyncSession, user: User) -> Workspace:
     db.add(member)
 
     user.default_workspace_id = workspace.id
+    user.default_organization_id = org.id
     await db.flush()
     return workspace
+
+
+async def _ensure_org_owner_member(
+    db: AsyncSession, organization_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    """Idempotently ensure ``(organization_id, user_id)`` exists as an
+    owner row in ``organization_members``. Called from
+    :func:`ensure_personal_workspace` for the auto-created personal
+    org, and reusable for any future "user just joined this org as
+    owner" flow."""
+    existing = await db.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == organization_id,
+            OrganizationMember.user_id == user_id,
+        )
+    )
+    if existing is not None:
+        return
+    db.add(
+        OrganizationMember(
+            organization_id=organization_id,
+            user_id=user_id,
+            role=ORG_ROLE_OWNER,
+        )
+    )
+    await db.flush()
 
 
 async def list_user_workspace_ids(db: AsyncSession, user_id: uuid.UUID) -> list[uuid.UUID]:

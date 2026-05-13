@@ -1,42 +1,152 @@
 """Permission resolution + check helpers.
 
-Built-in roles resolve via :mod:`app.platform.permissions.roles` (a pure
-dict). Custom roles resolve via a DB lookup on the ``custom_roles``
-table — the slug stored in ``workspace_members.role`` is the lookup
-key.
+Two tiers, mirroring the role bindings in ``roles.py``:
 
-The hot path is ``has_permission(member, perm)`` for built-in roles:
-a single dict lookup, no IO. Custom roles add one SELECT per check.
-Per-request caching can layer on later (FastAPI request scope) if
-this shows up in profiles; not needed at current scale.
+  ORG-scoped perms       checked via ``has_org_permission_async``
+                          against the user's ``organization_members.role``.
+
+  WORKSPACE-scoped perms checked via ``has_workspace_permission_async``
+                          (or the legacy ``has_permission_async``)
+                          against the EFFECTIVE workspace role —
+                          a function of both org role and
+                          workspace_members.role (see
+                          :func:`roles.effective_workspace_role`).
+
+Custom roles still resolve via the ``custom_roles`` table by slug;
+the slug lives on ``workspace_members.role`` and is workspace-scoped.
 """
 from __future__ import annotations
 
 import logging
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.custom_role import CustomRole
+from app.models.organization_member import ORG_ROLES, OrganizationMember
 from app.models.workspace import Workspace
 from app.models.workspace_member import WORKSPACE_ROLES, WorkspaceMember
-from app.platform.permissions.catalogue import is_known_permission
-from app.platform.permissions.roles import role_permissions
+from app.platform.permissions.catalogue import (
+    is_known_permission,
+    is_org_permission,
+)
+from app.platform.permissions.roles import (
+    ORG_ROLE_BINDINGS,
+    WORKSPACE_ROLE_BINDINGS,
+    effective_workspace_role,
+)
 
 logger = logging.getLogger("agentforge")
 
 
-def has_permission(member: WorkspaceMember, permission: str) -> bool:
-    """Sync-only check against built-in roles.
+# ─── Org-tier check ────────────────────────────────────────────────
 
-    Returns ``False`` for custom-role slugs — callers that may
-    encounter custom roles must use :func:`has_permission_async`.
-    Use this entry point when you've already filtered to built-in
-    roles (or are running in a context without DB access).
+
+async def has_org_permission_async(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    organization_id: uuid.UUID,
+    permission: str,
+) -> bool:
+    """True iff the user has ``permission`` at the org tier.
+
+    Only valid for permissions in
+    :data:`app.platform.permissions.catalogue.ORG_PERMISSIONS`.
     """
+    if not is_org_permission(permission):
+        raise ValueError(
+            f"{permission!r} is not an org-scoped permission — "
+            "use has_workspace_permission_async instead."
+        )
+    role = await _get_org_role(db, organization_id, user_id)
+    if role is None or role not in ORG_ROLES:
+        return False
+    return permission in ORG_ROLE_BINDINGS.get(role, frozenset())
+
+
+# ─── Workspace-tier check ──────────────────────────────────────────
+
+
+async def has_workspace_permission_async(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    permission: str,
+) -> bool:
+    """True iff the user has ``permission`` in ``workspace_id``.
+
+    Combines the org-tier role (organization_members) and the
+    per-workspace role (workspace_members) via
+    :func:`effective_workspace_role`. Custom workspace-roles still
+    work — they're resolved by slug at workspace_members.role.
+    """
+    if is_org_permission(permission):
+        raise ValueError(
+            f"{permission!r} is an org-scoped permission — "
+            "use has_org_permission_async instead."
+        )
     if not is_known_permission(permission):
         raise ValueError(f"Unknown permission: {permission!r}")
-    return permission in role_permissions(member.role)
+
+    # Get the workspace + its org in one round-trip.
+    org_id = await db.scalar(
+        select(Workspace.organization_id).where(Workspace.id == workspace_id)
+    )
+    if org_id is None:
+        return False
+
+    org_role = await _get_org_role(db, org_id, user_id)
+    if org_role is None:
+        return False
+
+    ws_role = await db.scalar(
+        select(WorkspaceMember.role).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+    )
+
+    # Built-in role path — clean, no DB.
+    if ws_role is None or ws_role in WORKSPACE_ROLES:
+        eff = effective_workspace_role(org_role, ws_role)
+        if eff is None:
+            return False
+        return permission in WORKSPACE_ROLE_BINDINGS.get(eff, frozenset())
+
+    # Custom workspace-role: resolve by slug. The org-admin override
+    # still applies — an org owner/admin gets implicit owner/admin
+    # regardless of the custom slug.
+    if org_role in ("owner", "admin"):
+        eff = effective_workspace_role(org_role, None)
+        return permission in WORKSPACE_ROLE_BINDINGS.get(eff, frozenset())
+
+    custom = await db.scalar(
+        select(CustomRole).where(
+            CustomRole.organization_id == org_id,
+            CustomRole.slug == ws_role,
+        )
+    )
+    if custom is None:
+        logger.warning(
+            "permissions: workspace %s member %s carries unknown role slug %r",
+            workspace_id, user_id, ws_role,
+        )
+        return False
+    return permission in (custom.permissions or [])
+
+
+# ─── Legacy alias kept for one or two call sites that pass the
+#     WorkspaceMember row instead of looking up by ids. ──────────────
+
+
+def has_permission(member: WorkspaceMember, permission: str) -> bool:
+    """Sync check ignoring org-tier overrides. Use only when you're
+    sure the workspace member's row carries the final role (no org-
+    admin force). For request-time checks, prefer the async variant."""
+    if not is_known_permission(permission):
+        raise ValueError(f"Unknown permission: {permission!r}")
+    return permission in WORKSPACE_ROLE_BINDINGS.get(member.role, frozenset())
 
 
 async def has_permission_async(
@@ -44,45 +154,30 @@ async def has_permission_async(
     member: WorkspaceMember,
     permission: str,
 ) -> bool:
-    """Async check that resolves both built-in and custom roles.
-
-    Built-ins short-circuit via :func:`has_permission` (no DB hit).
-    Custom roles resolve through one ``SELECT`` on ``custom_roles``
-    scoped to the workspace's organization.
-    """
-    if not is_known_permission(permission):
-        raise ValueError(f"Unknown permission: {permission!r}")
-
-    # Built-in fast path — no DB.
-    if member.role in WORKSPACE_ROLES:
-        return permission in role_permissions(member.role)
-
-    # Custom role — look up by (organization_id, slug). We don't have
-    # the org id on the member row directly; resolve via the workspace.
-    org_id = await db.scalar(
-        select(Workspace.organization_id).where(Workspace.id == member.workspace_id)
+    """Workspace-tier check by row. Thin wrapper around
+    :func:`has_workspace_permission_async`."""
+    return await has_workspace_permission_async(
+        db, member.user_id, member.workspace_id, permission
     )
-    if org_id is None:
-        return False
 
-    custom = await db.scalar(
-        select(CustomRole).where(
-            CustomRole.organization_id == org_id,
-            CustomRole.slug == member.role,
+
+# ─── Helpers ───────────────────────────────────────────────────────
+
+
+async def _get_org_role(
+    db: AsyncSession, organization_id: uuid.UUID, user_id: uuid.UUID
+) -> str | None:
+    return await db.scalar(
+        select(OrganizationMember.role).where(
+            OrganizationMember.organization_id == organization_id,
+            OrganizationMember.user_id == user_id,
         )
     )
-    if custom is None:
-        # Slug stored on the member doesn't resolve — log + deny.
-        # Most likely the role was deleted but the member wasn't
-        # reassigned. Admins should run a sweep.
-        logger.warning(
-            "permissions: member %s/%s carries unknown role slug %r",
-            member.workspace_id,
-            member.user_id,
-            member.role,
-        )
-        return False
-    return permission in (custom.permissions or [])
 
 
-__all__ = ["has_permission", "has_permission_async"]
+__all__ = [
+    "has_org_permission_async",
+    "has_workspace_permission_async",
+    "has_permission",
+    "has_permission_async",
+]
