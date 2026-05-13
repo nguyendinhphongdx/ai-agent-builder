@@ -48,6 +48,16 @@ class User(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
+    # Where to LAND at the org tier. Mirrors ``default_workspace_id``
+    # but one level up. At signup we auto-create a personal org →
+    # personal workspace and stamp both pointers. Org switcher updates
+    # this when the user picks another org. ``SET NULL`` on org delete.
+    default_organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # ── MFA ───────────────────────────────────────────────────────────
     # Fernet-encrypted TOTP secret (base32 plaintext). NULL = TOTP not

@@ -23,6 +23,14 @@ from app.models.oauth_account import OAuthAccount
 from app.models.oauth_connection import OAuthConnection, OAuthState
 from app.models.org_subscription import OrgSubscription
 from app.models.organization import Organization
+from app.models.organization_member import (
+    ORG_ROLE_ADMIN,
+    ORG_ROLE_EDITOR,
+    ORG_ROLE_OWNER,
+    ORG_ROLE_VIEWER,
+    ORG_ROLES,
+    OrganizationMember,
+)
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.plugin import Plugin
 from app.models.scim_token import SCIMToken
@@ -54,6 +62,12 @@ __all__ = [
     "OAuthConnection",
     "OAuthState",
     "Organization",
+    "OrganizationMember",
+    "ORG_ROLE_VIEWER",
+    "ORG_ROLE_EDITOR",
+    "ORG_ROLE_ADMIN",
+    "ORG_ROLE_OWNER",
+    "ORG_ROLES",
     "OrgSubscription",
     "Workspace",
     "WorkspaceMember",
