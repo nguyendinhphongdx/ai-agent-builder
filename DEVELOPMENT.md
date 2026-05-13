@@ -10,6 +10,7 @@ overview, see [README.md](README.md).
 - [Local Setup](#local-setup)
 - [Using the `forge` CLI](#using-the-forge-cli)
 - [Manual Setup (without the CLI)](#manual-setup-without-the-cli)
+- [Knowledge Base Embeddings (Ollama)](#knowledge-base-embeddings-ollama)
 - [Environment Variables](#environment-variables)
 - [Database Migrations](#database-migrations)
 - [API Overview](#api-overview)
@@ -200,6 +201,66 @@ docker compose up -d                # Start standalone
 docker compose logs -f              # Tail logs
 docker compose down -v              # Stop + remove data
 ```
+
+---
+
+## Knowledge Base Embeddings (Ollama)
+
+By default `EMBEDDING_PROVIDER=ollama` with `EMBEDDING_MODEL=nomic-embed-text`
+(768 dims). Without an Ollama instance + the model pulled, every KB upload
+will fail at the embedding step.
+
+### Install Ollama
+
+| OS              | Command                                                              |
+| --------------- | -------------------------------------------------------------------- |
+| macOS / Windows | Download installer at <https://ollama.com/download>                  |
+| Linux           | `curl -fsSL https://ollama.com/install.sh \| sh`                     |
+| Docker          | `docker run -d -p 11434:11434 -v ollama:/root/.ollama ollama/ollama` |
+
+### Pull the embedding model (one-time, ~270 MB)
+
+```bash
+ollama pull nomic-embed-text
+```
+
+### Verify Ollama is reachable
+
+```bash
+curl http://localhost:11434/api/tags        # → { "models": [{ "name": "nomic-embed-text:latest", ... }] }
+```
+
+Backend reads `OLLAMA_BASE_URL` (default `http://localhost:11434`). On Docker
+Compose the backend service points at the host via
+`OLLAMA_BASE_URL=http://host.docker.internal:11434` so a single host-installed
+Ollama serves both local Python and the containerised backend.
+
+### Swap models / providers
+
+```env
+# Bigger, English-only — 1024 dims (re-create KBs after switching dims!)
+EMBEDDING_MODEL=mxbai-embed-large
+EMBEDDING_DIMENSIONS=1024
+
+# OpenAI instead of Ollama
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSIONS=1536
+OPENAI_EMBEDDING_API_KEY=sk-...
+```
+
+Embedding config is **snapshotted into each KB at create time** — changing the
+env after KBs already exist only affects *new* KBs. Existing KBs keep their
+original provider/model/dims so prior chunks stay query-compatible.
+
+### Troubleshooting
+
+| Symptom                                              | Fix                                                              |
+| ---------------------------------------------------- | ---------------------------------------------------------------- |
+| `connection refused localhost:11434`                 | Ollama isn't running. `ollama serve` or restart the desktop app. |
+| `model "nomic-embed-text" not found, try pulling it` | `ollama pull nomic-embed-text`                                   |
+| Docker backend can't reach host Ollama               | Set `OLLAMA_BASE_URL=http://host.docker.internal:11434`          |
+| Embedding dims mismatch on retrieve                  | KB was created with different dims — drop + recreate the KB      |
 
 ---
 
