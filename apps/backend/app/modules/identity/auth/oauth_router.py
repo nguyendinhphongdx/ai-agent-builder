@@ -23,7 +23,7 @@ from app.modules.identity.auth.oauth import (
     get_provider,
     redirect_uri_for,
 )
-from app.modules.identity.auth.router import _set_auth_cookies
+from app.modules.identity.auth._internal import set_auth_cookies
 from app.modules.identity.auth.service import get_user_by_email
 from app.platform.config import settings
 from app.platform.db.session import get_db
@@ -141,7 +141,7 @@ async def oauth_callback(
     )
     # Clear state cookie
     resp.delete_cookie(STATE_COOKIE, path=f"{settings.API_PREFIX}/auth/oauth")
-    _set_auth_cookies(
+    set_auth_cookies(
         resp,
         str(user.id),
         token_version=user.token_version,

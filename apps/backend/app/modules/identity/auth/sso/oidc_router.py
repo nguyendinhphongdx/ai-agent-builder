@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember
-from app.modules.identity.auth.router import _set_auth_cookies
+from app.modules.identity.auth._internal import set_auth_cookies
 from app.modules.identity.auth.service import get_user_by_email
 from app.modules.identity.auth.sso.oidc import (
     OIDCDiscoveryError,
@@ -213,7 +213,7 @@ async def oidc_callback(
         url=_frontend_url(redirect_to), status_code=status.HTTP_302_FOUND
     )
     resp.delete_cookie(_STATE_COOKIE, path=f"{settings.API_PREFIX}/sso/oidc")
-    _set_auth_cookies(
+    set_auth_cookies(
         resp,
         str(user.id),
         token_version=user.token_version,
