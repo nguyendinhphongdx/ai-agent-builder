@@ -116,23 +116,23 @@ def require_permission(permission: str):
 
 def require_active_permission(permission: str):
     """Dependency factory — 403 unless the caller has ``permission``
-    in their **active** workspace (the one set on the request via
-    X-Workspace-Id header or user.default_workspace_id).
+    in their **active** scope.
 
-    Use this for endpoints whose URL doesn't carry workspace_id —
-    most resource CRUD lives under ``/agents``, ``/knowledge-bases``,
-    etc. and gets its tenant scope from the request's active workspace.
+    Auto-dispatches on permission scope:
+      * ORG-tier (catalogue.ORG_PERMISSIONS) → delegate to
+        :func:`require_org_permission` (uses ``current_organization_id``
+        + ``organization_members.role`` × ``ORG_ROLE_BINDINGS``).
+      * Workspace-tier → resolve workspace from ContextVar
+        (X-Workspace-Id header or ``user.default_workspace_id``),
+        look up ``workspace_members``, check effective role.
 
-    Resolution:
-      1. get_current_user (already runs) seeds ``current_workspace_id``
-         in the ContextVar.
-      2. This dep reads it back and looks up the matching member row.
-      3. Permission check + return the member.
-
-    No active workspace context (background tasks, pre-backfilled
-    legacy users) → 403 with ``no_active_workspace``. UI should
-    surface a workspace-picker prompt.
+    No active scope → 403 with ``no_active_organization`` /
+    ``no_active_workspace``.
     """
+    from app.platform.permissions.catalogue import is_org_permission
+
+    if is_org_permission(permission):
+        return require_org_permission(permission)
 
     async def _check(
         current_user: User = Depends(get_current_user),

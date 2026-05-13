@@ -45,6 +45,7 @@ from app.modules.identity.auth.router import router as auth_router
 from app.modules.identity.auth.scim.router import router as scim_router
 from app.modules.identity.auth.sso.oidc_router import router as sso_oidc_router
 from app.modules.identity.auth.sso.router import router as sso_admin_router
+from app.modules.identity.organizations.router import router as organizations_router
 from app.modules.identity.tokens.router import router as personal_tokens_router
 from app.modules.identity.workspaces.router import router as workspaces_router
 from app.modules.integrations.connectors.kb.router import router as kb_connectors_router
@@ -293,6 +294,7 @@ def create_app() -> FastAPI:
     app.include_router(scim_router, prefix=settings.API_PREFIX)
     app.include_router(mfa_router, prefix=settings.API_PREFIX)
     app.include_router(org_audit_router, prefix=settings.API_PREFIX)
+    app.include_router(organizations_router, prefix=settings.API_PREFIX)
     app.include_router(workspaces_router, prefix=settings.API_PREFIX)
     # Hub: public browse + detail, then authenticated fork/publish/edit on the
     # same /templates prefix. Order matters — public routes are defined before
