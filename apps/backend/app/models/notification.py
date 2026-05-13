@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,8 +47,12 @@ class Notification(Base, UUIDMixin):
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
     link_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     extra: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
-    read_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class NotificationPreference(Base):
@@ -63,4 +67,9 @@ class NotificationPreference(Base):
     in_app: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     push: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    updated_at: Mapped[datetime] = mapped_column(nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

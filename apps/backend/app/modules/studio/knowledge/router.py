@@ -104,6 +104,7 @@ async def delete_kb_endpoint(
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     await delete_knowledge_base(db, kb)
+    await db.commit()
 
 
 # --- Documents ---
