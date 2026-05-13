@@ -156,8 +156,17 @@ async def attach_knowledge_base(
     if kb.scalar_one_or_none() is None:
         raise PermissionError("Knowledge base not found or not owned by user")
 
-    link = AgentKnowledgeBase(agent_id=agent_id, knowledge_base_id=kb_id)
-    db.add(link)
+    # Idempotent — re-clicking "Attach" or React StrictMode's double-
+    # render shouldn't 500 with a unique-violation.
+    existing = await db.scalar(
+        select(AgentKnowledgeBase).where(
+            AgentKnowledgeBase.agent_id == agent_id,
+            AgentKnowledgeBase.knowledge_base_id == kb_id,
+        )
+    )
+    if existing is not None:
+        return
+    db.add(AgentKnowledgeBase(agent_id=agent_id, knowledge_base_id=kb_id))
     await db.flush()
 
 

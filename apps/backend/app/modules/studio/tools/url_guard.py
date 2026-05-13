@@ -25,8 +25,24 @@ def _is_blocked_ip(ip: str) -> bool:
     )
 
 
+def _is_trusted_internal_url(url: str) -> bool:
+    """Whitelist for the backend's own ``BASE_URL`` — the ingestion
+    extractor downloads files from the local storage endpoint
+    (``{BASE_URL}/uploads/...``) which would otherwise be blocked
+    because ``localhost`` resolves to a loopback address.
+
+    Empty BASE_URL → no whitelist (production safe-default)."""
+    from app.platform.config import settings
+
+    base = (settings.BASE_URL or "").rstrip("/")
+    return bool(base) and url.startswith(base + "/")
+
+
 def assert_safe_url(url: str) -> str:
     """Validate URL. Raise ValueError if scheme/host is unsafe."""
+    if _is_trusted_internal_url(url):
+        return url
+
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"URL scheme not allowed: {parsed.scheme!r}")
