@@ -2,7 +2,11 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+# config.py lives at apps/backend/app/platform/config.py — walk up 3
+# levels to reach the backend root where .env lives. Bumped from
+# .parent.parent → .parent.parent.parent when platform/ landed in
+# the bucket refactor; without this, .env loading silently no-ops.
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
