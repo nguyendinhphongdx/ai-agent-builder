@@ -76,32 +76,19 @@ from app.platform.permissions.router import router as permissions_router
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    """App-wide startup/shutdown hooks. Boots background services
-    that share the API process; add new ones here as they land.
+    """App-wide startup/shutdown hooks. Boots every async loop
+    declared in :data:`app.background.WORKERS` and tears them down in
+    reverse order on shutdown — adding a new worker is a one-line
+    change in ``app/background/__init__.py``, not a 2-line change here."""
+    from app.background import WORKERS
 
-    All loops live under ``app.background`` and expose the same
-    ``start()`` / async ``stop()`` contract."""
-    from app.background import (
-        audit_purge,
-        billing_reporter,
-        email_poll,
-        kb_sync,
-        scheduled_triggers,
-    )
-
-    scheduled_triggers.start()
-    audit_purge.start()
-    kb_sync.start()
-    billing_reporter.start()
-    email_poll.start()
+    for worker in WORKERS:
+        worker.start()
     try:
         yield
     finally:
-        await email_poll.stop()
-        await billing_reporter.stop()
-        await kb_sync.stop()
-        await audit_purge.stop()
-        await scheduled_triggers.stop()
+        for worker in reversed(WORKERS):
+            await worker.stop()
 
 
 def create_app() -> FastAPI:
