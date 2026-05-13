@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ErrorState } from "@/components/ui/error-state";
 import { useWorkflowRuns } from "../hooks/useWorkflows";
 import type { WorkflowRun, NodeExecutionLog } from "../types";
 import { cn } from "@/lib/utils";
@@ -67,11 +69,11 @@ export function ExecutionsPanel({ workflowId }: ExecutionsPanelProps) {
                   )}
                 >
                   {run.status === "completed" ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                   ) : run.status === "running" ? (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
                   ) : (
-                    <XCircle className="h-4 w-4 shrink-0 text-red-500" />
+                    <XCircle className="h-4 w-4 shrink-0 text-destructive" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">
@@ -143,20 +145,15 @@ function RunDetailView({
           <div
             className={cn(
               "h-2.5 w-2.5 rounded-full",
-              run.status === "completed" ? "bg-emerald-500" : "bg-red-500"
+              run.status === "completed" ? "bg-success" : "bg-destructive"
             )}
           />
           <span className="text-sm font-medium">
             {new Date(run.started_at).toLocaleString()}
           </span>
-          <Badge className={cn(
-            "text-[10px] h-5 px-1.5",
-            run.status === "completed"
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30"
-              : "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30"
-          )}>
+          <StatusBadge tone={run.status === "completed" ? "active" : "failed"}>
             {run.status}
-          </Badge>
+          </StatusBadge>
         </div>
         <div className="mt-1.5 flex items-center gap-4 text-[11px] text-muted-foreground">
           <span>{nodes.length} nodes executed</span>
@@ -192,8 +189,8 @@ function RunDetailView({
                 <div className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold",
                   node.status === "completed"
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
-                    : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                    ? "bg-success/15 text-success"
+                    : "bg-destructive/15 text-destructive"
                 )}>
                   {i + 1}
                 </div>
@@ -224,10 +221,11 @@ function RunDetailView({
 
         {/* Error message */}
         {run.error_message && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-300">
-            <p className="font-medium mb-1">Error</p>
-            <p className="whitespace-pre-wrap">{run.error_message}</p>
-          </div>
+          <ErrorState
+            title="Error"
+            message={run.error_message}
+            className="mt-3"
+          />
         )}
       </div>
     </div>
@@ -256,7 +254,7 @@ function NodeDetailView({
         <div
           className={cn(
             "h-2 w-2 rounded-full",
-            node.status === "completed" ? "bg-emerald-500" : "bg-red-500"
+            node.status === "completed" ? "bg-success" : "bg-destructive"
           )}
         />
         <span className="text-sm font-medium">
@@ -273,8 +271,8 @@ function NodeDetailView({
         <div className="flex items-center gap-4 px-5 py-3 text-xs text-muted-foreground border-b border-border">
           <span className="flex items-center gap-1">
             {node.status === "completed"
-              ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              : <XCircle className="h-3.5 w-3.5 text-red-500" />
+              ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              : <XCircle className="h-3.5 w-3.5 text-destructive" />
             }
             {node.status}
           </span>
@@ -308,8 +306,8 @@ function NodeDetailView({
             <pre className={cn(
               "flex-1 rounded-lg border p-3 text-xs font-mono overflow-auto whitespace-pre-wrap",
               node.status === "completed"
-                ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5"
-                : "border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/5"
+                ? "border-success/40 bg-success/5"
+                : "border-destructive/40 bg-destructive/5"
             )}>
               {node.error
                 ? node.error

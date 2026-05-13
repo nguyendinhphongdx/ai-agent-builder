@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useWorkflow, useWorkflowRuns } from "../hooks/useWorkflows";
 import type { NodeExecutionLog } from "../types";
 import { ExecutionCanvas } from "../components/ExecutionCanvas";
@@ -145,14 +146,14 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                       {/* Status color bar */}
                       <div className={cn(
                         "w-0.5 self-stretch rounded-full shrink-0",
-                        run.status === "completed" ? "bg-emerald-500" : run.status === "running" ? "bg-primary" : "bg-red-500"
+                        run.status === "completed" ? "bg-success" : run.status === "running" ? "bg-primary" : "bg-destructive"
                       )} />
                       {run.status === "running" ? (
                         <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
                       ) : run.status === "completed" ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                       ) : (
-                        <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                        <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">
@@ -180,14 +181,9 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                     <span className="text-sm font-medium">
                       {new Date(selectedRun.started_at).toLocaleString()}
                     </span>
-                    <Badge className={cn(
-                      "text-[10px] h-5 px-1.5",
-                      selectedRun.status === "completed"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30"
-                        : "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30"
-                    )}>
+                    <StatusBadge tone={selectedRun.status === "completed" ? "active" : "failed"}>
                       {selectedRun.status === "completed" ? "Succeeded" : selectedRun.status}
-                    </Badge>
+                    </StatusBadge>
                     {selectedRun.completed_at && (
                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -203,7 +199,7 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
                   </div>
 
                   {selectedRun.error_message && (
-                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                    <p className="mt-1.5 text-xs text-destructive">
                       {selectedRun.error_message}
                     </p>
                   )}

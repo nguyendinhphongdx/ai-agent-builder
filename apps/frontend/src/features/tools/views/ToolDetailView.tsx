@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useTool, useUpdateTool, useTestTool, useDeleteTool } from "../hooks/useTools";
 import { TOOL_TYPE_META, type JsonSchema, type ToolType } from "../types";
 import { ToolConfigRenderer } from "../components/ToolConfigRenderer";
@@ -110,13 +111,9 @@ export function ToolDetailView({ toolId }: ToolDetailViewProps) {
                 <Badge className={cn("h-5 px-1.5 text-[10px] border", colors.badge)}>
                   {meta?.label}
                 </Badge>
-                {tool.is_active ? (
-                  <Badge className="h-5 border-emerald-200 bg-emerald-50 px-1.5 text-[10px] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                    Active
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">Inactive</Badge>
-                )}
+                <StatusBadge tone={tool.is_active ? "active" : "inactive"}>
+                  {tool.is_active ? "Active" : "Inactive"}
+                </StatusBadge>
                 {updateTool.isPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </div>
               <p className="text-xs text-muted-foreground">{tool.description?.slice(0, 60)}</p>
@@ -222,13 +219,18 @@ export function ToolDetailView({ toolId }: ToolDetailViewProps) {
               {testTool.data && (
                 <div className={cn(
                   "mt-4 rounded-lg border p-3",
-                  testTool.data.success ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5" : "border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/5"
+                  testTool.data.success
+                    ? "border-success/40 bg-success/5"
+                    : "border-destructive/40 bg-destructive/5"
                 )}>
                   <div className="mb-2 flex items-center gap-2">
                     {testTool.data.success
-                      ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      : <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
-                    <span className={cn("text-xs font-semibold", testTool.data.success ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300")}>
+                      ? <CheckCircle2 className="h-4 w-4 text-success" />
+                      : <XCircle className="h-4 w-4 text-destructive" />}
+                    <span className={cn(
+                      "text-xs font-semibold",
+                      testTool.data.success ? "text-success" : "text-destructive"
+                    )}>
                       {testTool.data.success ? "Success" : "Failed"}
                     </span>
                     <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">

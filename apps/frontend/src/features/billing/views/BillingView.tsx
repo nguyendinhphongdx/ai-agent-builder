@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import {
   SettingsCard,
   SettingsPageHeader,
@@ -121,7 +122,7 @@ function CurrentPlanCard({
         <div>
           <div className="flex items-baseline gap-3">
             <span className="text-2xl font-semibold">{plan.name}</span>
-            <StatusBadge status={status} />
+            <SubscriptionStatusBadge status={status} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {has_stripe_subscription
@@ -152,40 +153,41 @@ function CurrentPlanCard({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "past_due") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-        <AlertTriangle className="h-3 w-3" /> payment failed
-      </span>
-    );
-  }
-  if (status === "canceled") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-        canceled
-      </span>
-    );
-  }
-  if (status === "trialing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-300">
-        trialing
-      </span>
-    );
-  }
-  if (status === "active") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-        <CheckCircle2 className="h-3 w-3" /> active
-      </span>
-    );
-  }
+function SubscriptionStatusBadge({ status }: { status: string }) {
+  const { tone, label, icon } = subscriptionStatusVisual(status);
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-      {status}
-    </span>
+    <StatusBadge tone={tone}>
+      {icon}
+      <span className="uppercase tracking-wider">{label}</span>
+    </StatusBadge>
   );
+}
+
+function subscriptionStatusVisual(status: string): {
+  tone: StatusTone;
+  label: string;
+  icon?: React.ReactNode;
+} {
+  switch (status) {
+    case "past_due":
+      return {
+        tone: "pending",
+        label: "payment failed",
+        icon: <AlertTriangle className="h-3 w-3" />,
+      };
+    case "canceled":
+      return { tone: "failed", label: "canceled" };
+    case "trialing":
+      return { tone: "info", label: "trialing" };
+    case "active":
+      return {
+        tone: "active",
+        label: "active",
+        icon: <CheckCircle2 className="h-3 w-3" />,
+      };
+    default:
+      return { tone: "inactive", label: status };
+  }
 }
 
 /* ─── Usage bars ───────────────────────────────────────────── */
@@ -255,12 +257,12 @@ function QuotaBar({
           className={cn(
             "h-full rounded-full transition-all",
             unlimited
-              ? "bg-sky-500/60"
+              ? "bg-info/60"
               : danger
-                ? "bg-rose-500"
+                ? "bg-destructive"
                 : warn
-                  ? "bg-amber-500"
-                  : "bg-emerald-500",
+                  ? "bg-warning"
+                  : "bg-success",
           )}
           style={{ width: unlimited ? "10%" : `${Math.max(2, quota.pct)}%` }}
         />
