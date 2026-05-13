@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReactFlowProvider } from "@xyflow/react";
-import { Check, Loader2, Plus, History } from "lucide-react";
+import { Check, Loader2, Plus, History, Settings } from "lucide-react";
 import { Canvas } from "../components/Canvas";
 import { NodePalette } from "../components/NodePalette";
 import { NDVModal } from "../components/ndv/NDVModal";
@@ -182,6 +182,16 @@ export function WorkflowEditorView({ workflowId }: WorkflowEditorViewProps) {
             >
               <History className="h-3.5 w-3.5" />
               Executions
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+              onClick={() => router.push(`/workflows/${workflowId}/settings`)}
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Settings
             </Button>
 
             <WorkflowToolbar
