@@ -107,7 +107,7 @@ cp apps/frontend/.env.example apps/frontend/.env.local
 
 docker compose up -d
 docker compose exec backend alembic upgrade head
-docker compose exec backend python -m app.cli.seed_admin \
+docker compose exec backend python -m app.platform.cli.seed_admin \
     --email admin@example.com --password 'ChangeMe!'
 ```
 

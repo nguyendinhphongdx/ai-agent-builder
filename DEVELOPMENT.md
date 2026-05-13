@@ -92,11 +92,11 @@ docker compose up -d
 docker compose exec backend alembic upgrade head
 
 # Bootstrap admin user (idempotent — promotes if email exists)
-docker compose exec backend python -m app.cli.seed_admin \
+docker compose exec backend python -m app.platform.cli.seed_admin \
     --email admin@example.com --password 'ChangeMe!'
 
 # Seed the 5 official starter templates (used by the /welcome wizard)
-docker compose exec backend python -m app.cli.seed_starter_templates \
+docker compose exec backend python -m app.platform.cli.seed_starter_templates \
     --owner-email admin@example.com
 ```
 
@@ -288,11 +288,11 @@ Full interactive API docs at <http://localhost:8000/api/docs> (Swagger UI).
 
 ```bash
 # Promote an existing user to admin without resetting their password
-docker compose exec backend python -m app.cli.seed_admin \
+docker compose exec backend python -m app.platform.cli.seed_admin \
     --email user@example.com --promote-only
 
 # Refresh seeded starter templates after editing _starter_templates.py
-docker compose exec backend python -m app.cli.seed_starter_templates \
+docker compose exec backend python -m app.platform.cli.seed_starter_templates \
     --owner-email admin@example.com
 ```
 
@@ -358,7 +358,7 @@ Read [`CLAUDE.md`](CLAUDE.md) and [`docs/conventions/`](docs/conventions/) for t
 
 - **4-layer modules**: `router.py` → `service.py` → `model.py` → `schema.py`
 - **Async everywhere**: `async def`, `AsyncSession`, `httpx.AsyncClient`
-- **Request context**: read `app.context.current_user_id()` from a `ContextVar` instead of
+- **Request context**: read `app.platform.context.current_user_id()` from a `ContextVar` instead of
   threading `user_id` through every signature. Keep explicit only in: login flow
   (`auth/tokens.py`), workflow runner, ingestion pipeline, and webhook background tasks
   (anything reachable from `asyncio.create_task` outside an HTTP request). For background

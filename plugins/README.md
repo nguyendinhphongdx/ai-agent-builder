@@ -4,7 +4,7 @@ Reference plugins + the contract for third-party plugin authors.
 
 ## What ships today (P3.1 MVP)
 
-- **Manifest schema** — `apps/backend/app/plugins/manifest.py`
+- **Manifest schema** — `apps/backend/app/modules/studio/plugins/manifest.py`
   validates `plugin.yaml` files. Required fields: `id`, `version`
   (semver), `name`, `runtime` (one of `python` / `nodejs` /
   `docker`). Optional: `description`, `entrypoint`,
