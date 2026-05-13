@@ -78,6 +78,11 @@ pgdata/
 # ─── MCP server ──────────────────────────────────────────────────
 mcp-docs/dist/
 
+# ─── Business docs (generated HTML SPA from design tool) ─────────
+docs/business/*.html
+docs/business/*.css
+docs/business/*.js
+
 # ─── Services data ───────────────────────────────────────────────
 services/postgres/.env
 services/redis/.env
