@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { resetSession } from "@/lib/api/client";
 import { authService, isMfaChallenge } from "../services/authService";
 import type {
   ForgotPasswordInput,
@@ -90,6 +91,9 @@ export function useLogin() {
       // MfaChallenge response — leave routing/UI to the caller (the
       // login form catches it and renders the second-step prompt).
       if (isMfaChallenge(res)) return;
+      // Clear any sticky refresh-failure flag from a previous expired
+      // session so the new cookies actually get exercised on 401s.
+      resetSession();
       queryClient.setQueryData(authKeys.me, res.user);
       router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
     },
@@ -104,6 +108,7 @@ export function useVerifyMfaLogin() {
     mutationFn: (data: { mfa_token: string; code: string; remember_me?: boolean }) =>
       authService.verifyMfaLogin(data),
     onSuccess: (res) => {
+      resetSession();
       queryClient.setQueryData(authKeys.me, res.user);
       router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
     },
@@ -117,6 +122,7 @@ export function useRegister() {
   return useMutation({
     mutationFn: (data: RegisterInput) => authService.register(data),
     onSuccess: (res) => {
+      resetSession();
       queryClient.setQueryData(authKeys.me, res.user);
       // Sau khi đăng ký thành công user đã logged in nhưng unverified —
       // đưa sang trang pending để họ biết phải check email.
@@ -132,6 +138,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => authService.logout(),
     onSuccess: () => {
+      resetSession();
       queryClient.clear();
       router.push("/login");
     },
