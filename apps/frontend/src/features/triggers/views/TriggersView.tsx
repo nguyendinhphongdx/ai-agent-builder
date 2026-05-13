@@ -2,15 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AtSign,
-  Hash,
-  Loader2,
-  MessageCircle,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { AtSign, Hash, Loader2, MessageCircle, Plus, Trash2 } from "lucide-react";
 import {
   SettingsCard,
   SettingsPageHeader,
@@ -19,17 +11,16 @@ import {
 import { cn } from "@/lib/utils";
 import { workflowService } from "@/features/workflows/services/workflowService";
 import {
-  discordTriggersService,
-  emailTriggersService,
-  slackTriggersService,
-  teamsTriggersService,
-  type DiscordTrigger,
-  type EmailTrigger,
-  type SlackTrigger,
-  type TeamsTrigger,
+  buildDiscordPayload,
+  buildEmailPayload,
+  buildSlackPayload,
+  buildTeamsPayload,
+  triggersService,
+  type Trigger,
+  type TriggerType,
 } from "@/lib/api/triggersService";
 
-type TabKey = "email" | "slack" | "teams" | "discord";
+type TabKey = Exclude<TriggerType, "scheduled">;
 
 const TABS: Array<{ key: TabKey; label: string; icon: React.ElementType }> = [
   { key: "email", label: "Email (IMAP)", icon: AtSign },
@@ -39,13 +30,17 @@ const TABS: Array<{ key: TabKey; label: string; icon: React.ElementType }> = [
 ];
 
 /**
- * Cross-workflow trigger management page. Tabs by channel type;
- * each tab lists triggers in the active workspace and a "+ New"
- * button opens a create form. Per-row delete with confirm.
+ * Cross-workflow trigger management page. Tabs by trigger type;
+ * each tab lists triggers of that type in the active workspace and
+ * a "+ New" button opens a create form. Per-row delete with confirm.
  *
- * Workflow lookups are deferred to a dropdown inside each form —
- * we don't pre-load workflows on tab switch since most users have
- * few triggers per workspace.
+ * All four tabs talk to the same unified ``/api/triggers`` router —
+ * filtering by ``?type=`` for list, posting ``{type, config, ...}``
+ * for create. The per-tab form builders package the user inputs
+ * into the right ``config`` / ``credentials`` JSON shape.
+ *
+ * Scheduled triggers live on cron_trigger workflow nodes — managed
+ * inline in the workflow editor, not here.
  */
 export function TriggersView() {
   const [tab, setTab] = useState<TabKey>("email");
@@ -99,6 +94,21 @@ function useWorkflowList() {
   });
 }
 
+function useTriggerList(type: TabKey) {
+  return useQuery({
+    queryKey: ["triggers", type],
+    queryFn: () => triggersService.list({ type }),
+  });
+}
+
+function useDeleteTrigger(type: TabKey) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => triggersService.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["triggers", type] }),
+  });
+}
+
 function ActiveBadge({ active }: { active: boolean }) {
   return (
     <span
@@ -144,84 +154,83 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <p className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
+      {message}
+    </p>
+  );
+}
+
 /* ─── Email tab ────────────────────────────────────────────── */
 
 function EmailTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const wfQ = useWorkflowList();
-
-  const listQ = useQuery({
-    queryKey: ["email-triggers"],
-    queryFn: () => emailTriggersService.list(),
-  });
-
-  const removeM = useMutation({
-    mutationFn: (id: string) => emailTriggersService.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-triggers"] }),
-  });
-  const pollM = useMutation({
-    mutationFn: (id: string) => emailTriggersService.pollNow(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-triggers"] }),
-  });
+  const listQ = useTriggerList("email");
+  const removeM = useDeleteTrigger("email");
 
   return (
-    <>
-      <SettingsCard
-        title="Email triggers"
-        description="One IMAP mailbox per trigger. New messages enqueue a workflow run."
-        action={!showForm ? <PrimaryButton onClick={() => setShowForm(true)}>New</PrimaryButton> : null}
-      >
-        {showForm && (
-          <EmailTriggerForm
-            workflows={wfQ.data ?? []}
-            onCancel={() => setShowForm(false)}
-            onDone={() => {
-              setShowForm(false);
-              qc.invalidateQueries({ queryKey: ["email-triggers"] });
-            }}
-          />
+    <SettingsCard
+      title="Email triggers"
+      description="One IMAP mailbox per trigger. New messages enqueue a workflow run."
+      action={!showForm ? <PrimaryButton onClick={() => setShowForm(true)}>New</PrimaryButton> : null}
+    >
+      {showForm && (
+        <EmailTriggerForm
+          workflows={wfQ.data ?? []}
+          onCancel={() => setShowForm(false)}
+          onDone={() => {
+            setShowForm(false);
+            qc.invalidateQueries({ queryKey: ["triggers", "email"] });
+          }}
+        />
+      )}
+      {listQ.isLoading ? (
+        <Loader2 className="m-5 h-4 w-4 animate-spin text-muted-foreground" />
+      ) : (listQ.data ?? []).length === 0 ? (
+        <p className="px-5 py-6 text-xs text-muted-foreground">No email triggers yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {(listQ.data ?? []).map((t) => (
+            <EmailRow key={t.id} trigger={t} onDelete={() => removeM.mutate(t.id)} />
+          ))}
+        </ul>
+      )}
+    </SettingsCard>
+  );
+}
+
+function EmailRow({ trigger, onDelete }: { trigger: Trigger; onDelete: () => void }) {
+  const cfg = trigger.config as {
+    imap_host?: string;
+    imap_port?: number;
+    imap_username?: string;
+    imap_folder?: string;
+    poll_interval_seconds?: number;
+  };
+  return (
+    <li className="flex items-center justify-between px-5 py-3">
+      <div>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {trigger.name}
+          <ActiveBadge active={trigger.is_active} />
+        </div>
+        <div className="mt-0.5 text-[11px] text-muted-foreground font-mono">
+          {cfg.imap_username}@{cfg.imap_host}:{cfg.imap_port} · {cfg.imap_folder} ·
+          poll every {cfg.poll_interval_seconds}s
+        </div>
+        {trigger.last_error && (
+          <div className="mt-0.5 text-[11px] text-rose-600">⚠ {trigger.last_error}</div>
         )}
-        {listQ.isLoading ? (
-          <Loader2 className="m-5 h-4 w-4 animate-spin text-muted-foreground" />
-        ) : (listQ.data ?? []).length === 0 ? (
-          <p className="px-5 py-6 text-xs text-muted-foreground">No email triggers yet.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {(listQ.data ?? []).map((t: EmailTrigger) => (
-              <li key={t.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    {t.name}
-                    <ActiveBadge active={t.is_active} />
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground font-mono">
-                    {t.imap_username}@{t.imap_host}:{t.imap_port} · {t.imap_folder} · poll every {t.poll_interval_seconds}s
-                  </div>
-                  {t.last_error && (
-                    <div className="mt-0.5 text-[11px] text-rose-600">⚠ {t.last_error}</div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => pollM.mutate(t.id)}
-                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent"
-                  >
-                    <RefreshCw className={cn("h-3 w-3", pollM.isPending && "animate-spin")} /> Poll now
-                  </button>
-                  <DeleteButton
-                    onClick={() => {
-                      if (window.confirm("Delete this trigger?")) removeM.mutate(t.id);
-                    }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SettingsCard>
-    </>
+      </div>
+      <DeleteButton
+        onClick={() => {
+          if (window.confirm("Delete this trigger?")) onDelete();
+        }}
+      />
+    </li>
   );
 }
 
@@ -247,8 +256,8 @@ function EmailTriggerForm({
     mark_seen: true,
   });
   const createM = useMutation({
-    mutationFn: () => emailTriggersService.create(form),
-    onSuccess: () => onDone(),
+    mutationFn: () => triggersService.create(buildEmailPayload(form)),
+    onSuccess: onDone,
   });
 
   return (
@@ -281,6 +290,7 @@ function EmailTriggerForm({
           max={3600}
         />
       </div>
+      {createM.error && <ErrorBanner message={extractError(createM.error)} />}
       <FormActions onCancel={onCancel} loading={createM.isPending} />
     </form>
   );
@@ -292,19 +302,13 @@ function SlackTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const wfQ = useWorkflowList();
-  const listQ = useQuery({
-    queryKey: ["slack-triggers"],
-    queryFn: () => slackTriggersService.list(),
-  });
-  const removeM = useMutation({
-    mutationFn: (id: string) => slackTriggersService.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["slack-triggers"] }),
-  });
+  const listQ = useTriggerList("slack");
+  const removeM = useDeleteTrigger("slack");
 
   return (
     <SettingsCard
       title="Slack triggers"
-      description="App mentions, channel messages, slash commands. Point your Slack app's Event URL at /api/slack/events."
+      description="App mentions, channel messages, slash commands. Point your Slack app's Event URL at /api/triggers/slack/events."
       action={!showForm ? <PrimaryButton onClick={() => setShowForm(true)}>New</PrimaryButton> : null}
     >
       {showForm && (
@@ -313,7 +317,7 @@ function SlackTab() {
           onCancel={() => setShowForm(false)}
           onDone={() => {
             setShowForm(false);
-            qc.invalidateQueries({ queryKey: ["slack-triggers"] });
+            qc.invalidateQueries({ queryKey: ["triggers", "slack"] });
           }}
         />
       )}
@@ -323,30 +327,43 @@ function SlackTab() {
         <p className="px-5 py-6 text-xs text-muted-foreground">No Slack triggers yet.</p>
       ) : (
         <ul className="divide-y divide-border">
-          {(listQ.data ?? []).map((t: SlackTrigger) => (
-            <li key={t.id} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {t.name}
-                  <ActiveBadge active={t.is_active} />
-                </div>
-                <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
-                  {t.slack_team_id} · {t.filter_event_type}
-                  {t.filter_channel_id && ` · #${t.filter_channel_id}`}
-                  {t.filter_command && ` · ${t.filter_command}`}
-                  {t.filter_keyword && ` · contains "${t.filter_keyword}"`}
-                </div>
-              </div>
-              <DeleteButton
-                onClick={() => {
-                  if (window.confirm("Delete this trigger?")) removeM.mutate(t.id);
-                }}
-              />
-            </li>
+          {(listQ.data ?? []).map((t) => (
+            <SlackRow key={t.id} trigger={t} onDelete={() => removeM.mutate(t.id)} />
           ))}
         </ul>
       )}
     </SettingsCard>
+  );
+}
+
+function SlackRow({ trigger, onDelete }: { trigger: Trigger; onDelete: () => void }) {
+  const cfg = trigger.config as {
+    slack_team_id?: string;
+    filter_event_type?: string;
+    filter_channel_id?: string;
+    filter_command?: string;
+    filter_keyword?: string;
+  };
+  return (
+    <li className="flex items-center justify-between px-5 py-3">
+      <div>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {trigger.name}
+          <ActiveBadge active={trigger.is_active} />
+        </div>
+        <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
+          {cfg.slack_team_id} · {cfg.filter_event_type}
+          {cfg.filter_channel_id && ` · #${cfg.filter_channel_id}`}
+          {cfg.filter_command && ` · ${cfg.filter_command}`}
+          {cfg.filter_keyword && ` · contains "${cfg.filter_keyword}"`}
+        </div>
+      </div>
+      <DeleteButton
+        onClick={() => {
+          if (window.confirm("Delete this trigger?")) onDelete();
+        }}
+      />
+    </li>
   );
 }
 
@@ -363,23 +380,14 @@ function SlackTriggerForm({
     workflow_id: "",
     name: "",
     slack_team_id: "",
-    filter_event_type: "app_mention",
+    filter_event_type: "app_mention" as "app_mention" | "message" | "slash_command",
     filter_channel_id: "",
     filter_command: "",
     filter_keyword: "",
   });
   const createM = useMutation({
-    mutationFn: () =>
-      slackTriggersService.create({
-        workflow_id: form.workflow_id,
-        name: form.name,
-        slack_team_id: form.slack_team_id,
-        filter_event_type: form.filter_event_type,
-        filter_channel_id: form.filter_channel_id || null,
-        filter_command: form.filter_command || null,
-        filter_keyword: form.filter_keyword || null,
-      }),
-    onSuccess: () => onDone(),
+    mutationFn: () => triggersService.create(buildSlackPayload(form)),
+    onSuccess: onDone,
   });
 
   return (
@@ -403,7 +411,9 @@ function SlackTriggerForm({
         <SelectInput
           label="Event type"
           value={form.filter_event_type}
-          onChange={(v) => setForm({ ...form, filter_event_type: v })}
+          onChange={(v) =>
+            setForm({ ...form, filter_event_type: v as typeof form.filter_event_type })
+          }
           options={[
             { label: "App mention (@bot)", value: "app_mention" },
             { label: "Channel message", value: "message" },
@@ -414,6 +424,7 @@ function SlackTriggerForm({
         <TextInput label="Slash command (e.g. /agent)" value={form.filter_command} onChange={(v) => setForm({ ...form, filter_command: v })} />
         <TextInput label="Keyword filter (optional)" value={form.filter_keyword} onChange={(v) => setForm({ ...form, filter_keyword: v })} />
       </div>
+      {createM.error && <ErrorBanner message={extractError(createM.error)} />}
       <FormActions onCancel={onCancel} loading={createM.isPending} />
     </form>
   );
@@ -425,14 +436,8 @@ function TeamsTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const wfQ = useWorkflowList();
-  const listQ = useQuery({
-    queryKey: ["teams-triggers"],
-    queryFn: () => teamsTriggersService.list(),
-  });
-  const removeM = useMutation({
-    mutationFn: (id: string) => teamsTriggersService.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teams-triggers"] }),
-  });
+  const listQ = useTriggerList("teams");
+  const removeM = useDeleteTrigger("teams");
 
   return (
     <SettingsCard
@@ -446,7 +451,7 @@ function TeamsTab() {
           onCancel={() => setShowForm(false)}
           onDone={() => {
             setShowForm(false);
-            qc.invalidateQueries({ queryKey: ["teams-triggers"] });
+            qc.invalidateQueries({ queryKey: ["triggers", "teams"] });
           }}
         />
       )}
@@ -456,28 +461,35 @@ function TeamsTab() {
         <p className="px-5 py-6 text-xs text-muted-foreground">No Teams triggers yet.</p>
       ) : (
         <ul className="divide-y divide-border">
-          {(listQ.data ?? []).map((t: TeamsTrigger) => (
-            <li key={t.id} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {t.name}
-                  <ActiveBadge active={t.is_active} />
-                </div>
-                <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
-                  Webhook URL: /api/teams/events/{t.id}
-                  {t.filter_keyword && ` · contains "${t.filter_keyword}"`}
-                </div>
-              </div>
-              <DeleteButton
-                onClick={() => {
-                  if (window.confirm("Delete this trigger?")) removeM.mutate(t.id);
-                }}
-              />
-            </li>
+          {(listQ.data ?? []).map((t) => (
+            <TeamsRow key={t.id} trigger={t} onDelete={() => removeM.mutate(t.id)} />
           ))}
         </ul>
       )}
     </SettingsCard>
+  );
+}
+
+function TeamsRow({ trigger, onDelete }: { trigger: Trigger; onDelete: () => void }) {
+  const cfg = trigger.config as { filter_keyword?: string };
+  return (
+    <li className="flex items-center justify-between px-5 py-3">
+      <div>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {trigger.name}
+          <ActiveBadge active={trigger.is_active} />
+        </div>
+        <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
+          Webhook URL: /api/triggers/teams/{trigger.id}/events
+          {cfg.filter_keyword && ` · contains "${cfg.filter_keyword}"`}
+        </div>
+      </div>
+      <DeleteButton
+        onClick={() => {
+          if (window.confirm("Delete this trigger?")) onDelete();
+        }}
+      />
+    </li>
   );
 }
 
@@ -493,18 +505,12 @@ function TeamsTriggerForm({
   const [form, setForm] = useState({
     workflow_id: "",
     name: "",
-    hmac_secret: "",
+    hmac_secret_b64: "",
     filter_keyword: "",
   });
   const createM = useMutation({
-    mutationFn: () =>
-      teamsTriggersService.create({
-        workflow_id: form.workflow_id,
-        name: form.name,
-        hmac_secret: form.hmac_secret,
-        filter_keyword: form.filter_keyword || null,
-      }),
-    onSuccess: () => onDone(),
+    mutationFn: () => triggersService.create(buildTeamsPayload(form)),
+    onSuccess: onDone,
   });
 
   return (
@@ -527,12 +533,13 @@ function TeamsTriggerForm({
         <TextInput
           label="HMAC secret (base64)"
           type="password"
-          value={form.hmac_secret}
-          onChange={(v) => setForm({ ...form, hmac_secret: v })}
+          value={form.hmac_secret_b64}
+          onChange={(v) => setForm({ ...form, hmac_secret_b64: v })}
           required
         />
         <TextInput label="Keyword filter (optional)" value={form.filter_keyword} onChange={(v) => setForm({ ...form, filter_keyword: v })} />
       </div>
+      {createM.error && <ErrorBanner message={extractError(createM.error)} />}
       <FormActions onCancel={onCancel} loading={createM.isPending} />
     </form>
   );
@@ -544,19 +551,13 @@ function DiscordTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const wfQ = useWorkflowList();
-  const listQ = useQuery({
-    queryKey: ["discord-triggers"],
-    queryFn: () => discordTriggersService.list(),
-  });
-  const removeM = useMutation({
-    mutationFn: (id: string) => discordTriggersService.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["discord-triggers"] }),
-  });
+  const listQ = useTriggerList("discord");
+  const removeM = useDeleteTrigger("discord");
 
   return (
     <SettingsCard
       title="Discord triggers"
-      description="Slash-command interactions. Point your bot's Interactions Endpoint URL at /api/discord/interactions."
+      description="Slash-command interactions. Point your bot's Interactions Endpoint URL at /api/triggers/discord/interactions."
       action={!showForm ? <PrimaryButton onClick={() => setShowForm(true)}>New</PrimaryButton> : null}
     >
       {showForm && (
@@ -565,7 +566,7 @@ function DiscordTab() {
           onCancel={() => setShowForm(false)}
           onDone={() => {
             setShowForm(false);
-            qc.invalidateQueries({ queryKey: ["discord-triggers"] });
+            qc.invalidateQueries({ queryKey: ["triggers", "discord"] });
           }}
         />
       )}
@@ -575,28 +576,38 @@ function DiscordTab() {
         <p className="px-5 py-6 text-xs text-muted-foreground">No Discord triggers yet.</p>
       ) : (
         <ul className="divide-y divide-border">
-          {(listQ.data ?? []).map((t: DiscordTrigger) => (
-            <li key={t.id} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {t.name}
-                  <ActiveBadge active={t.is_active} />
-                </div>
-                <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
-                  App {t.discord_application_id}
-                  {t.filter_command && ` · /${t.filter_command}`}
-                </div>
-              </div>
-              <DeleteButton
-                onClick={() => {
-                  if (window.confirm("Delete this trigger?")) removeM.mutate(t.id);
-                }}
-              />
-            </li>
+          {(listQ.data ?? []).map((t) => (
+            <DiscordRow key={t.id} trigger={t} onDelete={() => removeM.mutate(t.id)} />
           ))}
         </ul>
       )}
     </SettingsCard>
+  );
+}
+
+function DiscordRow({ trigger, onDelete }: { trigger: Trigger; onDelete: () => void }) {
+  const cfg = trigger.config as {
+    discord_application_id?: string;
+    filter_command?: string;
+  };
+  return (
+    <li className="flex items-center justify-between px-5 py-3">
+      <div>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {trigger.name}
+          <ActiveBadge active={trigger.is_active} />
+        </div>
+        <div className="mt-0.5 text-[11px] font-mono text-muted-foreground">
+          App {cfg.discord_application_id}
+          {cfg.filter_command && ` · /${cfg.filter_command}`}
+        </div>
+      </div>
+      <DeleteButton
+        onClick={() => {
+          if (window.confirm("Delete this trigger?")) onDelete();
+        }}
+      />
+    </li>
   );
 }
 
@@ -617,15 +628,8 @@ function DiscordTriggerForm({
     filter_command: "",
   });
   const createM = useMutation({
-    mutationFn: () =>
-      discordTriggersService.create({
-        workflow_id: form.workflow_id,
-        name: form.name,
-        discord_application_id: form.discord_application_id,
-        discord_public_key: form.discord_public_key,
-        filter_command: form.filter_command || null,
-      }),
-    onSuccess: () => onDone(),
+    mutationFn: () => triggersService.create(buildDiscordPayload(form)),
+    onSuccess: onDone,
   });
 
   return (
@@ -659,6 +663,7 @@ function DiscordTriggerForm({
         />
         <TextInput label="Command name (no slash)" value={form.filter_command} onChange={(v) => setForm({ ...form, filter_command: v })} />
       </div>
+      {createM.error && <ErrorBanner message={extractError(createM.error)} />}
       <FormActions onCancel={onCancel} loading={createM.isPending} />
     </form>
   );
@@ -776,4 +781,17 @@ function FormActions({ onCancel, loading }: { onCancel: () => void; loading: boo
       </button>
     </div>
   );
+}
+
+/* ─── Error extraction ─────────────────────────────────────── */
+
+function extractError(err: unknown): string {
+  const anyErr = err as {
+    response?: { data?: { detail?: string | object } };
+    message?: string;
+  };
+  const detail = anyErr?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  return anyErr?.message ?? "Request failed";
 }
