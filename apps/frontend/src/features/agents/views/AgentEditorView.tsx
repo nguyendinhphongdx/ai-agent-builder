@@ -30,6 +30,30 @@ import { AgentPreviewChat } from "../components/AgentPreviewChat";
 import { useAgent, useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { agentEditorSchema, type AgentEditorFormValues } from "../components/editor/types";
 import { BookOpen } from "lucide-react";
+import { useTools, type Tool, type ToolType } from "@/features/tools";
+
+/**
+ * Map a user-created Tool to the ToolsSelector's display shape.
+ * Tools live in their own feature; the selector only knows about
+ * a small ToolItem record so the icon lib stays tight.
+ */
+const TOOL_TYPE_ICON: Record<ToolType, "globe" | "code" | "database" | "wrench"> = {
+  http_request: "globe",
+  code_exec: "code",
+  db_query: "database",
+  web_scrape: "globe",
+  custom_function: "wrench",
+};
+
+function toToolItem(tool: Tool) {
+  return {
+    id: tool.id,
+    name: tool.name,
+    description: tool.description || "Custom tool",
+    type: "custom" as const,
+    icon: TOOL_TYPE_ICON[tool.tool_type] ?? "wrench",
+  };
+}
 
 /* ─── Tab definitions ──────────────────────────────────────────── */
 
@@ -54,6 +78,13 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
 
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [collabMode, setCollabMode] = useState<"none" | "supervisor" | "peer">("none");
+
+  // User-created tools — system tools are baked into ToolsSelector.
+  // Filter to active only; inactive tools shouldn't be assignable.
+  const toolsQuery = useTools();
+  const customTools = (toolsQuery.data ?? [])
+    .filter((t) => t.is_active)
+    .map(toToolItem);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [workerIds, setWorkerIds] = useState<string[]>([]);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -279,6 +310,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
                   </div>
                   <ToolsSelector
                     selectedToolIds={selectedTools}
+                    customTools={customTools}
                     onToggle={(id) =>
                       setSelectedTools((prev) =>
                         prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
