@@ -63,6 +63,7 @@ from app.modules.runtime.triggers.http.router import router as webhooks_router
 from app.modules.runtime.triggers.router import router as triggers_router
 from app.modules.runtime.triggers.slack.router import events_router as slack_events_router
 from app.modules.runtime.triggers.teams.router import events_router as teams_events_router
+from app.modules.runtime.uploads.router import router as uploads_router
 from app.modules.studio.agents.orchestration.router import router as multi_agent_router
 from app.modules.studio.agents.router import router as agents_router
 from app.modules.studio.knowledge.router import router as knowledge_router
@@ -281,6 +282,7 @@ def create_app() -> FastAPI:
     app.include_router(slack_events_router, prefix=settings.API_PREFIX)
     app.include_router(teams_events_router, prefix=settings.API_PREFIX)
     app.include_router(discord_events_router, prefix=settings.API_PREFIX)
+    app.include_router(uploads_router, prefix=settings.API_PREFIX)
     app.include_router(internal_router, prefix=settings.API_PREFIX)
     app.include_router(external_router, prefix=settings.API_PREFIX)
     app.include_router(integrations_router, prefix=settings.API_PREFIX)
