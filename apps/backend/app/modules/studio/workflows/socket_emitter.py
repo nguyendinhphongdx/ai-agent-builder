@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.platform.config import settings
 from app.platform.dispatcher_client import dispatcher
 
 # Serialize emits so events arrive at the socket server in the order they were
@@ -28,7 +27,6 @@ async def _emit(room: str, event: str, payload: dict[str, Any]) -> None:
                 "socket",
                 "/emit/room",
                 body={"room": room, "event": event, "payload": payload},
-                headers={"x-api-secret": settings.SOCKET_API_SECRET},
                 timeout=5.0,
             )
         except Exception:

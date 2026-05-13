@@ -6,6 +6,11 @@ import * as path from 'path';
 interface RouteConfig {
   url: string;
   description?: string;
+  // Per-service headers the dispatcher injects on every forwarded
+  // request. Values can reference env vars with ``${VAR_NAME}`` so
+  // secrets stay out of the JSON (resolved at load time). When the
+  // env var is missing, the header is dropped (logged as a warning).
+  header?: Record<string, string>;
 }
 
 interface RoutesFile {
@@ -16,7 +21,10 @@ interface ServiceConfig {
   name: string;
   url: string;
   description?: string;
+  header: Record<string, string>;
 }
+
+const ENV_PLACEHOLDER = /^\$\{([A-Z0-9_]+)\}$/;
 
 /**
  * Service Registry
@@ -46,11 +54,16 @@ export class ServiceRegistry implements OnModuleInit {
         // Environment variable override: API_URL, MEETING_API_URL, MAIL_URL, etc.
         const envKey = `${name.toUpperCase().replace(/-/g, '_')}_URL`;
         const url = this.configService.get<string>(envKey) || config.url;
+        const header = this.resolveForwardHeaders(
+          name,
+          config.header ?? {},
+        );
 
         this.services.set(name, {
           name,
           url,
           description: config.description,
+          header,
         });
       }
     } catch (error) {
@@ -77,6 +90,38 @@ export class ServiceRegistry implements OnModuleInit {
     if (errors.length > 0) {
       throw new Error(`Service Registry validation failed:\n${errors.join('\n')}`);
     }
+  }
+
+  private resolveForwardHeaders(
+    serviceName: string,
+    raw: Record<string, string>,
+  ): Record<string, string> {
+    const resolved: Record<string, string> = {};
+    for (const [headerName, rawValue] of Object.entries(raw)) {
+      const placeholder = ENV_PLACEHOLDER.exec(rawValue);
+      const value = placeholder
+        ? this.configService.get<string>(placeholder[1])
+        : rawValue;
+      if (!value) {
+        // Either an env var is unset, or the literal value was empty.
+        // Skip rather than send an empty Authorization-style header
+        // that downstream guards would reject anyway.
+        if (placeholder) {
+          this.logger.warn(
+            `Service ${serviceName}: header ${headerName} references ` +
+              `env var ${placeholder[1]} which is not set — header omitted.`,
+          );
+        }
+        continue;
+      }
+      resolved[headerName] = value;
+    }
+    return resolved;
+  }
+
+  getForwardHeaders(serviceName: string): Record<string, string> {
+    const config = this.services.get(serviceName);
+    return config ? { ...config.header } : {};
   }
 
   resolve(serviceName: string): string {

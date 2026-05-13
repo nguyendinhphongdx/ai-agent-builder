@@ -120,7 +120,10 @@ export class DispatcherConsumer {
 
     try {
       const url = this.resolveUrl(message);
-      const response = await this.httpClient.request(url, message);
+      const serviceHeaders = message.target
+        ? this.serviceRegistry.getForwardHeaders(message.target)
+        : {};
+      const response = await this.httpClient.request(url, message, serviceHeaders);
       const duration = Date.now() - startTime;
 
       if (response.success) {

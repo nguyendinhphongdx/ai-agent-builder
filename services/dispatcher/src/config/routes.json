@@ -10,7 +10,10 @@
     },
     "socket": {
       "url": "http://socket:4000",
-      "description": "WebSocket service (real-time chat, notifications)"
+      "description": "WebSocket service (real-time chat, notifications)",
+      "header": {
+        "x-api-secret": "${SOCKET_API_SECRET}"
+      }
     },
     "code-sandbox": {
       "url": "http://code-sandbox:8000",

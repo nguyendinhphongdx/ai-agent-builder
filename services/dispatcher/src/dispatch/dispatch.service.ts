@@ -43,6 +43,10 @@ export class DispatchService {
         headers: {
           'Content-Type': 'application/json',
           ...request.headers,
+          // Per-service headers (e.g. socket's x-api-secret) override
+          // caller-supplied values — the dispatcher is the source of
+          // truth for inter-service auth.
+          ...this.serviceRegistry.getForwardHeaders(request.target),
           'x-source-service': request.source || 'dispatcher',
         },
         timeout: request.timeout || 30000,
@@ -114,6 +118,7 @@ export class DispatchService {
       headers: {
         'Content-Type': 'application/json',
         ...request.headers,
+        ...this.serviceRegistry.getForwardHeaders(request.target),
         'x-source-service': request.source || 'dispatcher',
       },
       timeout: request.timeout || 120000,

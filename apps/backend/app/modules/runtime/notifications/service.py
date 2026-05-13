@@ -1,31 +1,21 @@
 """Notification service — mint socket tokens + relay events via dispatcher.
 
-Socket emits go through the dispatcher `/dispatch/exchange` endpoint
-(target=socket). The socket service's `/emit*` endpoints are guarded by
-`x-api-secret` — we forward the header here; the dispatcher is a dumb
-passthrough so each caller controls which downstream auth to use.
+Socket emits go through ``/dispatch/exchange`` (target=socket). The
+dispatcher injects the ``x-api-secret`` header on its own (configured
+under ``services.socket.header`` in ``services/dispatcher/src/config/
+routes.json``); the backend doesn't carry that secret.
 """
 
 from datetime import timedelta
 
 from app.modules.identity.auth.service import create_token
-from app.platform.config import settings
 from app.platform.dispatcher_client import dispatcher
 
 
-def _socket_headers() -> dict[str, str]:
-    """Auth header forwarded by dispatcher to the socket service."""
-    return {"x-api-secret": settings.SOCKET_API_SECRET}
-
 async def _emit(path: str, body: dict) -> None:
-    """Forward to a socket /emit endpoint with the shared auth header."""
-    await dispatcher.call(
-        "socket",
-        path,
-        body=body,
-        headers=_socket_headers(),
-        timeout=5.0,
-    )
+    """Forward to a socket /emit endpoint via dispatcher."""
+    await dispatcher.call("socket", path, body=body, timeout=5.0)
+
 
 def create_socket_token(user_id: str, rooms: list[str] | None = None) -> str:
     """Mint short-lived JWT for socket handshake (60s, type=socket)."""

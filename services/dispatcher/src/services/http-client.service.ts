@@ -26,7 +26,11 @@ export class HttpClientService {
     this.defaultTimeout = this.configService.get('HTTP_TIMEOUT', 30000);
   }
 
-  async request(url: string, message: DispatchMessage): Promise<HttpResponse> {
+  async request(
+    url: string,
+    message: DispatchMessage,
+    serviceHeaders: Record<string, string> = {},
+  ): Promise<HttpResponse> {
     const startTime = Date.now();
     const timeout = message.timeout || this.defaultTimeout;
 
@@ -35,6 +39,10 @@ export class HttpClientService {
       method: message.method,
       headers: {
         ...message.headers,
+        // Per-service headers (e.g. socket's x-api-secret) injected
+        // by the dispatcher — override caller values so secrets stay
+        // single-sourced.
+        ...serviceHeaders,
         'x-source-service': message.source || 'dispatcher',
         'X-Dispatch-Id': message.id,
         'X-Dispatch-Source': message.source,

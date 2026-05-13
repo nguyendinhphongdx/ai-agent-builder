@@ -89,11 +89,12 @@ class Settings(BaseSettings):
     # that here unless an integrator explicitly relaxes.
     SLACK_REPLAY_WINDOW_SECONDS: int = 300
 
-    # Socket service — public URL for frontend handshake, API secret for /emit auth.
-    # SOCKET_API_SECRET must match the socket service's API_SECRET env. Dispatcher
-    # doesn't inject this header; backend forwards it via `headers={}` param.
+    # Socket service — public URL for frontend handshake. Returned to
+    # the browser by ``GET /api/me/socket``; must be reachable from the
+    # client (e.g. ``wss://socket.example.com``).
+    # Note: backend-to-socket /emit auth is owned by the dispatcher —
+    # see ``services/dispatcher/src/config/routes.json`` → socket.header.
     SOCKET_PUBLIC_URL: str = "http://localhost:4000"
-    SOCKET_API_SECRET: str = ""
 
     # Dispatcher — internal API gateway for all service-to-service calls
     # (mail, socket, code-sandbox, ...). Empty DISPATCHER_SECRET disables guard in dev.
