@@ -39,5 +39,8 @@ jobs:
       - name: Ruff lint
         run: ruff check app tests
 
+      - name: Architecture lint (import-linter)
+        run: lint-imports
+
       - name: Pytest (unit only — skip integration)
         run: pytest -m "not integration"

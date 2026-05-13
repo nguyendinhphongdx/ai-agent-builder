@@ -79,6 +79,10 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "ruff>=0.8",
+    # Enforces the architectural layering rules documented in CLAUDE.md
+    # (platform may not import upward into modules/core/background).
+    # Runs in CI as `lint-imports`; see [tool.importlinter] below.
+    "import-linter>=2.0",
     # Integration test infrastructure (opt-in via -m integration).
     # testcontainers spins up a real Postgres+pgvector for migration / DB
     # tests so we don't ship migrations that only pass on SQLite.
@@ -119,4 +123,49 @@ markers = [
 filterwarnings = [
     "ignore::DeprecationWarning:passlib",
     "ignore::DeprecationWarning:pydantic",
+]
+
+[tool.importlinter]
+root_package = "app"
+
+# Architectural rule: the platform layer holds primitives (config, db
+# session, security, storage, observability) that modules + core +
+# background depend on. The dependency must never go the other way —
+# a platform primitive importing from a feature module means the
+# layer no longer makes sense, and tests of platform/* would need to
+# load half the app to import.
+#
+# Known exception: app/platform/permissions/router.py is a FastAPI
+# router (so naturally needs `get_current_user` + audit + an SSO
+# helper). It's the only router under platform/ — the right fix is
+# to move it to modules/identity/permissions/router.py and the
+# contract will pass without the ignore list. Tracked as backlog.
+[[tool.importlinter.contracts]]
+name = "Platform may not import upward into modules/core/background"
+type = "forbidden"
+source_modules = ["app.platform"]
+forbidden_modules = [
+    "app.modules",
+    "app.core",
+    "app.background",
+]
+ignore_imports = [
+    # platform/permissions/router.py is a FastAPI router that drifted
+    # into platform/. The right fix is to move it to
+    # modules/identity/permissions/router.py — tracked as backlog.
+    "app.platform.permissions.router -> app.modules.identity.auth.dependencies",
+    "app.platform.permissions.router -> app.modules.ops.audit.service",
+    "app.platform.permissions.router -> app.modules.identity.auth.sso.router",
+    # platform/cli/* are admin scripts (seed, backfill, etc.) rather than
+    # primitives. They legitimately call into feature services because
+    # they're operating on real domain data. Could move under
+    # modules/api/admin/cli/ if we want strict layering — for now
+    # treated as an allowlist so the rule still flags genuine drift.
+    "app.platform.cli.backfill_tenancy -> app.modules.identity.workspaces.service",
+    "app.platform.cli.seed_admin -> app.modules.identity.auth.permissions",
+    "app.platform.cli.seed_admin -> app.modules.identity.auth.service",
+    "app.platform.cli.seed_admin -> app.modules.identity.workspaces.service",
+    # platform/extractors/base.py uses a URL-guard from the tools module.
+    # The util belongs in platform; move tracked as backlog.
+    "app.platform.extractors.base -> app.modules.studio.tools.url_guard",
 ]
