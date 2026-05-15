@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.oauth_account import OAuthAccount
 from app.models.user import User
+from app.modules.identity.auth._internal import set_auth_cookies
 from app.modules.identity.auth.oauth import (
     STATE_COOKIE,
     STATE_TTL_SECONDS,
@@ -23,7 +24,6 @@ from app.modules.identity.auth.oauth import (
     get_provider,
     redirect_uri_for,
 )
-from app.modules.identity.auth._internal import set_auth_cookies
 from app.modules.identity.auth.service import get_user_by_email
 from app.platform.config import settings
 from app.platform.db.session import get_db

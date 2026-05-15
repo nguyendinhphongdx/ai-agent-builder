@@ -13,7 +13,6 @@ import pytest
 
 from app.platform.events import DomainEvent, EventBus
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────
 
 

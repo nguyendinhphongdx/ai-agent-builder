@@ -21,7 +21,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-
 # Docs/redoc UI inlines scripts + styles + CDN assets. Keep its CSP
 # permissive so the page actually renders; everything else gets the
 # strict default. (Browsers index ``/api/openapi.json`` directly so

@@ -1,14 +1,13 @@
 from logging.config import fileConfig
 
-from alembic import context
+import pgvector.sqlalchemy  # noqa: F401 - needed for Vector type in migrations
 from sqlalchemy import engine_from_config, pool
-
-from app.platform.config import settings
-from app.platform.db.base import Base
 
 # Import all models so they register with Base.metadata
 import app.models  # noqa: F401
-import pgvector.sqlalchemy  # noqa: F401 - needed for Vector type in migrations
+from alembic import context
+from app.platform.config import settings
+from app.platform.db.base import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
