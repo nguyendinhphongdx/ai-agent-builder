@@ -29,13 +29,26 @@ def set_auth_cookies(
     *,
     token_version: int = 0,
     remember: bool = False,
+    workspace_id: str | None = None,
+    organization_id: str | None = None,
 ) -> None:
     """Gán access_token + refresh_token vào HTTP-only cookie.
 
     * access_token cookie: path=/, TTL từ ACCESS_TOKEN_EXPIRE_MINUTES
     * refresh_token cookie: path=/api/auth/refresh, TTL phụ thuộc ``remember``
+
+    When ``workspace_id`` is supplied, the access_token is minted with
+    ``scope="workspace"`` and carries the ``ws``/``org`` claims —
+    every subsequent request can prove its tenant from the token
+    alone instead of trusting a client-controlled header. Login flows
+    leave it None; the dedicated /api/auth/enter-workspace endpoint
+    supplies it.
     """
-    access_token = create_access_token(user_id)
+    access_token = create_access_token(
+        user_id,
+        workspace_id=workspace_id,
+        organization_id=organization_id,
+    )
     refresh_token = create_refresh_token(user_id, token_version, remember=remember)
 
     refresh_days = (

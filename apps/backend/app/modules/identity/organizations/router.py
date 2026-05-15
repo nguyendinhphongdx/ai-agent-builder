@@ -137,6 +137,63 @@ async def delete_org_endpoint(
     await db.commit()
 
 
+# ─── Workspaces under an org ───────────────────────────────────────
+
+
+@router.get("/{org_id}/workspaces", response_model=list[dict])
+async def list_org_workspaces_endpoint(
+    org_id: uuid.UUID,
+    _: Any = Depends(require_org_permission(P.ORG_SETTINGS_READ)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every workspace under this org, including those the caller is
+    not a direct member of.
+
+    Distinct from ``GET /api/workspaces`` which filters to "workspaces
+    I'm a member of". The Hub needs the wider view because org-admins
+    must be able to manage workspaces they never personally joined
+    (set quota caps, transfer ownership, delete).
+
+    Membership-promotion via org-admin/owner role means an org-admin
+    *can* enter any of these workspaces — surfaced here as a hint to
+    the FE so the Hub doesn't render disabled "enter" buttons.
+    """
+    from sqlalchemy import func, select
+
+    from app.models.workspace import Workspace
+    from app.models.workspace_member import WorkspaceMember
+
+    rows = (
+        await db.execute(
+            select(
+                Workspace,
+                func.count(WorkspaceMember.user_id).label("member_count"),
+            )
+            .outerjoin(
+                WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id
+            )
+            .where(Workspace.organization_id == org_id)
+            .group_by(Workspace.id)
+            .order_by(Workspace.is_personal.desc(), Workspace.name)
+        )
+    ).all()
+
+    return [
+        {
+            "id": str(ws.id),
+            "name": ws.name,
+            "slug": ws.slug,
+            "is_personal": ws.is_personal,
+            "monthly_token_quota_override": ws.monthly_token_quota_override,
+            "monthly_kb_query_quota_override": ws.monthly_kb_query_quota_override,
+            "force_mfa": ws.force_mfa,
+            "member_count": int(count or 0),
+            "created_at": ws.created_at.isoformat() if ws.created_at else None,
+        }
+        for ws, count in rows
+    ]
+
+
 # ─── Members ───────────────────────────────────────────────────────
 
 

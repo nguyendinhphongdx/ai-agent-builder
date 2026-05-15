@@ -39,10 +39,44 @@ def create_token(data: dict, expires_delta: timedelta) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=_JWT_ALGORITHM)
 
 
-def create_access_token(user_id: str) -> str:
-    """Tạo access token ngắn hạn để xác thực request."""
+# Token scope discriminator. See docs/architecture/hub-auth-refactor.md.
+#   user      — issued at login, reaches /api/auth/*, /api/organizations/*,
+#                /api/billing/*. Cannot prove a tenant.
+#   workspace — issued by /api/auth/enter-workspace, also reaches every
+#                tenant-scoped endpoint. Carries ``ws`` + ``org`` claims.
+TOKEN_SCOPE_USER = "user"
+TOKEN_SCOPE_WORKSPACE = "workspace"
+
+
+def create_access_token(
+    user_id: str,
+    *,
+    workspace_id: str | None = None,
+    organization_id: str | None = None,
+) -> str:
+    """Tạo access token ngắn hạn để xác thực request.
+
+    Two shapes:
+      - ``scope=user`` — default, just identifies the user. Used at
+        login + /hub. ``workspace_id`` omitted.
+      - ``scope=workspace`` — both ``workspace_id`` and
+        ``organization_id`` supplied. Token binds the request to one
+        tenant; cookie replaced on every workspace switch.
+
+    Until Phase 3 the BE still accepts the legacy "no scope" shape +
+    falls back to the ``X-Workspace-Id`` header; new mints always
+    carry the scope claim.
+    """
+    payload: dict = {"sub": user_id, "type": "access"}
+    if workspace_id is not None:
+        payload["scope"] = TOKEN_SCOPE_WORKSPACE
+        payload["ws"] = workspace_id
+        if organization_id is not None:
+            payload["org"] = organization_id
+    else:
+        payload["scope"] = TOKEN_SCOPE_USER
     return create_token(
-        {"sub": user_id, "type": "access"},
+        payload,
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 

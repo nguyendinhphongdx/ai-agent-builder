@@ -121,7 +121,18 @@ async def get_current_user(
         )
 
     set_current_user_id(user.id)
-    await _seed_tenant_context(db, user, x_workspace_id, x_organization_id)
+    # Pull workspace/org from JWT claims when this is a workspace-
+    # scoped token (Phase 0+ Hub auth refactor). Header values stay as
+    # a backward-compat fallback for clients that haven't entered a
+    # workspace yet — Phase 3 will drop them.
+    claim_ws = payload.get("ws")
+    claim_org = payload.get("org")
+    await _seed_tenant_context(
+        db,
+        user,
+        workspace_header=claim_ws or x_workspace_id,
+        org_header=claim_org or x_organization_id,
+    )
     await _enforce_workspace_mfa(request, user, db)
     await _enforce_workspace_ip_allowlist(request, db)
     return user
