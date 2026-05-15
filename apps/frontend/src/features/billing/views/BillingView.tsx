@@ -53,7 +53,7 @@ export function BillingView() {
     mutationFn: (planCode: string) => billingService.checkout(planCode),
     onSuccess: (data) => {
       // Stripe checkout is full-page — the user comes back to
-      // /settings/billing?ok=1 after success; the webhook lands
+      // /org/billing?ok=1 after success; the webhook lands
       // the row before then in most cases.
       window.location.href = data.url;
     },

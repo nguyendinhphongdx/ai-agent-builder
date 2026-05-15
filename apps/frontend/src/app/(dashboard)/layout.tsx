@@ -25,7 +25,7 @@ const NON_WORKSPACE_PREFIXES = [
   "/settings/security",
   "/settings/preferences",
   "/settings/payouts",
-  "/settings/billing",
+  "/org/billing",
 ];
 
 export default function DashboardLayout({

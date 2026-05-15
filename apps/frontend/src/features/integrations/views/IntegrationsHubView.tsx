@@ -34,7 +34,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Code,
     iconColor: "text-violet-500",
     status: "available",
-    href: "/settings/integrations/api-docs",
+    href: "/ws/settings/integrations/api-docs",
   },
   {
     slug: "mcp",
@@ -43,7 +43,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Bot,
     iconColor: "text-orange-500",
     status: "available",
-    href: "/settings/integrations/mcp",
+    href: "/ws/settings/integrations/mcp",
   },
   {
     slug: "embed",
@@ -52,7 +52,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Globe,
     iconColor: "text-sky-500",
     status: "available",
-    href: "/settings/integrations/embed",
+    href: "/ws/settings/integrations/embed",
   },
   {
     slug: "slack",
@@ -93,7 +93,7 @@ export function IntegrationsHubView() {
             <p className="font-medium text-foreground">Before you start</p>
             <p>
               Every integration needs an API token. Create one at{" "}
-              <Link href="/settings/api-tokens" className="text-primary hover:underline">
+              <Link href="/ws/settings/api-tokens" className="text-primary hover:underline">
                 Settings → API Tokens
               </Link>{" "}
               then return here to wire each channel.

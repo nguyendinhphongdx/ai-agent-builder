@@ -51,10 +51,10 @@ export function ConnectionsView() {
         connectionId: params.get("connection_id") || "",
       });
       qc.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
-      router.replace("/settings/connections");
+      router.replace("/ws/settings/connections");
     } else if (error) {
       setBanner({ kind: "error", message: error });
-      router.replace("/settings/connections");
+      router.replace("/ws/settings/connections");
     }
     // ``params`` is a stable reference but we only want this on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -102,7 +102,7 @@ export function ApiDocsView() {
       <div className="border-b border-border px-6 py-3.5">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Link
-            href="/settings/integrations"
+            href="/ws/settings/integrations"
             className="inline-flex items-center gap-1 hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />

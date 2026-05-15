@@ -46,7 +46,7 @@ function Body({ onOpenChange }: { onOpenChange: (v: boolean) => void }) {
       onOpenChange(false);
       // Nudge the user toward the new workspace's settings page so
       // they can invite teammates right away.
-      router.push("/settings/workspace");
+      router.push("/ws/settings/workspace");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Tạo workspace thất bại";
       setError(msg);
