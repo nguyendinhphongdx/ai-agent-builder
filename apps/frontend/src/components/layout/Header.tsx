@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useAuth, useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
+import { WorkspaceSwitcher } from "@/features/workspaces";
 
 interface HeaderProps {
   sidebarOpen?: boolean;

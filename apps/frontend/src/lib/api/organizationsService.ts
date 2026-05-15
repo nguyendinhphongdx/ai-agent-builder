@@ -71,19 +71,31 @@ export interface OrgMemberInvite {
   role: OrgRole;
 }
 
+export interface OrganizationCreateInput {
+  name: string;
+  slug: string;
+  billing_email?: string | null;
+}
+
 export const organizationsService = {
   /** Orgs the caller belongs to. */
   list: (): Promise<OrganizationSummary[]> =>
     apiClient.get<OrganizationSummary[]>("/organizations").then((r) => r.data),
 
-  get: (orgId: string): Promise<OrganizationSummary> =>
+  /** Create a new org; caller becomes the first owner. */
+  create: (body: OrganizationCreateInput): Promise<OrganizationDetail> =>
     apiClient
-      .get<OrganizationSummary>(`/organizations/${orgId}`)
+      .post<OrganizationDetail>("/organizations", body)
       .then((r) => r.data),
 
-  update: (orgId: string, body: OrganizationUpdateInput): Promise<OrganizationSummary> =>
+  get: (orgId: string): Promise<OrganizationDetail> =>
     apiClient
-      .patch<OrganizationSummary>(`/organizations/${orgId}`, body)
+      .get<OrganizationDetail>(`/organizations/${orgId}`)
+      .then((r) => r.data),
+
+  update: (orgId: string, body: OrganizationUpdateInput): Promise<OrganizationDetail> =>
+    apiClient
+      .patch<OrganizationDetail>(`/organizations/${orgId}`, body)
       .then((r) => r.data),
 
   delete: (orgId: string): Promise<void> =>

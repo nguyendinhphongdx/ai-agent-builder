@@ -15,6 +15,30 @@ export const apiClient = axios.create({
 // No more X-Workspace-Id interceptor; the BE reads the ``ws`` claim
 // from the JWT directly. The legacy header is still accepted on the
 // BE as a back-compat fallback but no FE code path sends it.
+//
+// Org context, however, is *not* in the token — a user can belong
+// to N orgs and pick which one's Hub they're viewing. The selection
+// is persisted in localStorage (see ``useActiveOrgId``) and sent on
+// every request so org-scoped routes resolve against the right org.
+// The BE falls back to ``user.default_organization_id`` when the
+// header is absent, so a missing/disabled localStorage still works
+// — single-org users never need to set it.
+const ACTIVE_ORG_STORAGE_KEY = "agentforge:current-org";
+
+apiClient.interceptors.request.use((config) => {
+  if (typeof window === "undefined") return config;
+  let orgId: string | null = null;
+  try {
+    orgId = window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY);
+  } catch {
+    orgId = null;
+  }
+  if (orgId) {
+    config.headers = config.headers ?? {};
+    config.headers["X-Organization-Id"] = orgId;
+  }
+  return config;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session state

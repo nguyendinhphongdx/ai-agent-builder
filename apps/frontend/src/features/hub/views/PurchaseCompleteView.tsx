@@ -25,7 +25,7 @@ export function PurchaseCompleteView() {
     if (data?.agent_id) {
       router.replace(`/ws/agents/${data.agent_id}`);
     }
-  }, [data?.agent_id, router, wp]);
+  }, [data?.agent_id, router]);
 
   if (!sessionId) {
     return <Card icon="error" title="Missing session id" body="Open this page from a Stripe redirect." />;
