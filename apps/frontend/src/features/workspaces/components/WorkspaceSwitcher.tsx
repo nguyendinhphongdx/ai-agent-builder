@@ -17,44 +17,40 @@ import {
 import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sessionService } from "@/lib/api/sessionService";
+import { useSession } from "../hooks/useWorkspaceSession";
 import { useWorkspaces } from "../hooks/useWorkspaces";
-import { useWorkspaceStore } from "../stores/workspaceStore";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
 /**
  * Header dropdown for switching active workspace.
  *
- * Phase 1 of the Hub auth refactor (docs/architecture/
- * hub-auth-refactor.md): each item POSTs ``/api/auth/enter-workspace``
+ * Linear-style: clicking an item POSTs ``/api/auth/enter-workspace``,
  * which mints a workspace-scoped access_token cookie with the
- * workspace id baked in. We keep the localStorage write for backward
- * compat with code paths still reading the zustand store; Phase 3
- * deletes that store.
+ * workspace id baked in. The new token replaces the old in the same
+ * cookie slot, so all subsequent requests automatically carry the
+ * right workspace claims. ``qc.invalidateQueries()`` flushes any
+ * data fetched under the old context.
  *
- * The new token replaces the old in the same cookie slot, so all
- * subsequent requests automatically carry the right workspace
- * claims. ``qc.invalidateQueries()`` flushes any data fetched under
- * the old context.
+ * "Which workspace am I in" comes from the session
+ * (``useSession`` → ``workspace_id`` claim). No localStorage state.
  */
 export function WorkspaceSwitcher() {
   const { data: workspaces, isLoading } = useWorkspaces();
-  const currentId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
+  const sessionQ = useSession();
   const qc = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const [createOpen, setCreateOpen] = useState(false);
 
+  const currentId = sessionQ.data?.workspace_id ?? null;
   const current = workspaces?.find((w) => w.id === currentId) ?? null;
 
   const enter = useMutation({
     mutationFn: (workspace_id: string) => sessionService.enter(workspace_id),
     onSuccess: (data) => {
-      // Keep zustand in sync for legacy consumers. Phase 3 deletes
-      // this assignment along with the store itself.
-      setCurrent(data.workspace_id);
       // Drop every cached query — the next fetch goes through the
-      // new workspace_token automatically.
+      // new workspace_token automatically. The session query is
+      // invalidated too so the current-workspace indicator follows.
       qc.invalidateQueries();
       // If we're already on a workspace-scoped path, swap the slug
       // so the URL matches the new token (the layout's slug guard

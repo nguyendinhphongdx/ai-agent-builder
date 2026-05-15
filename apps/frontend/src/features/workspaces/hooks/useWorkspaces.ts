@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceService } from "@/lib/api/workspaceService";
-import { useWorkspaceStore } from "../stores/workspaceStore";
 import type {
   InvitationCreateInput,
   WorkspaceCreateInput,
@@ -21,29 +19,16 @@ export const workspaceKeys = {
 
 /** List workspaces the caller is a member of.
  *
- *  Side effect: on first successful load, if the persisted
- *  ``currentWorkspaceId`` doesn't match any returned workspace (deleted
- *  / removed from membership / never set), reset it to the first
- *  personal workspace in the list.
+ *  After Phase 3 of the Hub refactor there's no "current workspace"
+ *  client-side state — the access_token cookie carries the
+ *  workspace claim, and consumers that need "which workspace am I
+ *  in" call ``useSession()`` instead. This hook is just the list.
  */
 export function useWorkspaces() {
-  const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
-  const currentId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const query = useQuery({
+  return useQuery({
     queryKey: workspaceKeys.list(),
     queryFn: workspaceService.list,
   });
-
-  useEffect(() => {
-    if (!query.data) return;
-    const ids = new Set(query.data.map((w) => w.id));
-    if (!currentId || !ids.has(currentId)) {
-      const personal = query.data.find((w) => w.is_personal) ?? query.data[0];
-      if (personal) setCurrent(personal.id);
-    }
-  }, [query.data, currentId, setCurrent]);
-
-  return query;
 }
 
 export function useWorkspace(id: string | null) {
@@ -56,14 +41,14 @@ export function useWorkspace(id: string | null) {
 
 export function useCreateWorkspace() {
   const qc = useQueryClient();
-  const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
   return useMutation({
     mutationFn: (body: WorkspaceCreateInput) => workspaceService.create(body),
-    onSuccess: (ws) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: workspaceKeys.list() });
-      // Switch into the just-created workspace — that's almost always
-      // what the user wants right after clicking "Create".
-      setCurrent(ws.id);
+      // Caller decides whether to enter the new workspace (via
+      // ``sessionService.enter``) — usually the Hub's create dialog
+      // does, but a "create then come back later" flow shouldn't be
+      // forced into the new tenant.
     },
   });
 }
@@ -81,12 +66,12 @@ export function useUpdateWorkspace(id: string) {
 
 export function useDeleteWorkspace() {
   const qc = useQueryClient();
-  const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
-  const currentId = useWorkspaceStore((s) => s.currentWorkspaceId);
   return useMutation({
     mutationFn: (id: string) => workspaceService.delete(id),
-    onSuccess: (_void, deletedId) => {
-      if (currentId === deletedId) setCurrent(null);
+    onSuccess: () => {
+      // The deleted workspace's token is invalidated server-side
+      // (workspace cascade-deletes the membership row); next API
+      // call returns 401 and the FE bounces to /org.
       qc.invalidateQueries({ queryKey: workspaceKeys.list() });
     },
   });
@@ -156,12 +141,14 @@ export function useRevokeInvitation(workspaceId: string) {
 
 export function useAcceptInvitation() {
   const qc = useQueryClient();
-  const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
   return useMutation({
     mutationFn: (token: string) => workspaceService.acceptInvitation(token),
-    onSuccess: (res) => {
-      // Drop the user straight into the newly-joined workspace.
-      setCurrent(res.workspace.id);
+    onSuccess: () => {
+      // Caller routes to /org so the user picks (and explicitly
+      // enters via sessionService.enter) the newly-joined workspace.
+      // Auto-entering bypasses the enter-workspace audit trail and
+      // gives a confusing UX if the invite landed in a different
+      // tenant than the one they were just using.
       qc.invalidateQueries({ queryKey: workspaceKeys.list() });
     },
   });

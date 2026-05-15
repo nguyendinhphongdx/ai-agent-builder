@@ -53,12 +53,6 @@ export default function CookiesPage() {
               <td className="py-2">Phiên</td>
             </tr>
             <tr className="border-b border-border/50">
-              <td className="py-2 font-mono">agentforge:current-workspace</td>
-              <td className="py-2">Tiện ích</td>
-              <td className="py-2">Ghi nhớ workspace đang chọn</td>
-              <td className="py-2">localStorage (vĩnh viễn)</td>
-            </tr>
-            <tr className="border-b border-border/50">
               <td className="py-2 font-mono">agentforge:cookie-consent</td>
               <td className="py-2">Tiện ích</td>
               <td className="py-2">Ghi nhớ lựa chọn cookie banner</td>

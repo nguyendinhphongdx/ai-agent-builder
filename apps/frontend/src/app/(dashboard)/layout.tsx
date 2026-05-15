@@ -7,17 +7,18 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useDocumentProgress } from "@/features/knowledge/hooks/useDocumentProgress";
-import { useSession } from "@/features/workspaces/hooks/useWorkspaceSession";
+import { useSession } from "@/features/workspaces";
 import { cn } from "@/lib/utils";
 
 // Pages that legitimately live OUTSIDE a workspace context — they
 // belong under the (dashboard) layout but don't require a
 // ``scope=workspace`` token. Visiting any of these with a user_token
-// is fine; visiting anything else routes to /org first.
+// is fine; visiting anything that loads workspace-scoped data (the
+// rest of /settings, e.g. credentials/usage/api-tokens) routes to
+// /org first so the user picks a workspace.
 const NON_WORKSPACE_PREFIXES = [
   "/admin",
   "/hub",
-  "/welcome",
   "/notifications",
   "/workspaces/invitations",
   "/settings/profile",

@@ -23,6 +23,5 @@ export {
   useRevokeInvitation,
   workspaceKeys,
 } from "./hooks/useWorkspaces";
-export { useWorkspaceStore } from "./stores/workspaceStore";
 export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 export { roleAtLeast, type WorkspaceRole } from "./types";

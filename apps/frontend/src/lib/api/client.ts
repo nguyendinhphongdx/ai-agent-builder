@@ -10,29 +10,11 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Inject ``X-Workspace-Id`` on every request from the persisted store.
-// Done as an interceptor (not header on creation) so the value tracks
-// the user's switcher selection without rebuilding the client.
-//
-// Read from localStorage directly to avoid a runtime dep on the zustand
-// store module (keeps this file usable from SSR contexts where the
-// store doesn't initialise). The persist middleware uses the
-// "agentforge:current-workspace" key with shape ``{state: {currentWorkspaceId}}``.
-apiClient.interceptors.request.use((config) => {
-  if (typeof window === "undefined") return config;
-  try {
-    const raw = localStorage.getItem("agentforge:current-workspace");
-    if (!raw) return config;
-    const parsed = JSON.parse(raw) as { state?: { currentWorkspaceId?: string | null } };
-    const id = parsed.state?.currentWorkspaceId;
-    if (id) {
-      config.headers.set("X-Workspace-Id", id);
-    }
-  } catch {
-    // Corrupted/legacy storage — silently fall back to no header.
-  }
-  return config;
-});
+// Workspace context now lives in the access_token cookie (Phase 0+
+// of the Hub refactor — see docs/architecture/hub-auth-refactor.md).
+// No more X-Workspace-Id interceptor; the BE reads the ``ws`` claim
+// from the JWT directly. The legacy header is still accepted on the
+// BE as a back-compat fallback but no FE code path sends it.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session state

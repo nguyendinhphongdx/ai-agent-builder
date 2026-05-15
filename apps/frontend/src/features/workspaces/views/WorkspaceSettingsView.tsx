@@ -28,7 +28,7 @@ import {
   useRevokeInvitation,
 } from "../hooks/useWorkspaces";
 import { RoleInspector } from "../components/RoleInspector";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useSession } from "../hooks/useWorkspaceSession";
 import { roleAtLeast, type WorkspaceRole } from "../types";
 
 const ROLE_OPTIONS: WorkspaceRole[] = ["viewer", "editor", "admin", "owner"];
@@ -37,7 +37,8 @@ const INVITE_ROLE_OPTIONS: WorkspaceRole[] = ["viewer", "editor", "admin"];
 export function WorkspaceSettingsView() {
   const router = useRouter();
   const { data: workspaces } = useWorkspaces();
-  const currentId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const sessionQ = useSession();
+  const currentId = sessionQ.data?.workspace_id ?? null;
   const current = workspaces?.find((w) => w.id === currentId) ?? null;
 
   if (!current) {
