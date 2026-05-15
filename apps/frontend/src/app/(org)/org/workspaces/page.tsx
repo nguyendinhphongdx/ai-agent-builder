@@ -49,7 +49,7 @@ export default function HubWorkspacesPage() {
     mutationFn: (workspace_id: string) => sessionService.enter(workspace_id),
     onSuccess: (data) => {
       toast.success(`Entered ${data.workspace_name}`);
-      router.push("/home");
+      router.push(`/app/${data.workspace_slug}/home`);
     },
     onError: (e) => toast.error(extractMsg(e)),
   });

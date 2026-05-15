@@ -7,7 +7,25 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useDocumentProgress } from "@/features/knowledge/hooks/useDocumentProgress";
+import { useSession } from "@/features/workspaces/hooks/useWorkspaceSession";
 import { cn } from "@/lib/utils";
+
+// Pages that legitimately live OUTSIDE a workspace context — they
+// belong under the (dashboard) layout but don't require a
+// ``scope=workspace`` token. Visiting any of these with a user_token
+// is fine; visiting anything else routes to /org first.
+const NON_WORKSPACE_PREFIXES = [
+  "/admin",
+  "/hub",
+  "/welcome",
+  "/notifications",
+  "/workspaces/invitations",
+  "/settings/profile",
+  "/settings/security",
+  "/settings/preferences",
+  "/settings/payouts",
+  "/settings/billing",
+];
 
 export default function DashboardLayout({
   children,
@@ -15,6 +33,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const sessionQ = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const isAgentChatRoute = /^\/agents\/[^/]+\/chat$/.test(pathname);
@@ -37,6 +56,18 @@ export default function DashboardLayout({
       router.replace("/verify-email/pending");
     }
   }, [isLoading, user, router]);
+
+  // Guard 3 (Phase 2): visitors holding a user_token on a workspace-
+  // scoped legacy route get bounced to /org so they pick a workspace
+  // first. Routes in NON_WORKSPACE_PREFIXES are exempt — they're
+  // user-/org-scoped pages that work without a workspace claim.
+  useEffect(() => {
+    if (sessionQ.isLoading || !sessionQ.data) return;
+    if (sessionQ.data.token_scope === "user") {
+      const exempt = NON_WORKSPACE_PREFIXES.some((p) => pathname.startsWith(p));
+      if (!exempt) router.replace("/org/workspaces");
+    }
+  }, [sessionQ.isLoading, sessionQ.data, pathname, router]);
 
   if (isLoading || !isAuthenticated || (user && !user.is_verified)) {
     return (

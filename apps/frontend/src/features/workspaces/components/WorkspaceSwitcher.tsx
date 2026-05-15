@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Building2, Check, ChevronDown, Layers, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ export function WorkspaceSwitcher() {
   const currentId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const setCurrent = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
   const qc = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const [createOpen, setCreateOpen] = useState(false);
 
   const current = workspaces?.find((w) => w.id === currentId) ?? null;
@@ -53,6 +56,17 @@ export function WorkspaceSwitcher() {
       // Drop every cached query — the next fetch goes through the
       // new workspace_token automatically.
       qc.invalidateQueries();
+      // If we're already on a workspace-scoped path, swap the slug
+      // so the URL matches the new token (the layout's slug guard
+      // would otherwise redirect, but doing it here avoids a
+      // flicker). Otherwise route into the home of the new ws.
+      const inAppRoute = pathname.startsWith("/app/");
+      if (inAppRoute) {
+        const rest = pathname.replace(/^\/app\/[^/]+/, "");
+        router.push(`/app/${data.workspace_slug}${rest || "/home"}`);
+      } else {
+        router.push(`/app/${data.workspace_slug}/home`);
+      }
     },
     onError: (e) => {
       const msg =

@@ -95,7 +95,11 @@ export function useLogin() {
       // session so the new cookies actually get exercised on 401s.
       resetSession();
       queryClient.setQueryData(authKeys.me, res.user);
-      router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
+      // Phase 2: post-login users hold a user_token (no workspace
+      // claim yet). Route to /org so they explicitly pick a
+      // workspace via the new enter-workspace flow. Unverified users
+      // continue to the email-pending screen.
+      router.push(res.user.is_verified ? "/org" : "/verify-email/pending");
     },
   });
 }
@@ -110,7 +114,7 @@ export function useVerifyMfaLogin() {
     onSuccess: (res) => {
       resetSession();
       queryClient.setQueryData(authKeys.me, res.user);
-      router.push(res.user.is_verified ? "/home" : "/verify-email/pending");
+      router.push(res.user.is_verified ? "/org" : "/verify-email/pending");
     },
   });
 }
