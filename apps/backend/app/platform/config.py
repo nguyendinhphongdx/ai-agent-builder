@@ -170,10 +170,12 @@ class Settings(BaseSettings):
     STRIPE_SUCCESS_URL: str = ""  # e.g. https://app.example.com/hub/purchase-complete?session_id={CHECKOUT_SESSION_ID}
     STRIPE_CANCEL_URL: str = ""   # e.g. https://app.example.com/hub
     # Platform fee on paid template sales, in basis points (1/100 of a
-    # percent). 1000 = 10%. Stripe also takes its own processing fee on
-    # top, paid by the platform. Set to 0 for free passthrough during
-    # promotion / staging tests.
-    STRIPE_PLATFORM_FEE_BPS: int = 1000
+    # percent). 1500 = 15%. Stripe also takes its own processing fee on
+    # top, paid by the platform; net to author ~= price * 0.85 - $0.30
+    # - 2.9%*price after Stripe processing. Industry comparison:
+    # Gumroad 10%, Apple/Google 15-30%, Replit Bounties 25%.
+    # Set to 0 for free passthrough during promotion / staging tests.
+    STRIPE_PLATFORM_FEE_BPS: int = 1500
     # Where Stripe sends the author after the Connect onboarding flow.
     # {ACCOUNT_ID} is replaced by Stripe at redirect time.
     STRIPE_CONNECT_RETURN_URL: str = ""  # e.g. https://app.example.com/settings/payouts?ok=1

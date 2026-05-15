@@ -85,8 +85,12 @@ PLANS: dict[str, Plan] = {
         features={
             "audit_retention_days": 7,
             "custom_roles": False,
-            "sso": False,
-            "mfa_enforce": False,
+            # SSO + MFA are baseline security controls, available on
+            # every tier — they're not paywall levers. Anti-"SSO tax"
+            # stance: charging for security punishes customers for
+            # doing the right thing.
+            "sso": True,
+            "mfa_enforce": True,
             "webhook_hmac": False,
             "trace_provider": False,
         },
@@ -101,8 +105,8 @@ PLANS: dict[str, Plan] = {
         features={
             "audit_retention_days": 30,
             "custom_roles": True,
-            "sso": False,
-            "mfa_enforce": False,
+            "sso": True,
+            "mfa_enforce": True,
             "webhook_hmac": True,
             "trace_provider": False,
         },
@@ -120,7 +124,7 @@ PLANS: dict[str, Plan] = {
             "audit_retention_days": 90,
             "custom_roles": True,
             "sso": True,
-            "mfa_enforce": False,
+            "mfa_enforce": True,
             "webhook_hmac": True,
             "trace_provider": True,
         },

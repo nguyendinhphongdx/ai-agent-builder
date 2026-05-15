@@ -113,7 +113,7 @@ async def _revenue_stats(db: AsyncSession, user_id) -> RevenueSummary:
     (platform-collects, we settle authors out-of-band — full amount is
     counted as gross + net).
     """
-    bps = settings.STRIPE_PLATFORM_FEE_BPS  # int, e.g. 1000 = 10.00%
+    bps = settings.STRIPE_PLATFORM_FEE_BPS  # int, e.g. 1500 = 15.00%
 
     rows = await db.execute(
         select(
