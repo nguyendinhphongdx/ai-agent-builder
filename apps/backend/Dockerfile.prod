@@ -1,0 +1,68 @@
+# Production backend image — multi-stage so the runtime layer doesn't
+# ship build deps. Resulting image is ~180MB vs ~600MB for the dev one.
+#
+# Runs gunicorn with uvicorn workers under tini (PID 1) — workers
+# survive a crash, tini reaps zombies properly, container exits clean
+# on SIGTERM so orchestrator rolling updates work.
+
+# ─── builder ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Build deps only — the slim base lacks gcc, needed for asyncpg /
+# psycopg / cryptography wheels on some arches.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml .
+# Resolve into a virtualenv we'll copy whole into the runtime layer.
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -e . gunicorn==23.0.0
+
+COPY . .
+
+# ─── runtime ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    LOG_FORMAT=json
+
+# tini = init that forwards signals + reaps zombies. libpq for
+# psycopg's sync driver (alembic uses it).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tini libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
+
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /build /app
+RUN chown -R app:app /app
+
+USER app
+EXPOSE 8000
+
+# Worker count: 2*cpu + 1 is the gunicorn folklore but for async
+# workers (uvicorn) one per CPU is the right answer. Override via
+# WEB_CONCURRENCY env on bigger boxes.
+ENV WEB_CONCURRENCY=2 \
+    GUNICORN_TIMEOUT=60
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["sh", "-c", "gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers ${WEB_CONCURRENCY:-2} \
+    --bind 0.0.0.0:8000 \
+    --timeout ${GUNICORN_TIMEOUT:-60} \
+    --access-logfile - \
+    --error-logfile -"]

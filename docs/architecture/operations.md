@@ -368,7 +368,80 @@ Adding a new CLI: drop `apps/backend/app/platform/cli/<name>.py`, expose a
 
 ---
 
-## 7. Observability TODOs
+## 7. Backup + Restore
+
+A backup you can't restore is fiction. The drill is what counts.
+
+### 7.1 Daily Postgres backup
+
+`scripts/backup-db.sh` runs `pg_dump --format=custom`, gzips the
+output to `$BACKUP_DIR` (default `./backups`), and rotates older
+files past `$BACKUP_KEEP` (default 14). One-line cron entry:
+
+```bash
+30 2 * * * cd /srv/agentforge && ./scripts/backup-db.sh \
+    >> /var/log/agentforge-backup.log 2>&1
+```
+
+Offsite copy is one env var away — point `BACKUP_REMOTE_CMD` at
+your rclone / aws-cli / scp invocation; the script appends the
+backup filename as `$1`:
+
+```bash
+BACKUP_REMOTE_CMD='rclone copyto -' \
+  ./scripts/backup-db.sh   # uploads each new dump
+```
+
+**Not** covered by the script:
+
+- **Uploads volume** — if you store user-uploaded files on local
+  disk (`uploads/`), `rsync` them in a sibling cron. Skip if your
+  storage backend is S3/GCS.
+- **Backup encryption** — the dump contains every row (including
+  Fernet-encrypted secrets, whose ciphertext is useless without
+  the key, plus row metadata that isn't). Wrap with `age` or
+  `gpg -e` if `$BACKUP_DIR` isn't strongly access-controlled.
+
+### 7.2 Restore drill (quarterly)
+
+`scripts/restore-db.sh <dump.gz>` drops + recreates the target
+database and `pg_restore`s the dump. Run it against a non-prod
+container at least once a quarter:
+
+```bash
+POSTGRES_CONTAINER=postgres_drill \
+POSTGRES_DB=lc_agent_drill \
+RESTORE_FORCE=1 \
+  ./scripts/restore-db.sh ./backups/agentforge-20260515T020000Z.dump.gz
+
+# Then verify a known-good query lands real data:
+docker exec -i postgres_drill psql -U postgres -d lc_agent_drill \
+    -c 'SELECT count(*) FROM users;'
+```
+
+If the dump pre-dates current migrations, run `alembic upgrade head`
+afterwards to bring the schema forward.
+
+### 7.3 Disaster recovery checklist
+
+When prod DB is gone:
+
+1. Stand up a fresh Postgres container with the same major version.
+2. Pull the most recent dump from offsite (`BACKUP_REMOTE_CMD`'s
+   destination).
+3. `RESTORE_FORCE=1 ./scripts/restore-db.sh <dump.gz>` against it.
+4. `alembic upgrade head` if needed.
+5. Repoint `DATABASE_URL` in `.env.prod` at the new instance.
+6. `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d backend`
+7. Tail `/var/log/agentforge-backup.log` to confirm scheduled backups
+   resume on the new instance.
+
+Backup files written but never verified are technically RPO=24h /
+RTO=∞ — the drill is non-negotiable.
+
+---
+
+## 8. Observability TODOs
 
 Tracked in the operations backlog:
 

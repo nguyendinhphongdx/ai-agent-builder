@@ -1,0 +1,116 @@
+# Production orchestration — hosting-agnostic skeleton.
+#
+# Differences vs. docker-compose.yml (dev):
+#   * backend uses Dockerfile.prod (gunicorn, no --reload)
+#   * every service has restart: unless-stopped
+#   * every service has a healthcheck
+#   * NO source code bind mounts (image-only) so a host change can't
+#     hot-swap behaviour without an explicit redeploy
+#   * resource limits set per service so a runaway agent loop can't
+#     starve the host
+#   * ports bind to 127.0.0.1 by default — front by a real reverse
+#     proxy (Traefik, Nginx, Caddy, Cloudflare Tunnel, …) that
+#     terminates TLS. The proxy isn't included here on purpose: every
+#     hosting target wants a different one.
+#
+# Usage:
+#   1. Copy .env.example.prod to .env.prod and fill in SECRET_KEY,
+#      ENCRYPTION_KEY, STRIPE_*, etc. Generate fresh secrets:
+#        openssl rand -hex 32     # SECRET_KEY
+#        python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # ENCRYPTION_KEY
+#   2. docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                     --env-file .env.prod up -d --build
+#   3. Point your reverse proxy at:
+#        backend → 127.0.0.1:8000  (proxy /api/* here)
+#        frontend → 127.0.0.1:3000 (proxy everything else here)
+#   4. Set FRONTEND_URL + BASE_URL + CORS_ORIGINS in .env.prod to your
+#      real https hostname so cookies, OAuth callbacks, and SSRF
+#      guards all line up.
+
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must set POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lc_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+    ports: !reset []  # don't expose Postgres to the host in prod
+
+  redis:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+    ports: !reset []
+
+  rabbitmq:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+    ports: !reset []
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    # Reverse proxy lives on the host (or in front of it). Bind to
+    # loopback so the container can't be reached directly from the
+    # internet — only through the proxy.
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      LOG_FORMAT: json
+      DEBUG: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/readyz\").read()'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  frontend:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # Public env vars MUST resolve to the public hostname the user
+      # types in the browser, not the internal compose hostname.
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?must set PUBLIC_API_URL}
+      NEXT_PUBLIC_WS_URL: ${PUBLIC_WS_URL:?must set PUBLIC_WS_URL}
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
