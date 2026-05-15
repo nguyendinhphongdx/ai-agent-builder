@@ -114,6 +114,20 @@ async def get_quota_state(
     Aggregates across every workspace inside the org so cross-
     workspace usage in the same org correctly counts against the
     shared plan.
+
+    Concurrency note: this is a snapshot read, not a serialised
+    check. Two concurrent calls right at the cap can both see
+    ``used < limit`` and both proceed — the second-to-last token
+    "leaks" across the threshold. In practice the leak is bounded
+    by burst concurrency (a handful of tokens per concurrent
+    request) and the very next call after the writes land sees the
+    correct total + blocks. SELECT … FOR UPDATE on
+    ``org_subscriptions`` would only help if we held the lock
+    across the LLM call (which can take seconds), which is not
+    workable. For exact metering, the metered-overage path is the
+    answer — it bills any spillover. For free-tier hard caps,
+    accept the bounded leak; a future iteration can layer a Redis
+    atomic counter on top for stricter enforcement.
     """
     sub, since, until = await _period_for_org(db, organization_id)
     plan = await billing_service.effective_plan_for_org(db, organization_id)

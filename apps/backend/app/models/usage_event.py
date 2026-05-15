@@ -11,7 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Integer, Numeric, String
+from sqlalchemy import TIMESTAMP, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,22 @@ ALL_USAGE_EVENT_TYPES = (
 
 class UsageEvent(Base, UUIDMixin):
     __tablename__ = "usage_events"
+    __table_args__ = (
+        # Quota rollup hot path: SUM(total_tokens) and COUNT(*) WHERE
+        # workspace_id = ? AND event_type = ? AND created_at >= ?.
+        # Without this index every quota check degrades to a full scan
+        # once the table grows past a few weeks of traffic.
+        Index(
+            "ix_usage_events_ws_type_created",
+            "workspace_id",
+            "event_type",
+            "created_at",
+        ),
+        # Metered-billing cursor: WHERE workspace_id IN (...) AND
+        # event_type = 'llm.call' AND (created_at, id) > (?, ?).
+        # Same index covers it because created_at is the most-selective
+        # range column.
+    )
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

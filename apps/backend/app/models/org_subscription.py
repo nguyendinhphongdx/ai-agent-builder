@@ -50,6 +50,12 @@ class OrgSubscription(Base, UUIDMixin, TimestampMixin):
     last_reported_event_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    # Created-at of the cursor event. Pairs with last_reported_event_id
+    # to form a (timestamp, id) composite cursor — UUIDv4 ordering is
+    # lexicographic, not temporal, so an id-only cursor silently
+    # mis-orders rows that insert within the same microsecond. The
+    # composite is monotonic on (clock, tiebreaker).
+    last_reported_event_created_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_reported_at: Mapped[datetime | None] = mapped_column(nullable=True)
     extra: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 

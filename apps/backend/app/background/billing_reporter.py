@@ -10,10 +10,16 @@ per subscription item, so even chatty enterprise tenants don't
 backpressure. Bigger orgs that prefer real-time can drop this to
 1 min — the bottleneck is Stripe's rate limits, not Postgres.
 
+Cursor:
+  Composite ``(last_reported_event_created_at, last_reported_event_id)``.
+  Pure-id cursors broke silently here — usage_events use UUIDv4,
+  which is lex-ordered, not temporal, so a row inserted just after
+  the cursor with a smaller random id was dropped (or, on a retry
+  window that included the boundary, double-shipped). The composite
+  is monotonic on the clock with the UUID acting as tiebreaker for
+  same-microsecond inserts.
+
 Idempotency:
-  - cursor = OrgSubscription.last_reported_event_id
-  - we ship `total_tokens` SUM of UsageEvent rows with id > cursor
-  - update cursor to the max id we just consumed
   - on retry after crash we re-aggregate the same window (Stripe's
     ``action="increment"`` is additive — duplicates double-bill).
     So we update the cursor BEFORE the Stripe call would be wrong;
@@ -38,7 +44,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.org_subscription import LIVE_STATUSES, OrgSubscription
@@ -57,20 +63,21 @@ async def _sum_tokens_since(
     db: AsyncSession,
     organization_id: uuid.UUID,
     *,
+    cursor_created_at: datetime | None,
     cursor_id: uuid.UUID | None,
-) -> tuple[int, uuid.UUID | None]:
-    """Sum total_tokens for LLM events whose ``id`` is greater than
-    ``cursor_id``, scoped to every workspace in the org.
+) -> tuple[int, datetime | None, uuid.UUID | None]:
+    """Sum total_tokens for LLM events strictly past ``(cursor_created_at,
+    cursor_id)``, scoped to every workspace in the org.
 
-    Returns ``(tokens, max_id_seen)``. ``max_id_seen`` is None when
-    there are no new rows.
+    Returns ``(tokens, max_created_at, max_id)``. The latter two pair
+    up as the new cursor; both are None when there are no new rows.
 
-    Why ``id`` and not ``created_at``: UUIDv7 / time-sortable ids
-    aren't guaranteed here — we use the plain ``id`` ordering as a
-    monotonically-increasing-enough cursor for a 15-min window. If
-    two rows insert in the same microsecond we may ship one twice
-    on a worst-case retry. The Stripe ``idempotency_key`` guarantees
-    no double-billing even then.
+    Why composite: usage_events use UUIDv4. An ``id > cursor`` filter
+    is lex-ordered, not temporal — a row inserted right after the
+    cursor with a smaller random id would silently be skipped. The
+    composite ``(created_at, id)`` is strictly monotonic with the
+    UUID acting as a tiebreaker for rows that insert in the same
+    microsecond.
     """
     from app.models.workspace import Workspace
 
@@ -82,19 +89,45 @@ async def _sum_tokens_since(
         ).scalars()
     )
     if not workspace_ids:
-        return 0, None
+        return 0, None, None
 
     stmt = select(
         func.coalesce(func.sum(UsageEvent.total_tokens), 0).label("tokens"),
-        func.max(UsageEvent.id).label("max_id"),
+        func.max(UsageEvent.created_at).label("max_created_at"),
     ).where(
         UsageEvent.workspace_id.in_(workspace_ids),
         UsageEvent.event_type == EVENT_LLM_CALL,
     )
-    if cursor_id is not None:
-        stmt = stmt.where(UsageEvent.id > cursor_id)
+    if cursor_created_at is not None and cursor_id is not None:
+        # Postgres supports row-value comparison: ``(a, b) > (x, y)``
+        # is "a > x OR (a = x AND b > y)" with proper NULL handling.
+        stmt = stmt.where(
+            tuple_(UsageEvent.created_at, UsageEvent.id)
+            > tuple_(cursor_created_at, cursor_id)
+        )
+    elif cursor_created_at is not None:
+        stmt = stmt.where(UsageEvent.created_at > cursor_created_at)
     row = (await db.execute(stmt)).first()
-    return int(row.tokens or 0), row.max_id
+    if not row or not row.max_created_at:
+        return 0, None, None
+
+    # Resolve the tie-breaker id for the max created_at — we need the
+    # actual row's id, not the max-id-over-the-bucket, otherwise a
+    # later same-microsecond row would be re-shipped on next sweep.
+    # The aggregate above gave us max_created_at; pull the id of the
+    # row that *has* it.
+    id_stmt = (
+        select(UsageEvent.id)
+        .where(
+            UsageEvent.workspace_id.in_(workspace_ids),
+            UsageEvent.event_type == EVENT_LLM_CALL,
+            UsageEvent.created_at == row.max_created_at,
+        )
+        .order_by(UsageEvent.id.desc())
+        .limit(1)
+    )
+    max_id = await db.scalar(id_stmt)
+    return int(row.tokens or 0), row.max_created_at, max_id
 
 
 async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
@@ -104,11 +137,13 @@ async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
     if sub.status not in LIVE_STATUSES:
         return 0
 
-    cursor = sub.last_reported_event_id
-    tokens, new_cursor = await _sum_tokens_since(
-        db, sub.organization_id, cursor_id=cursor
+    tokens, new_cursor_ts, new_cursor_id = await _sum_tokens_since(
+        db,
+        sub.organization_id,
+        cursor_created_at=sub.last_reported_event_created_at,
+        cursor_id=sub.last_reported_event_id,
     )
-    if tokens <= 0 or new_cursor is None:
+    if tokens <= 0 or new_cursor_id is None or new_cursor_ts is None:
         return 0
 
     # Stripe meters tokens in 1k-unit chunks at the price level — ceil
@@ -125,10 +160,11 @@ async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
         quantity=quantity,
         timestamp=now_ts,
         action="increment",
-        idempotency_key=f"usage-{sub.stripe_metered_item_id}-{new_cursor}",
+        idempotency_key=f"usage-{sub.stripe_metered_item_id}-{new_cursor_id}",
     )
 
-    sub.last_reported_event_id = new_cursor
+    sub.last_reported_event_id = new_cursor_id
+    sub.last_reported_event_created_at = new_cursor_ts
     sub.last_reported_at = datetime.now(timezone.utc)
     await db.flush()
     return tokens
