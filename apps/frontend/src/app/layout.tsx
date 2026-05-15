@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist } from "next/font/google";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { Providers } from "@/components/providers/Providers";
 import { SITE } from "@/features/landing";
 import "streamdown/styles.css";
@@ -40,7 +41,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body className={`${inter.className} h-full antialiased`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <CookieConsentBanner />
+        </Providers>
       </body>
     </html>
   );

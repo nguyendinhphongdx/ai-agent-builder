@@ -36,7 +36,7 @@ const COLUMNS = [
       { label: "MIT License", href: `${SITE.github}/blob/main/LICENSE`, external: true },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
-      { label: "Security", href: "/security" },
+      { label: "Cookies", href: "/cookies" },
     ],
   },
 ];
