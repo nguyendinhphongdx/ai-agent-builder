@@ -122,7 +122,7 @@ export function OrgLayout({ children }: { children: React.ReactNode }) {
 
         <div className="border-t border-border p-3 text-[11px] text-muted-foreground">
           <Link
-            href="/home"
+            href="/ws/home"
             className="block rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-foreground"
           >
             ← Back to workspace

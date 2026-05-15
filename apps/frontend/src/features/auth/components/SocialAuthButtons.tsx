@@ -38,7 +38,9 @@ function GoogleIcon({ className }: { className?: string }) {
 export function SocialAuthButtons() {
   /** Full-page navigation — the backend handles the redirect chain. */
   const go = (provider: "github" | "google") => {
-    window.location.href = oauthStartUrl(provider, "/home");
+    // Fresh OAuth sign-in lands on a user_token (no workspace yet) — /org
+    // is the Hub picker; landing in /ws/* directly would bounce back here.
+    window.location.href = oauthStartUrl(provider, "/org");
   };
 
   return (

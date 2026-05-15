@@ -531,7 +531,9 @@ function DangerZonePanel({
     try {
       await del.mutateAsync(workspaceId);
       toast.success("Workspace deleted");
-      router.push("/home");
+      // The just-deleted workspace's cookie is now pointing at nothing —
+      // bounce to /org so the user picks another (or sees the empty state).
+      router.push("/org");
     } catch (e) {
       toast.error(extractMsg(e));
     }

@@ -36,12 +36,13 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   const pathname = usePathname();
 
   // Auth pages shouldn't be visible to already-signed-in users.
-  // - Verified → send to /home (which forwards to the real app)
+  // - Verified → send to /org (the Hub picker; landing /ws/home
+  //   directly would 404 if their cookie is still scope=user).
   // - Unverified → keep them on the verify-email page, redirect others
   useEffect(() => {
     if (isLoading || !isAuthenticated || !user) return;
     if (user.is_verified) {
-      router.replace("/home");
+      router.replace("/org");
     } else if (pathname !== VERIFY_PENDING_PATH) {
       router.replace(VERIFY_PENDING_PATH);
     }

@@ -54,7 +54,7 @@ export function VerifyEmailPendingView() {
     if (code.length === CODE_LENGTH && !confirm.isPending) {
       confirm
         .mutateAsync({ code })
-        .then(() => router.push("/home"))
+        .then(() => router.push("/org"))
         .catch(() => {
           // clear + refocus first cell so user can retry
           setDigits(Array.from({ length: CODE_LENGTH }, () => ""));
@@ -66,7 +66,7 @@ export function VerifyEmailPendingView() {
 
   // Already verified (eg. via another tab) — push them into the app
   useEffect(() => {
-    if (user?.is_verified) router.replace("/home");
+    if (user?.is_verified) router.replace("/org");
   }, [user?.is_verified, router]);
 
   const handleChange = (index: number, value: string) => {

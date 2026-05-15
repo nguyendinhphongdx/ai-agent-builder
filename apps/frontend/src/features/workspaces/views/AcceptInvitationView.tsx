@@ -61,7 +61,7 @@ export function AcceptInvitationView({ token }: { token: string }) {
             </p>
             <Button
               className="mt-5"
-              onClick={() => router.push("/home")}
+              onClick={() => router.push("/org")}
             >
               Go to dashboard
             </Button>
@@ -79,9 +79,9 @@ export function AcceptInvitationView({ token }: { token: string }) {
             <Button
               variant="outline"
               className="mt-5"
-              onClick={() => router.push("/home")}
+              onClick={() => router.push("/org")}
             >
-              Back to home
+              Back to org
             </Button>
           </>
         )}
