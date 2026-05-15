@@ -19,7 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.organization import ORG_PLAN_FREE, Organization
-from app.models.organization_member import ORG_ROLE_OWNER, OrganizationMember
+from app.models.organization_member import (
+    ORG_ROLE_OWNER,
+    ORG_ROLE_VIEWER,
+    OrganizationMember,
+)
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_invitation import WorkspaceInvitation
@@ -154,6 +158,28 @@ async def _ensure_org_owner_member(
     :func:`ensure_personal_workspace` for the auto-created personal
     org, and reusable for any future "user just joined this org as
     owner" flow."""
+    await _ensure_org_member(db, organization_id, user_id, ORG_ROLE_OWNER)
+
+
+async def _ensure_org_member(
+    db: AsyncSession,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+) -> None:
+    """Idempotently ensure a user is a member of an org at the given
+    role. Used both for personal-account owner seeding and for the
+    auto-promotion that runs when a user accepts a *workspace*
+    invitation into an org they aren't otherwise a member of —
+    without this row the org never shows up in the user's org
+    switcher.
+
+    Does NOT upgrade an existing membership; the inviter's workspace
+    role is the workspace's business, the org role is the org's.
+    Demotion/promotion of an existing org_member happens through the
+    org member-management endpoint, not as a side effect of a
+    workspace invite.
+    """
     existing = await db.scalar(
         select(OrganizationMember).where(
             OrganizationMember.organization_id == organization_id,
@@ -166,7 +192,7 @@ async def _ensure_org_owner_member(
         OrganizationMember(
             organization_id=organization_id,
             user_id=user_id,
-            role=ORG_ROLE_OWNER,
+            role=role,
         )
     )
     await db.flush()
@@ -566,6 +592,16 @@ async def accept_invitation(
     db.add(member)
     invitation.accepted_at = datetime.now(timezone.utc)
     await db.flush()
+
+    # Auto-add as org viewer if they aren't already a member of the
+    # workspace's parent org — otherwise the org never appears in the
+    # user's org switcher even though they have access to one of its
+    # workspaces. Existing org_members are left alone (idempotent).
+    workspace = await db.get(Workspace, invitation.workspace_id)
+    if workspace is not None:
+        await _ensure_org_member(
+            db, workspace.organization_id, user.id, ORG_ROLE_VIEWER
+        )
 
     # Ping the inviter so they know the seat is filled.
     if invitation.invited_by is not None:
