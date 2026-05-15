@@ -53,6 +53,8 @@ def _to_summary(ws, role: str) -> WorkspaceSummary:
         is_personal=ws.is_personal,
         organization=ws.organization,
         settings=ws.settings or {},
+        monthly_token_quota_override=ws.monthly_token_quota_override,
+        monthly_kb_query_quota_override=ws.monthly_kb_query_quota_override,
         role=role,
         created_at=ws.created_at,
     )

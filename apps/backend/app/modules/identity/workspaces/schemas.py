@@ -51,6 +51,11 @@ class WorkspaceSummary(BaseModel):
     is_personal: bool
     organization: OrganizationRef
     settings: dict[str, Any] = Field(default_factory=dict)
+    # Per-workspace soft caps on top of the org's plan quota. NULL = no
+    # cap (default for every workspace at creation). Surfaced here so
+    # the workspace-settings UI can render the current value.
+    monthly_token_quota_override: int | None = None
+    monthly_kb_query_quota_override: int | None = None
     role: str  # caller's role
     created_at: datetime
 
@@ -68,6 +73,13 @@ class WorkspaceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     slug: str | None = Field(default=None, max_length=64)
     settings: dict[str, Any] | None = None
+    # Quota overrides — null clears the cap, positive int sets it.
+    # The PATCH endpoint requires workspace admin role (same as the
+    # rest of WorkspaceUpdate); org-admin is implicit because the
+    # workspace role check uses the effective role that promotes
+    # org-admins to workspace-owner.
+    monthly_token_quota_override: int | None = Field(default=None, ge=0)
+    monthly_kb_query_quota_override: int | None = Field(default=None, ge=0)
 
 
 # ─── Members ───────────────────────────────────────────────────────

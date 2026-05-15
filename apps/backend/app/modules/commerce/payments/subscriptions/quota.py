@@ -13,6 +13,15 @@ Enforcement rules:
                                    bill overage and continue).
   - kb_used    >= kb_limit       → same logic, separate counter.
 
+Workspace-level soft cap:
+  An org admin can set ``workspaces.monthly_token_quota_override`` to
+  bound a single workspace inside the shared org pool — useful for
+  capping a sandbox/demo workspace so a runaway agent loop can't
+  drain the whole subscription. The workspace cap is checked BEFORE
+  the org cap; either failing raises QuotaExceeded. Workspace caps
+  are hard blocks regardless of metered overage — they exist to
+  prevent waste, not to enable extra billing.
+
 Callers wire this in at the cheap-to-fail boundary: chat SSE checks
 tokens before starting the stream, retriever checks kb_queries
 before the SQL hit. Inside cron jobs / workflow runs we still call
@@ -172,6 +181,53 @@ async def _resolve_org_id(
     )
 
 
+async def _workspace_cap_check(
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    period_start: datetime,
+    period_end: datetime | None,
+) -> None:
+    """Hard-block when the workspace has consumed its admin-set cap.
+
+    Reads the override columns directly off the workspace row — NULL
+    means "no cap, fall through to org-level". Caps apply for both
+    free and metered tiers because they exist to prevent waste
+    (e.g. a sandbox draining the org pool), not to drive billing.
+    """
+    ws = await db.get(Workspace, workspace_id)
+    if ws is None:
+        return
+
+    token_cap = ws.monthly_token_quota_override
+    kb_cap = ws.monthly_kb_query_quota_override
+    if token_cap is None and kb_cap is None:
+        return
+
+    if token_cap is not None and token_cap > 0:
+        totals = await usage_service.workspace_totals(
+            db, workspace_id, since=period_start, until=period_end
+        )
+        used = int(totals.get("tokens") or 0)
+        if used >= token_cap:
+            raise QuotaExceeded(
+                "workspace_tokens", used, token_cap, "workspace_cap"
+            )
+
+    if kb_cap is not None and kb_cap > 0:
+        used = await usage_service.workspace_event_count(
+            db,
+            workspace_id,
+            event_type="kb.query",
+            since=period_start,
+            until=period_end,
+        )
+        if used >= kb_cap:
+            raise QuotaExceeded(
+                "workspace_kb_queries", used, kb_cap, "workspace_cap"
+            )
+
+
 async def enforce_tokens(
     db: AsyncSession,
     organization_id: uuid.UUID | None = None,
@@ -189,6 +245,13 @@ async def enforce_tokens(
     org_id = await _resolve_org_id(db, organization_id, workspace_id)
     if org_id is None:
         return
+
+    # Workspace cap first (cheaper to fail — one row + one rollup).
+    ws_id = workspace_id or current_workspace_id_or_none()
+    if ws_id is not None:
+        sub, since, until = await _period_for_org(db, org_id)
+        await _workspace_cap_check(db, ws_id, period_start=since, period_end=until)
+
     state = await get_quota_state(db, org_id)
     if state.tokens_over and not state.has_overage_pricing:
         raise QuotaExceeded(
@@ -206,6 +269,12 @@ async def enforce_kb_queries(
     org_id = await _resolve_org_id(db, organization_id, workspace_id)
     if org_id is None:
         return
+
+    ws_id = workspace_id or current_workspace_id_or_none()
+    if ws_id is not None:
+        sub, since, until = await _period_for_org(db, org_id)
+        await _workspace_cap_check(db, ws_id, period_start=since, period_end=until)
+
     state = await get_quota_state(db, org_id)
     if state.kb_over and not state.has_overage_pricing:
         raise QuotaExceeded(

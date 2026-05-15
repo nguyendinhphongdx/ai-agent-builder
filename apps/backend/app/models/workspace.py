@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,6 +49,20 @@ class Workspace(Base, UUIDMixin, TimestampMixin):
     # a 403 + "must enrol MFA" detail — UI redirects to the setup page.
     force_mfa: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
+    )
+    # Per-workspace quota soft caps — when set, the org-payer's quota
+    # is *additionally* capped at the workspace level. NULL means "no
+    # cap, share the org pool freely". 0 would mean "blocked"; we use
+    # NULL because 0 is a valid sentinel elsewhere (UNLIMITED) and
+    # the distinction matters here.
+    #
+    # Use case: org-admin wants to bound a Demo or Sandbox workspace
+    # so a runaway agent loop can't drain the whole Pro quota.
+    monthly_token_quota_override: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
+    monthly_kb_query_quota_override: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="workspaces")

@@ -305,15 +305,29 @@ async def create_team_workspace(
     return ws
 
 
+_NULLABLE_PATCH_FIELDS = frozenset(
+    {
+        # Quota overrides — None here legitimately means "clear the cap".
+        "monthly_token_quota_override",
+        "monthly_kb_query_quota_override",
+    }
+)
+
+
 async def update_workspace(
     db: AsyncSession, workspace: Workspace, **fields
 ) -> Workspace:
     """Patch a workspace. Service-level guard: slug stays unique per
-    org — caller catches IntegrityError if conflict."""
+    org — caller catches IntegrityError if conflict.
+
+    ``None`` is normally skipped (defense against accidental nulling
+    of required fields like ``name`` / ``slug``), but for nullable
+    quota-override columns we treat None as "clear the cap".
+    """
     for key, value in fields.items():
-        if value is None:
+        if value is None and key not in _NULLABLE_PATCH_FIELDS:
             continue
-        if key == "slug":
+        if key == "slug" and value is not None:
             value = _slugify(value) or workspace.slug
         if hasattr(workspace, key):
             setattr(workspace, key, value)
