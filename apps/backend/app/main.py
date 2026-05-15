@@ -174,6 +174,14 @@ def create_app() -> FastAPI:
 
     app.add_middleware(CSRFOriginMiddleware)
 
+    # Defense-in-depth response headers (HSTS, CSP, X-Frame-Options, …).
+    # Added after CSRF/CORS in code order = runs *outer* in Starlette's
+    # stack — applies its headers last, so handlers + earlier middleware
+    # can still override per-response if they need to.
+    from app.platform.security.headers import SecurityHeadersMiddleware
+
+    app.add_middleware(SecurityHeadersMiddleware)
+
     # CORS — split by route family. One middleware now handles both regular
     # responses and OPTIONS preflight, so we don't stack Starlette's built-in
     # CORSMiddleware on top (the two used to fight over the same headers).
