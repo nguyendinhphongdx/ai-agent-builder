@@ -24,7 +24,7 @@ export const AgentCard = memo(function AgentCard({ agent }: AgentCardProps) {
           </div>
           <div>
             <CardTitle className="text-base">
-              <Link href={`/agents/${agent.id}`} className="hover:underline">
+              <Link href={`/ws/agents/${agent.id}`} className="hover:underline">
                 {agent.name}
               </Link>
             </CardTitle>
@@ -42,7 +42,7 @@ export const AgentCard = memo(function AgentCard({ agent }: AgentCardProps) {
           <span className="text-xs text-muted-foreground">
             {modelDisplayName(catalog?.models, agent.model_id)}
           </span>
-          <Link href={`/agents/${agent.id}/chat`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link href={`/ws/agents/${agent.id}/chat`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             <MessageSquare className="mr-1 h-3 w-3" />
             Chat
           </Link>

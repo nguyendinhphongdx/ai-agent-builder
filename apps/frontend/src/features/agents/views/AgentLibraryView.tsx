@@ -250,7 +250,7 @@ function AgentGridCard({ agent }: { agent: AgentListItem }) {
   const { data: catalog } = useModelCatalog();
   return (
     <Link
-      href={`/agents/${agent.id}/chat`}
+      href={`/ws/agents/${agent.id}/chat`}
       className="group relative flex min-h-42 flex-col rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     >
       {/* Actions menu - top right */}
@@ -309,7 +309,7 @@ function AgentListRow({ agent }: { agent: AgentListItem }) {
   const { data: catalog } = useModelCatalog();
   return (
     <Link
-      href={`/agents/${agent.id}/chat`}
+      href={`/ws/agents/${agent.id}/chat`}
       className="group relative flex items-center gap-4 rounded-lg border border-transparent bg-card/60 px-4 py-2.5 transition-all hover:border-border hover:bg-card"
     >
       <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">

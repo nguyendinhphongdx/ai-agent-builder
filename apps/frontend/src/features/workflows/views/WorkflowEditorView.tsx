@@ -178,7 +178,7 @@ export function WorkflowEditorView({ workflowId }: WorkflowEditorViewProps) {
               variant="ghost"
               size="sm"
               className="gap-1.5 text-muted-foreground"
-              onClick={() => router.push(`/workflows/${workflowId}/executions`)}
+              onClick={() => router.push(`/ws/workflows/${workflowId}/executions`)}
             >
               <History className="h-3.5 w-3.5" />
               Executions
@@ -188,7 +188,7 @@ export function WorkflowEditorView({ workflowId }: WorkflowEditorViewProps) {
               variant="ghost"
               size="sm"
               className="gap-1.5 text-muted-foreground"
-              onClick={() => router.push(`/workflows/${workflowId}/settings`)}
+              onClick={() => router.push(`/ws/workflows/${workflowId}/settings`)}
             >
               <Settings className="h-3.5 w-3.5" />
               Settings

@@ -100,7 +100,7 @@ export function WorkflowExecutionsView({ workflowId }: WorkflowExecutionsViewPro
               variant="ghost"
               size="sm"
               className="gap-1.5"
-              onClick={() => router.push(`/workflows/${workflowId}`)}
+              onClick={() => router.push(`/ws/workflows/${workflowId}`)}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Editor

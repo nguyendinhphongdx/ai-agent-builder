@@ -75,7 +75,7 @@ export function AgentKBSection({ agentId }: AgentKBSectionProps) {
               </div>
               <div className="min-w-0 flex-1">
                 <Link
-                  href={`/knowledge/${kb.id}`}
+                  href={`/ws/knowledge/${kb.id}`}
                   className="flex items-center gap-1 truncate text-xs font-medium hover:text-primary"
                 >
                   {kb.name}

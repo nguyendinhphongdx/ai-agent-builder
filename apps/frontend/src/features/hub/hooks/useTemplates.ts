@@ -47,7 +47,7 @@ export function useForkTemplate() {
       // Invalidate user's agent list so the new fork appears, then jump there.
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       queryClient.invalidateQueries({ queryKey: templateKeys.myForks() });
-      router.push(`/agents/${data.agent_id}`);
+      router.push(`/ws/agents/${data.agent_id}`);
     },
   });
 }

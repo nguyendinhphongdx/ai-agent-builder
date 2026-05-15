@@ -56,7 +56,7 @@ export function ChatWindow({
       sendMessage(content, attachments);
 
       if (conversationId !== initialConversationId) {
-        router.replace(`/agents/${agentId}/chat?conversationId=${conversationId}`, {
+        router.replace(`/ws/agents/${agentId}/chat?conversationId=${conversationId}`, {
           scroll: false,
         });
       }

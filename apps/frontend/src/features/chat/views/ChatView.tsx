@@ -22,7 +22,7 @@ export function ChatView({ agentId }: ChatViewProps) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-3 border-b px-4 py-2">
         <Link
-          href={`/agents/${agentId}`}
+          href={`/ws/agents/${agentId}`}
           className={buttonVariants({ variant: "ghost", size: "icon" })}
         >
           <ArrowLeft className="h-4 w-4" />

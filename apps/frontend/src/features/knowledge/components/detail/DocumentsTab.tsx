@@ -173,7 +173,7 @@ function DocumentRow({
       <td className="px-6 py-2.5 text-muted-foreground">{index}</td>
       <td className="px-3 py-2.5">
         <Link
-          href={`/knowledge/${kbId}/documents/${doc.id}`}
+          href={`/ws/knowledge/${kbId}/documents/${doc.id}`}
           className="flex items-center gap-2 hover:text-primary"
         >
           <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

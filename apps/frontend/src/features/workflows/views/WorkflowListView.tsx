@@ -191,7 +191,7 @@ function WorkflowRow({
 
   return (
     <Link
-      href={`/workflows/${wf.id}`}
+      href={`/ws/workflows/${wf.id}`}
       className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-sm hover:border-violet-200 dark:hover:border-violet-500/30"
     >
       {/* Icon */}

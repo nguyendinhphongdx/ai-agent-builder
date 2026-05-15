@@ -64,7 +64,7 @@ export function DocumentChunksView({ kbId, docId }: DocumentChunksViewProps) {
       <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-muted/30">
         <div className="px-4 pb-2 pt-4">
           <Link
-            href={`/knowledge/${kbId}`}
+            href={`/ws/knowledge/${kbId}`}
             className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
@@ -84,7 +84,7 @@ export function DocumentChunksView({ kbId, docId }: DocumentChunksViewProps) {
         </div>
         <nav className="mt-2 flex-1 space-y-0.5 px-2">
           <Link
-            href={`/knowledge/${kbId}`}
+            href={`/ws/knowledge/${kbId}`}
             className="flex w-full items-center gap-2.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground"
           >
             <FileText className="h-3.5 w-3.5" />
@@ -104,7 +104,7 @@ export function DocumentChunksView({ kbId, docId }: DocumentChunksViewProps) {
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-border px-6 py-3.5">
           <Link
-            href={`/knowledge/${kbId}`}
+            href={`/ws/knowledge/${kbId}`}
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

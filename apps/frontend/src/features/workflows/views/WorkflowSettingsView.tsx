@@ -60,7 +60,7 @@ export function WorkflowSettingsView({ workflowId }: WorkflowSettingsViewProps) 
           variant="ghost"
           size="sm"
           className="gap-1.5 text-muted-foreground"
-          onClick={() => router.push(`/workflows/${workflowId}`)}
+          onClick={() => router.push(`/ws/workflows/${workflowId}`)}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to editor
