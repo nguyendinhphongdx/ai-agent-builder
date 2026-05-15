@@ -24,6 +24,7 @@ import { chatService } from "@/features/chat/services/chatService";
 import { chatKeys } from "@/features/chat/hooks/useChatStream";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { isStaff } from "@/features/admin/types";
+import { useWorkspacePath } from "@/features/workspaces";
 
 const AVATAR_COLORS = [
   "bg-orange-500",
@@ -86,6 +87,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const searchParams = useSearchParams();
   const currentConversationId = searchParams.get("conversationId");
   const { user } = useAuth();
+  const wp = useWorkspacePath();
   const showAdmin = isStaff(user?.role);
   const { data: agents = [] } = useAgents();
   const { data: conversations = [] } = useQuery({
@@ -149,13 +151,16 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       </div>
 
       <nav className={cn("space-y-0.5 pt-3", collapsed ? "px-1.5" : "p-2")}>
-        {navItems.map((item) => (
-          <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label}
-            active={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
-            collapsed={collapsed} />
-        ))}
-        <NavLink href="/chat/new" icon={PlusSquare} label="New Chat"
-          active={pathname === "/chat/new"} collapsed={collapsed} />
+        {navItems.map((item) => {
+          const href = wp(item.href);
+          return (
+            <NavLink key={item.href} href={href} icon={item.icon} label={item.label}
+              active={pathname === href || (item.href !== "/" && pathname.startsWith(href))}
+              collapsed={collapsed} />
+          );
+        })}
+        <NavLink href={wp("/chat/new")} icon={PlusSquare} label="New Chat"
+          active={pathname === wp("/chat/new")} collapsed={collapsed} />
         {showAdmin && (
           <NavLink
             href="/admin"
@@ -179,7 +184,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 return (
                   <Link
                     key={agent.id}
-                    href={`/agents/${agent.id}/chat`}
+                    href={wp(`/agents/${agent.id}/chat`)}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
                       isActive
@@ -210,7 +215,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 return (
                   <Link
                     key={conv.id}
-                    href={`/agents/${conv.agent_id}/chat?conversationId=${conv.id}`}
+                    href={wp(`/agents/${conv.agent_id}/chat?conversationId=${conv.id}`)}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
                       isActive

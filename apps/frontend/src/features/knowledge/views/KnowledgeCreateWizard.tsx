@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { StepDataSource } from "../components/wizard/StepDataSource";
 import { StepProcessing } from "../components/wizard/StepProcessing";
 import { StepExecute } from "../components/wizard/StepExecute";
+import { useWorkspacePath } from "@/features/workspaces";
 
 export interface WizardState {
   // Step 1
@@ -40,6 +41,7 @@ function deriveName(file: File | null): string {
 
 export function KnowledgeCreateWizard() {
   const router = useRouter();
+  const wp = useWorkspacePath();
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>({
     file: null,
@@ -74,7 +76,7 @@ export function KnowledgeCreateWizard() {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-3.5">
         <Link
-          href="/knowledge"
+          href={wp("/knowledge")}
           className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -146,7 +148,7 @@ export function KnowledgeCreateWizard() {
               state={state}
               update={update}
               onBack={goBack}
-              onDone={(kbId) => router.push(`/knowledge/${kbId}`)}
+              onDone={(kbId) => router.push(wp(`/knowledge/${kbId}`))}
             />
           )}
         </div>

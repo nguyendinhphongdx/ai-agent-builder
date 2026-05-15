@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBrowseTemplates, useForkTemplate } from "@/features/hub/hooks/useTemplates";
+import { useWorkspacePath } from "@/features/workspaces";
 import type { TemplateSummary } from "@/features/hub/types";
 
 /** First-run wizard. Lists the official "starter"-tagged templates so a
@@ -13,6 +14,7 @@ import type { TemplateSummary } from "@/features/hub/types";
  *  starter templates haven't been seeded yet. */
 export function WelcomeView() {
   const router = useRouter();
+  const wp = useWorkspacePath();
   const { data, isLoading } = useBrowseTemplates({ tag: "starter", sort: "newest", limit: 12 });
   const fork = useForkTemplate();
 
@@ -57,7 +59,7 @@ export function WelcomeView() {
         <button
           type="button"
           className="underline-offset-2 hover:text-foreground hover:underline"
-          onClick={() => router.replace("/libraries")}
+          onClick={() => router.replace(wp("/libraries"))}
         >
           Skip — start from scratch
         </button>
@@ -112,6 +114,7 @@ function StarterCard({
 }
 
 function EmptyStarters() {
+  const wp = useWorkspacePath();
   return (
     <div className="rounded-xl border border-dashed border-border p-8 text-center">
       <p className="text-sm text-muted-foreground">
@@ -123,7 +126,7 @@ function EmptyStarters() {
           <Link href="/hub">Browse Hub</Link>
         </Button>
         <Button asChild size="sm">
-          <Link href="/libraries">Go to Libraries</Link>
+          <Link href={wp("/libraries")}>Go to Libraries</Link>
         </Button>
       </div>
     </div>

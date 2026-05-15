@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTools, useDeleteTool, useUpdateTool } from "../hooks/useTools";
 import { TOOL_TYPE_META, type Tool, type ToolType } from "../types";
+import { useWorkspacePath } from "@/features/workspaces";
 import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, typeof Globe> = {
@@ -53,6 +54,7 @@ const TYPE_FILTERS: Array<"all" | ToolType> = [
 ];
 
 export function ToolListView() {
+  const wp = useWorkspacePath();
   const { data: tools, isLoading } = useTools();
   const deleteTool = useDeleteTool();
   const [search, setSearch] = useState("");
@@ -94,7 +96,7 @@ export function ToolListView() {
           <h1 className="text-lg font-semibold">Tools</h1>
           <span className="text-xs text-muted-foreground">{tools?.length ?? 0} tools</span>
         </div>
-        <Link href="/tools/new">
+        <Link href={wp("/tools/new")}>
           <Button size="sm" className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
             New Tool
@@ -155,7 +157,7 @@ export function ToolListView() {
               <Wrench className="h-6 w-6 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground">No tools yet</p>
-            <Link href="/tools/new">
+            <Link href={wp("/tools/new")}>
               <Button size="sm" className="mt-4 gap-1.5">
                 <Plus className="h-3.5 w-3.5" />
                 Create your first tool
@@ -190,6 +192,7 @@ function ToolRow({
   onDelete: () => void;
 }) {
   const router = useRouter();
+  const wp = useWorkspacePath();
   const updateTool = useUpdateTool(tool.id);
   const meta = TOOL_TYPE_META[tool.tool_type];
   const Icon = ICON_MAP[meta?.icon ?? "wrench"] ?? Wrench;
@@ -199,7 +202,7 @@ function ToolRow({
 
   return (
     <Link
-      href={`/tools/${tool.id}`}
+      href={wp(`/tools/${tool.id}`)}
       className="group flex w-full items-center gap-4 rounded-xl border border-border/70 bg-card/70 px-4 py-3 text-left transition-all hover:border-primary/30 hover:bg-card"
     >
       <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg border", iconBg)}>
@@ -250,7 +253,7 @@ function ToolRow({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                router.push(`/tools/${tool.id}`);
+                router.push(wp(`/tools/${tool.id}`));
               }}
             >
                 <ExternalLink className="mr-2 h-3.5 w-3.5" />

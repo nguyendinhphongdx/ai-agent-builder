@@ -31,6 +31,7 @@ import { useAgent, useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { agentEditorSchema, type AgentEditorFormValues } from "../components/editor/types";
 import { BookOpen } from "lucide-react";
 import { useTools, type Tool, type ToolType } from "@/features/tools";
+import { useWorkspacePath } from "@/features/workspaces";
 
 /**
  * Map a user-created Tool to the ToolsSelector's display shape.
@@ -72,6 +73,7 @@ interface AgentEditorViewProps {
 
 export function AgentEditorView({ agentId }: AgentEditorViewProps) {
   const isEditMode = !!agentId;
+  const wp = useWorkspacePath();
   const { data: agent, isLoading } = useAgent(agentId ?? "");
   const createAgent = useCreateAgent();
   const updateAgent = useUpdateAgent(agentId ?? "");
@@ -191,7 +193,7 @@ export function AgentEditorView({ agentId }: AgentEditorViewProps) {
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Link
-              href="/agents"
+              href={wp("/agents")}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />

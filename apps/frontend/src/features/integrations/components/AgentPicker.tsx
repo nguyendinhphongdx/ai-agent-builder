@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { agentService } from "@/features/agents/services/agentService";
 import type { AgentListItem } from "@/features/agents/types";
+import { useWorkspacePath } from "@/features/workspaces";
 
 interface AgentPickerProps {
   value: string | null;
@@ -29,6 +30,7 @@ export function AgentPicker({
   onChange,
   label = "Choose an agent",
 }: AgentPickerProps) {
+  const wp = useWorkspacePath();
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +70,7 @@ export function AgentPicker({
     return (
       <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-700 dark:text-amber-300">
         Bạn chưa có agent nào. Vào{" "}
-        <a href="/agents" className="font-medium underline">
+        <a href={wp("/agents")} className="font-medium underline">
           Agents
         </a>{" "}
         để tạo trước, rồi quay lại đây.

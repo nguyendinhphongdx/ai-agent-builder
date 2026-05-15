@@ -28,6 +28,7 @@ import {
   useMyPublishedTemplates,
   useTemplateVersions,
 } from "../hooks/useTemplates";
+import { useWorkspacePath } from "@/features/workspaces";
 import type { TemplateSummary } from "../types";
 
 export function HubMyTemplatesView() {
@@ -217,6 +218,7 @@ function TemplateRow({
 }
 
 function EmptyState() {
+  const wp = useWorkspacePath();
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-16 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-500/15">
@@ -227,7 +229,7 @@ function EmptyState() {
         Open one of your agents and click <span className="font-medium">Publish</span> to share it.
       </p>
       <Button variant="outline" size="sm" className="mt-4" asChild>
-        <Link href="/agents">Go to agents</Link>
+        <Link href={wp("/agents")}>Go to agents</Link>
       </Button>
     </div>
   );

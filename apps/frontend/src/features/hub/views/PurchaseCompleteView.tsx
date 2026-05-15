@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useWorkspacePath } from "@/features/workspaces";
 import { usePurchaseStatus } from "../hooks/useTemplates";
 
 /**
@@ -15,6 +16,7 @@ import { usePurchaseStatus } from "../hooks/useTemplates";
  */
 export function PurchaseCompleteView() {
   const router = useRouter();
+  const wp = useWorkspacePath();
   const params = useSearchParams();
   const sessionId = params.get("session_id");
 
@@ -23,9 +25,9 @@ export function PurchaseCompleteView() {
   // Auto-navigate the moment the agent is forked.
   useEffect(() => {
     if (data?.agent_id) {
-      router.replace(`/agents/${data.agent_id}`);
+      router.replace(wp(`/agents/${data.agent_id}`));
     }
-  }, [data?.agent_id, router]);
+  }, [data?.agent_id, router, wp]);
 
   if (!sessionId) {
     return <Card icon="error" title="Missing session id" body="Open this page from a Stripe redirect." />;
@@ -38,7 +40,7 @@ export function PurchaseCompleteView() {
         body="If your card was charged, your agent will appear in your library shortly."
       >
         <Button asChild variant="outline" size="sm">
-          <Link href="/agents">Go to my agents</Link>
+          <Link href={wp("/agents")}>Go to my agents</Link>
         </Button>
       </Card>
     );

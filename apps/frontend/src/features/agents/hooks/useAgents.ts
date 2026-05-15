@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useWorkspacePath } from "@/features/workspaces";
 import { agentService } from "../services/agentService";
 import type { AgentCreateInput, AgentUpdateInput } from "../types";
 
@@ -29,12 +30,13 @@ export function useAgent(id: string) {
 export function useCreateAgent() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const wp = useWorkspacePath();
 
   return useMutation({
     mutationFn: (data: AgentCreateInput) => agentService.create(data),
     onSuccess: (agent) => {
       queryClient.invalidateQueries({ queryKey: agentKeys.list() });
-      router.push(`/agents/${agent.id}`);
+      router.push(wp(`/agents/${agent.id}`));
     },
   });
 }
@@ -54,12 +56,13 @@ export function useUpdateAgent(id: string) {
 export function useDeleteAgent() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const wp = useWorkspacePath();
 
   return useMutation({
     mutationFn: (id: string) => agentService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: agentKeys.list() });
-      router.push("/agents");
+      router.push(wp("/agents"));
     },
   });
 }

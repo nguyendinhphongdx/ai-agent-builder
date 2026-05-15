@@ -17,6 +17,7 @@ import { useTool, useUpdateTool, useTestTool, useDeleteTool } from "../hooks/use
 import { TOOL_TYPE_META, type JsonSchema, type ToolType } from "../types";
 import { ToolConfigRenderer } from "../components/ToolConfigRenderer";
 import { VariableSchemaEditor } from "../components/VariableSchemaEditor";
+import { useWorkspacePath } from "@/features/workspaces";
 import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -55,6 +56,7 @@ interface ToolDetailViewProps { toolId: string }
 
 export function ToolDetailView({ toolId }: ToolDetailViewProps) {
   const router = useRouter();
+  const wp = useWorkspacePath();
   const { data: tool, isLoading } = useTool(toolId);
   const updateTool = useUpdateTool(toolId);
   const testTool = useTestTool();
@@ -85,7 +87,7 @@ export function ToolDetailView({ toolId }: ToolDetailViewProps) {
   const handleSave = (field: string, value: unknown) => updateTool.mutate({ [field]: value });
   const handleDelete = () => {
     if (!window.confirm("Delete this tool?")) return;
-    deleteTool.mutate(toolId, { onSuccess: () => router.push("/tools") });
+    deleteTool.mutate(toolId, { onSuccess: () => router.push(wp("/tools")) });
   };
   const handleTest = () => {
     try { testTool.mutate({ id: toolId, inputData: JSON.parse(testInput) }); } catch {}
@@ -97,7 +99,7 @@ export function ToolDetailView({ toolId }: ToolDetailViewProps) {
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-6 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/tools">
+            <Link href={wp("/tools")}>
               <Button variant="ghost" size="icon-sm">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
