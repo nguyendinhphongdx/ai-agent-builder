@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Check, ChevronDown, Plus, Settings2 } from "lucide-react";
+import { Building2, Check, ChevronDown, Layers, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,18 +14,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { sessionService } from "@/lib/api/sessionService";
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
 /**
- * Header dropdown for switching active workspace. Auto-selects the
- * caller's personal workspace on first load (via useWorkspaces side
- * effect) and persists choice across page loads via the zustand store.
+ * Header dropdown for switching active workspace.
  *
- * Switching workspaces invalidates every cached query so the next
- * fetch sends the new ``X-Workspace-Id`` header.
+ * Phase 1 of the Hub auth refactor (docs/architecture/
+ * hub-auth-refactor.md): each item POSTs ``/api/auth/enter-workspace``
+ * which mints a workspace-scoped access_token cookie with the
+ * workspace id baked in. We keep the localStorage write for backward
+ * compat with code paths still reading the zustand store; Phase 3
+ * deletes that store.
+ *
+ * The new token replaces the old in the same cookie slot, so all
+ * subsequent requests automatically carry the right workspace
+ * claims. ``qc.invalidateQueries()`` flushes any data fetched under
+ * the old context.
  */
 export function WorkspaceSwitcher() {
   const { data: workspaces, isLoading } = useWorkspaces();
@@ -35,12 +44,27 @@ export function WorkspaceSwitcher() {
 
   const current = workspaces?.find((w) => w.id === currentId) ?? null;
 
+  const enter = useMutation({
+    mutationFn: (workspace_id: string) => sessionService.enter(workspace_id),
+    onSuccess: (data) => {
+      // Keep zustand in sync for legacy consumers. Phase 3 deletes
+      // this assignment along with the store itself.
+      setCurrent(data.workspace_id);
+      // Drop every cached query — the next fetch goes through the
+      // new workspace_token automatically.
+      qc.invalidateQueries();
+    },
+    onError: (e) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail ?? "Switch failed";
+      toast.error(typeof msg === "string" ? msg : "Switch failed");
+    },
+  });
+
   const onSelect = (id: string) => {
     if (id === currentId) return;
-    setCurrent(id);
-    // Drop every cached query — the next fetch will send the new
-    // workspace header and the BE will return tenant-scoped data.
-    qc.invalidateQueries();
+    enter.mutate(id);
   };
 
   if (isLoading || !workspaces || workspaces.length === 0) {
@@ -97,9 +121,11 @@ export function WorkspaceSwitcher() {
                   {w.organization.name} · {w.role}
                 </div>
               </div>
-              {w.id === currentId && (
+              {enter.isPending && enter.variables === w.id ? (
+                <Loader2 className="mt-1 h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+              ) : w.id === currentId ? (
                 <Check className="mt-1 h-3 w-3 shrink-0 text-primary" />
-              )}
+              ) : null}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
@@ -107,14 +133,12 @@ export function WorkspaceSwitcher() {
             <Plus className="mr-2 h-3.5 w-3.5" />
             Create workspace
           </DropdownMenuItem>
-          {current && !current.is_personal && (
-            <DropdownMenuItem asChild>
-              <Link href="/settings/workspace" className="cursor-pointer">
-                <Settings2 className="mr-2 h-3.5 w-3.5" />
-                Workspace settings
-              </Link>
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem asChild>
+            <Link href="/hub/workspaces" className="cursor-pointer">
+              <Layers className="mr-2 h-3.5 w-3.5" />
+              Manage in Hub
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />

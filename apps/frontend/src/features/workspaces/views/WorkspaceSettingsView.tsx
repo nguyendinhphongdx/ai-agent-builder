@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -15,8 +16,6 @@ import {
   SettingsPageHeader,
   SettingsStack,
 } from "@/features/settings/components/SettingsPrimitives";
-import { useQuery } from "@tanstack/react-query";
-import { billingService } from "@/lib/api/billingService";
 import {
   useWorkspaces,
   useUpdateWorkspace,
@@ -447,147 +446,36 @@ function GeneralPanel({ workspaceId, name }: { workspaceId: string; name: string
 /* ─── Quota cap ─────────────────────────────────────────────────── */
 
 /**
- * Per-workspace soft cap on top of the org's plan quota. NULL = no
- * cap, share the org pool freely. Positive int = hard block once this
- * workspace consumes that much in the current billing period.
- *
- * Caps don't affect billing — the org still pays for whatever the
- * pool draws. They exist to prevent waste (a runaway sandbox agent
- * draining the production pool).
+ * Per-workspace quota cap is set in the Org-level Hub now
+ * (/hub/workspaces). This panel shows the *current* cap read-only,
+ * with a link out — workspace admins shouldn't be able to lift their
+ * own cap (defeats the cap's purpose).
  */
 function QuotaPanel({ workspace }: { workspace: WorkspaceSummaryProp }) {
-  const update = useUpdateWorkspace(workspace.id);
-  const billingQ = useQuery({
-    queryKey: ["billing", "subscription"],
-    queryFn: () => billingService.getSubscription(),
-    staleTime: 60_000,
-  });
-
-  // Local "draft" form state — initialise from the workspace record
-  // and let the user edit before saving. Strings (not numbers) so the
-  // input can be cleared without flipping to 0.
-  const [tokenDraft, setTokenDraft] = useState(
-    workspace.monthly_token_quota_override?.toString() ?? "",
-  );
-  const [kbDraft, setKbDraft] = useState(
-    workspace.monthly_kb_query_quota_override?.toString() ?? "",
-  );
-
-  const tokenDraftN = tokenDraft.trim() === "" ? null : Number(tokenDraft);
-  const kbDraftN = kbDraft.trim() === "" ? null : Number(kbDraft);
-
-  const tokenDirty = tokenDraftN !== workspace.monthly_token_quota_override;
-  const kbDirty = kbDraftN !== workspace.monthly_kb_query_quota_override;
-  const dirty = tokenDirty || kbDirty;
-  const invalid =
-    (tokenDraftN !== null && (!Number.isFinite(tokenDraftN) || tokenDraftN < 0)) ||
-    (kbDraftN !== null && (!Number.isFinite(kbDraftN) || kbDraftN < 0));
-
-  const handleSave = async () => {
-    if (invalid) return;
-    try {
-      await update.mutateAsync({
-        monthly_token_quota_override: tokenDraftN,
-        monthly_kb_query_quota_override: kbDraftN,
-      });
-      toast.success("Quota cap updated");
-    } catch (e) {
-      toast.error(extractMsg(e));
-    }
-  };
-
-  const orgPlan = billingQ.data?.subscription.plan;
-  const orgTokens = billingQ.data?.tokens;
-  const orgKb = billingQ.data?.kb_queries;
-
   return (
     <SettingsStack>
       <SettingsCard
         title="Workspace quota cap"
-        description={
-          orgPlan
-            ? `Org "${workspace.organization.name}" đang ở plan ${orgPlan.name}. Cap mềm dưới đây giới hạn workspace này tiêu hết bao nhiêu trong pool chung. Bỏ trống = không cap.`
-            : "Cap mềm giới hạn workspace này tiêu bao nhiêu trong pool chung của org. Bỏ trống = không cap."
-        }
+        description="Read-only. Caps are set by org-admins in the Hub so workspace admins can't lift their own cap."
       >
-        <div className="space-y-5 p-5">
-          {/* Org-level context — show plan limit + current usage so the
-              admin picks a cap that's actually meaningful. */}
-          {orgPlan && (
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-[11px]">
-              <div className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">
-                Org pool (toàn bộ workspaces)
-              </div>
-              <UsageRow
-                label="Tokens"
-                used={orgTokens?.used ?? 0}
-                limit={orgPlan.monthly_llm_tokens}
-              />
-              <UsageRow
-                label="KB queries"
-                used={orgKb?.used ?? 0}
-                limit={orgPlan.monthly_kb_queries}
-              />
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="ws-token-cap" className="text-[11px]">
-                Token cap / billing period
-              </Label>
-              <Input
-                id="ws-token-cap"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={tokenDraft}
-                onChange={(e) => setTokenDraft(e.target.value)}
-                placeholder="Không cap"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                {orgPlan
-                  ? `Plan ${orgPlan.name} cho phép tối đa ${formatNumber(orgPlan.monthly_llm_tokens)} tokens / period cho toàn org.`
-                  : "Bỏ trống = workspace dùng chung pool của org."}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="ws-kb-cap" className="text-[11px]">
-                KB query cap / billing period
-              </Label>
-              <Input
-                id="ws-kb-cap"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={kbDraft}
-                onChange={(e) => setKbDraft(e.target.value)}
-                placeholder="Không cap"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                {orgPlan
-                  ? `Plan ${orgPlan.name}: tối đa ${formatNumber(orgPlan.monthly_kb_queries)} KB queries.`
-                  : "Bỏ trống = workspace dùng chung pool của org."}
-              </p>
-            </div>
+        <div className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CapDisplay
+              label="Token cap / period"
+              value={workspace.monthly_token_quota_override}
+            />
+            <CapDisplay
+              label="KB query cap / period"
+              value={workspace.monthly_kb_query_quota_override}
+            />
           </div>
-
           <div className="flex items-center justify-between border-t border-border pt-3">
             <p className="text-[10px] text-muted-foreground">
-              Cap mềm chỉ chặn workspace này — không ảnh hưởng billing.
-              Org vẫn trả theo plan + metered overage thông thường.
+              Caps don't affect billing — the org still pays for whatever the
+              pool draws.
             </p>
-            <Button
-              size="sm"
-              disabled={!dirty || invalid || update.isPending}
-              onClick={handleSave}
-            >
-              {update.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                "Save cap"
-              )}
+            <Button asChild size="sm" variant="outline">
+              <Link href="/hub/workspaces">Edit in Hub →</Link>
             </Button>
           </div>
         </div>
@@ -596,45 +484,21 @@ function QuotaPanel({ workspace }: { workspace: WorkspaceSummaryProp }) {
   );
 }
 
-function UsageRow({
-  label,
-  used,
-  limit,
-}: {
-  label: string;
-  used: number;
-  limit: number;
-}) {
-  // limit=0 sentinel = unlimited (matches plans.py UNLIMITED).
-  const isUnlimited = limit === 0;
-  const pct = isUnlimited ? 0 : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
+function CapDisplay({ label, value }: { label: string; value: number | null }) {
   return (
-    <div className="mb-1.5 last:mb-0">
-      <div className="flex justify-between font-mono text-[10px]">
-        <span>{label}</span>
-        <span className="text-muted-foreground">
-          {formatNumber(used)} / {isUnlimited ? "∞" : formatNumber(limit)}
-        </span>
+    <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
       </div>
-      {!isUnlimited && (
-        <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full transition-all",
-              pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-amber-500" : "bg-primary",
-            )}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
+      <div className="mt-1 font-mono text-sm">
+        {value === null ? (
+          <span className="text-muted-foreground">No cap</span>
+        ) : (
+          value.toLocaleString()
+        )}
+      </div>
     </div>
   );
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
 }
 
 // Re-declare the workspace shape locally so the component file stays
