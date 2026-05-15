@@ -15,6 +15,8 @@ export {
   useUpdateWorkspace,
   useDeleteWorkspace,
   useWorkspaceMembers,
+  useAddableWorkspaceMembers,
+  useAddWorkspaceMember,
   useUpdateMemberRole,
   useRemoveMember,
   useWorkspaceInvitations,

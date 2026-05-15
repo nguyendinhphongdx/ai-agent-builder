@@ -403,6 +403,92 @@ async def get_member(
     )
 
 
+async def list_addable_members(
+    db: AsyncSession, workspace_id: uuid.UUID
+) -> list[tuple[OrganizationMember, User]]:
+    """Org members who aren't yet in this workspace — feeds the
+    workspace's "Add member" picker.
+
+    Workspace admins add from this list rather than typing an email,
+    because workspace membership requires an existing org membership
+    (the parent-org membership is established at /org/members; this
+    endpoint just slices it down to "not already in this workspace").
+    """
+    ws = await db.get(Workspace, workspace_id)
+    if ws is None:
+        return []
+    existing_ws_member_ids = (
+        await db.execute(
+            select(WorkspaceMember.user_id).where(
+                WorkspaceMember.workspace_id == workspace_id
+            )
+        )
+    ).scalars().all()
+
+    stmt = (
+        select(OrganizationMember, User)
+        .join(User, User.id == OrganizationMember.user_id)
+        .where(OrganizationMember.organization_id == ws.organization_id)
+    )
+    if existing_ws_member_ids:
+        stmt = stmt.where(~OrganizationMember.user_id.in_(existing_ws_member_ids))
+    rows = await db.execute(stmt)
+    return [(om, user) for om, user in rows.all()]
+
+
+async def add_existing_member(
+    db: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    invited_by: uuid.UUID,
+) -> WorkspaceMember:
+    """Add an *existing org member* directly to a workspace — no
+    invitation token, no email round-trip. Used by the
+    /ws/settings members picker.
+
+    Verifies:
+      1. Target user is a member of the workspace's parent org.
+      2. Not already a workspace member (returns the existing row
+         instead of erroring — idempotent on the membership pair).
+      3. Role is valid + caller can't grant ``owner`` via this
+         path (owner role is reserved for promotion of an existing
+         member, same convention as the invitation flow).
+    """
+    if role not in WORKSPACE_ROLES or role == WORKSPACE_ROLE_OWNER:
+        raise ValueError(f"Invalid member role: {role}")
+
+    ws = await db.get(Workspace, workspace_id)
+    if ws is None:
+        raise ValueError("workspace_not_found")
+
+    # Caller must be org-member.
+    org_member = await db.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == ws.organization_id,
+            OrganizationMember.user_id == user_id,
+        )
+    )
+    if org_member is None:
+        raise ValueError("not_org_member")
+
+    # Idempotent.
+    existing = await get_member(db, workspace_id, user_id)
+    if existing is not None:
+        return existing
+
+    member = WorkspaceMember(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        role=role,
+        invited_by=invited_by,
+    )
+    db.add(member)
+    await db.flush()
+    return member
+
+
 async def _count_owners(db: AsyncSession, workspace_id: uuid.UUID) -> int:
     return await db.scalar(
         select(func.count())

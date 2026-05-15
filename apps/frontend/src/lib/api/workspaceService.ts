@@ -30,6 +30,37 @@ export const workspaceService = {
   listMembers: (id: string): Promise<WorkspaceMember[]> =>
     apiClient.get<WorkspaceMember[]>(`/workspaces/${id}/members`).then((r) => r.data),
 
+  /** Org members not yet in this workspace — feeds the "Add member"
+   *  picker. New-to-the-platform invites happen at /org/members. */
+  listAddableMembers: (
+    id: string,
+  ): Promise<
+    Array<{
+      user_id: string;
+      email: string;
+      full_name: string | null;
+      org_role: string;
+    }>
+  > =>
+    apiClient
+      .get<
+        Array<{
+          user_id: string;
+          email: string;
+          full_name: string | null;
+          org_role: string;
+        }>
+      >(`/workspaces/${id}/addable-members`)
+      .then((r) => r.data),
+
+  addMember: (
+    id: string,
+    body: { user_id: string; role: WorkspaceRole },
+  ): Promise<WorkspaceMember> =>
+    apiClient
+      .post<WorkspaceMember>(`/workspaces/${id}/members`, body)
+      .then((r) => r.data),
+
   updateMember: (
     id: string,
     userId: string,

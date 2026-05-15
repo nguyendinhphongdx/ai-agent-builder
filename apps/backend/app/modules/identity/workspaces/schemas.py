@@ -103,6 +103,22 @@ class MemberResponse(BaseModel):
     user: MemberUserRef
 
 
+class AddableMember(BaseModel):
+    """Org member who can be added to a workspace — feeds the
+    workspace's "Add member" dropdown so admins pick from existing
+    org members instead of typing an email."""
+
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    org_role: str
+
+
+class MemberAddRequest(BaseModel):
+    user_id: uuid.UUID
+    role: str = Field(default=WORKSPACE_ROLE_EDITOR)
+
+
 class MemberRoleUpdate(BaseModel):
     role: str
 

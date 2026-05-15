@@ -98,27 +98,28 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={"/ws/home"} className="cursor-pointer">
-              <Home className="mr-2 h-3.5 w-3.5" />
-              Home
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
             <Link href="/settings/profile" className="cursor-pointer">
               <UserIcon className="mr-2 h-3.5 w-3.5" />
               Profile
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings" className="cursor-pointer">
+            <Link href="/settings/security" className="cursor-pointer">
               <Settings className="mr-2 h-3.5 w-3.5" />
-              Settings
+              Account & security
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/settings/payouts" className="cursor-pointer">
               <Banknote className="mr-2 h-3.5 w-3.5" />
               Payouts
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/ws/home" className="cursor-pointer">
+              <Home className="mr-2 h-3.5 w-3.5" />
+              Workspace home
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />

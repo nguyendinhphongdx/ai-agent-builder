@@ -86,6 +86,25 @@ export function useWorkspaceMembers(id: string | null) {
   });
 }
 
+export function useAddableWorkspaceMembers(id: string | null) {
+  return useQuery({
+    queryKey: [...workspaceKeys.members(id ?? ""), "addable"],
+    queryFn: () => workspaceService.listAddableMembers(id!),
+    enabled: !!id,
+  });
+}
+
+export function useAddWorkspaceMember(workspaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { user_id: string; role: WorkspaceRole }) =>
+      workspaceService.addMember(workspaceId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workspaceKeys.members(workspaceId) });
+    },
+  });
+}
+
 export function useUpdateMemberRole(workspaceId: string) {
   const qc = useQueryClient();
   return useMutation({

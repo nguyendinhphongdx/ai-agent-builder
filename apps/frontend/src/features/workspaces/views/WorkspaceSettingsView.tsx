@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
@@ -21,18 +28,17 @@ import {
   useUpdateWorkspace,
   useDeleteWorkspace,
   useWorkspaceMembers,
+  useAddableWorkspaceMembers,
+  useAddWorkspaceMember,
   useUpdateMemberRole,
   useRemoveMember,
-  useWorkspaceInvitations,
-  useCreateInvitation,
-  useRevokeInvitation,
 } from "../hooks/useWorkspaces";
 import { RoleInspector } from "../components/RoleInspector";
 import { useSession } from "../hooks/useWorkspaceSession";
 import { roleAtLeast, type WorkspaceRole } from "../types";
 
 const ROLE_OPTIONS: WorkspaceRole[] = ["viewer", "editor", "admin", "owner"];
-const INVITE_ROLE_OPTIONS: WorkspaceRole[] = ["viewer", "editor", "admin"];
+const ADD_ROLE_OPTIONS: WorkspaceRole[] = ["viewer", "editor", "admin"];
 
 export function WorkspaceSettingsView() {
   const router = useRouter();
@@ -90,7 +96,6 @@ export function WorkspaceSettingsView() {
       <Tabs defaultValue="members" className="w-full">
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
-          {canManage && <TabsTrigger value="invitations">Invitations</TabsTrigger>}
           <TabsTrigger value="roles">Roles</TabsTrigger>
           {canManage && <TabsTrigger value="quota">Quota</TabsTrigger>}
           {canManage && <TabsTrigger value="general">General</TabsTrigger>}
@@ -104,12 +109,6 @@ export function WorkspaceSettingsView() {
         <TabsContent value="members" className="mt-4">
           <MembersPanel workspaceId={current.id} myRole={current.role} />
         </TabsContent>
-
-        {canManage && (
-          <TabsContent value="invitations" className="mt-4">
-            <InvitationsPanel workspaceId={current.id} />
-          </TabsContent>
-        )}
 
         <TabsContent value="roles" className="mt-4">
           <SettingsCard
@@ -179,6 +178,7 @@ function MembersPanel({
 
   return (
     <SettingsStack>
+      {canManage && <AddMemberCard workspaceId={workspaceId} />}
       <SettingsCard
         title="Members"
         description={
@@ -212,24 +212,26 @@ function MembersPanel({
                   )}
                 </div>
                 {canManage ? (
-                  <select
+                  <Select
                     value={m.role}
-                    onChange={(e) =>
-                      handleRoleChange(m.user_id, e.target.value as WorkspaceRole)
-                    }
+                    onValueChange={(v) => handleRoleChange(m.user_id, v as WorkspaceRole)}
                     disabled={updateRole.isPending}
-                    className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
                   >
-                    {ROLE_OPTIONS.map((r) => (
-                      <option
-                        key={r}
-                        value={r}
-                        disabled={r === "owner" && myRole !== "owner"}
-                      >
-                        {r}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-7 w-24 text-[11px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((r) => (
+                        <SelectItem
+                          key={r}
+                          value={r}
+                          disabled={r === "owner" && myRole !== "owner"}
+                        >
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Badge variant="outline" className="text-[10px]">
                     {m.role}
@@ -255,141 +257,110 @@ function MembersPanel({
   );
 }
 
-/* ─── Invitations ───────────────────────────────────────────────── */
+/* ─── Add member (from org) ─────────────────────────────────────── */
 
-function InvitationsPanel({ workspaceId }: { workspaceId: string }) {
-  const { data: invites, isLoading } = useWorkspaceInvitations(workspaceId);
-  const create = useCreateInvitation(workspaceId);
-  const revoke = useRevokeInvitation(workspaceId);
-  const [email, setEmail] = useState("");
+/**
+ * Picker that adds an *existing org member* to this workspace.
+ * Workspace admins assign rather than invite — net-new platform
+ * users come in through /org/members, then become assignable here.
+ */
+function AddMemberCard({ workspaceId }: { workspaceId: string }) {
+  const { data: addable, isLoading } = useAddableWorkspaceMembers(workspaceId);
+  const addMember = useAddWorkspaceMember(workspaceId);
+  const [userId, setUserId] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("editor");
 
-  const handleInvite = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) return;
+  const handleAdd = async () => {
+    if (!userId) return;
     try {
-      const inv = await create.mutateAsync({ email: trimmed, role });
-      toast.success(`Invited ${trimmed}`);
-      // Copy the accept URL to clipboard so the admin can paste it
-      // into Slack/email immediately — no mail delivery dependency.
-      const url = `${window.location.origin}/workspaces/invitations/${inv.token}`;
-      await navigator.clipboard.writeText(url).catch(() => undefined);
-      setEmail("");
+      await addMember.mutateAsync({ user_id: userId, role });
+      toast.success("Member added");
+      setUserId("");
     } catch (e) {
       toast.error(extractMsg(e));
     }
   };
 
-  const handleRevoke = async (invId: string) => {
-    if (!confirm("Revoke this invitation?")) return;
-    try {
-      await revoke.mutateAsync(invId);
-      toast.success("Invitation revoked");
-    } catch (e) {
-      toast.error(extractMsg(e));
-    }
-  };
+  // Hide the card entirely once every org member is in — nothing
+  // useful to render and the "no candidates" empty state would just
+  // confuse a small team.
+  if (!isLoading && (addable ?? []).length === 0) return null;
 
   return (
-    <SettingsStack>
-      <SettingsCard
-        title="Send invitation"
-        description="Token URL được copy vào clipboard sau khi tạo. Paste cho người được mời."
-      >
-        <div className="flex flex-wrap items-end gap-2 p-5">
-          <div className="flex-1 space-y-1 min-w-[200px]">
-            <Label htmlFor="invite-email" className="text-[11px]">
-              Email
-            </Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="teammate@example.com"
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="invite-role" className="text-[11px]">
-              Role
-            </Label>
-            <select
-              id="invite-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as WorkspaceRole)}
-              className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-            >
-              {INVITE_ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
+    <SettingsCard
+      title="Add member"
+      description={
+        <>
+          Pick from members of <strong>this org</strong>. To bring in
+          someone new to the platform, invite them at{" "}
+          <Link href="/org/members" className="text-primary underline">
+            /org/members
+          </Link>{" "}
+          first.
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-end gap-2 p-5">
+        <div className="min-w-[220px] flex-1 space-y-1">
+          <Label className="text-[11px]">User</Label>
+          <Select value={userId} onValueChange={setUserId} disabled={isLoading}>
+            <SelectTrigger className="h-9">
+              <SelectValue
+                placeholder={
+                  isLoading ? "Loading…" : "Pick an org member to add"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {(addable ?? []).map((m) => (
+                <SelectItem key={m.user_id} value={m.user_id}>
+                  <span className="flex flex-col items-start text-xs">
+                    <span>{m.full_name || m.email}</span>
+                    {m.full_name && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {m.email}
+                      </span>
+                    )}
+                  </span>
+                </SelectItem>
               ))}
-            </select>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleInvite}
-            disabled={create.isPending || !email.trim()}
-          >
-            {create.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <>
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Invite
-              </>
-            )}
-          </Button>
+            </SelectContent>
+          </Select>
         </div>
-      </SettingsCard>
-
-      <SettingsCard title="Pending invitations">
-        {isLoading ? (
-          <SkeletonRows />
-        ) : !invites || invites.length === 0 ? (
-          <Empty>Chưa có invitation đang chờ.</Empty>
-        ) : (
-          <ul className="divide-y divide-border">
-            {invites.map((inv) => (
-              <li
-                key={inv.id}
-                className="flex items-center gap-3 px-5 py-3 text-xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{inv.email}</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {inv.role} · expires{" "}
-                    {new Date(inv.expires_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-[11px]"
-                  onClick={() => {
-                    const url = `${window.location.origin}/workspaces/invitations/${inv.token}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success("Copied invite URL");
-                  }}
-                >
-                  Copy URL
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => handleRevoke(inv.id)}
-                  disabled={revoke.isPending}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SettingsCard>
-    </SettingsStack>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Role</Label>
+          <Select
+            value={role}
+            onValueChange={(v) => setRole(v as WorkspaceRole)}
+          >
+            <SelectTrigger className="h-9 w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ADD_ROLE_OPTIONS.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          size="sm"
+          onClick={handleAdd}
+          disabled={addMember.isPending || !userId}
+        >
+          {addMember.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <>
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add
+            </>
+          )}
+        </Button>
+      </div>
+    </SettingsCard>
   );
 }
 

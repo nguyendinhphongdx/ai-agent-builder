@@ -29,9 +29,11 @@ from app.modules.identity.auth.dependencies import get_current_user
 from app.modules.identity.workspaces import service
 from app.modules.identity.workspaces.permissions import require_workspace_role, role_at_least
 from app.modules.identity.workspaces.schemas import (
+    AddableMember,
     InvitationAcceptResponse,
     InvitationCreate,
     InvitationResponse,
+    MemberAddRequest,
     MemberResponse,
     MemberRoleUpdate,
     WorkspaceCreate,
@@ -208,6 +210,77 @@ async def list_workspace_members(
 ):
     members = await service.list_members(db, workspace_id)
     return [MemberResponse.model_validate(m) for m in members]
+
+
+@router.get(
+    "/{workspace_id}/addable-members",
+    response_model=list[AddableMember],
+)
+async def list_addable_workspace_members(
+    workspace_id: uuid.UUID,
+    _member: WorkspaceMember = Depends(require_workspace_role(WORKSPACE_ROLE_ADMIN)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Org members not yet in this workspace — picker source for the
+    workspace's "Add member" UI. Workspace admins assign from this
+    list instead of typing an email; new-to-the-platform invites
+    happen at /org/members."""
+    rows = await service.list_addable_members(db, workspace_id)
+    return [
+        AddableMember(
+            user_id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            org_role=om.role,
+        )
+        for om, user in rows
+    ]
+
+
+@router.post(
+    "/{workspace_id}/members",
+    response_model=MemberResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_workspace_member_endpoint(
+    workspace_id: uuid.UUID,
+    body: MemberAddRequest,
+    caller: WorkspaceMember = Depends(require_workspace_role(WORKSPACE_ROLE_ADMIN)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add an existing org member to this workspace directly — no
+    invitation token. Org membership is verified server-side; new
+    platform users still need to come through /org/members first.
+    """
+    try:
+        member = await service.add_existing_member(
+            db,
+            workspace_id=workspace_id,
+            user_id=body.user_id,
+            role=body.role,
+            invited_by=caller.user_id,
+        )
+    except ValueError as e:
+        msg = str(e)
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if msg in ("workspace_not_found", "not_org_member")
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=msg)
+
+    await audit_service.log_event(
+        db,
+        action="workspace.member.add",
+        resource_type="workspace_member",
+        resource_id=member.user_id,
+        workspace_id=workspace_id,
+        metadata={"role": member.role},
+    )
+    await db.commit()
+    # Reload with user eager-loaded so the response matches the list shape.
+    await db.refresh(member, ["user"])
+    return MemberResponse.model_validate(member)
 
 
 @router.patch(
