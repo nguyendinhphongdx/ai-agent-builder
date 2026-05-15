@@ -120,6 +120,14 @@ class Settings(BaseSettings):
     # callers are anonymous browsers so we key on client IP. 0 disables.
     SHARE_RATE_LIMIT_PER_MIN: int = 30
 
+    # Per-account login lockout — complements AUTH_PUBLIC_LIMIT (per-IP)
+    # by catching attackers that rotate IPs while hammering one email.
+    # 0 disables. After N bad passwords for the same email within TTL,
+    # subsequent attempts are short-circuited with 429 until the
+    # counter ages out. Successful login clears the counter.
+    LOGIN_LOCKOUT_THRESHOLD: int = 5
+    LOGIN_LOCKOUT_TTL_SECONDS: int = 900  # 15 min
+
     # Audit log retention (days). Set to 0 to disable the purge job
     # (rows accumulate forever — useful in development). The default
     # is "free plan" — bumped per-org once billing tiers wire up.

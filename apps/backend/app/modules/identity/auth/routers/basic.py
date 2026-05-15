@@ -15,6 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.identity.auth._internal import AUTH_PUBLIC_LIMIT, set_auth_cookies
 from app.modules.identity.auth.emails import send_verification_email
+from app.modules.identity.auth.lockout import (
+    clear_failures,
+    is_locked,
+    record_failed_login,
+)
 from app.modules.identity.auth.routers.mfa_login import mint_mfa_challenge_token
 from app.modules.identity.auth.schemas import (
     AuthResponse,
@@ -95,8 +100,30 @@ async def login(
     from app.models.audit_log import ACTOR_SYSTEM, ACTOR_USER
     from app.modules.ops.audit import service as audit_service
 
+    # Per-account lockout — short-circuit BEFORE the bcrypt compare so
+    # an attacker that already crossed the threshold pays only Redis
+    # latency, not a ~150ms password hash. Same 401 as a wrong password
+    # so we don't leak which emails are locked vs unknown.
+    if await is_locked(body.email):
+        await audit_service.log_event(
+            db,
+            action="auth.login.locked",
+            actor_type=ACTOR_SYSTEM,
+            request=request,
+            metadata={"email": body.email[:255]},
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
     user = await get_user_by_email(db, body.email)
     if not user or not verify_password(body.password, user.hashed_password):
+        # Bump the per-email counter — even for unknown emails, so a
+        # probing attacker can't fingerprint valid accounts by timing
+        # the lockout response.
+        await record_failed_login(body.email)
         # Log the failed attempt — no actor user id (could be probing
         # for valid emails). Email kept in metadata so security can
         # spot credential stuffing patterns.
@@ -112,6 +139,11 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+
+    # Password proved — drop the lockout counter even if MFA is still
+    # ahead. The counter exists to slow password guessing; once a real
+    # password lands the threat is gone.
+    await clear_failures(body.email)
 
     if not user.is_active:
         await audit_service.log_event(
