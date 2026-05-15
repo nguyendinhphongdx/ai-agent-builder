@@ -16,6 +16,10 @@ export interface WorkspaceSummary {
   is_personal: boolean;
   organization: OrganizationRef;
   settings: Record<string, unknown>;
+  /** Org-admin-set soft cap on tokens this workspace can use per
+   *  billing period. ``null`` = no cap, share the org pool freely. */
+  monthly_token_quota_override: number | null;
+  monthly_kb_query_quota_override: number | null;
   role: WorkspaceRole;
   created_at: string;
 }
@@ -30,6 +34,11 @@ export interface WorkspaceUpdateInput {
   name?: string;
   slug?: string;
   settings?: Record<string, unknown>;
+  /** Pass ``null`` to *clear* a cap (back to "share org pool"). The
+   *  service layer treats null specially for these fields only — for
+   *  ``name`` / ``slug`` null still means "leave unchanged". */
+  monthly_token_quota_override?: number | null;
+  monthly_kb_query_quota_override?: number | null;
 }
 
 export interface WorkspaceMemberUser {
