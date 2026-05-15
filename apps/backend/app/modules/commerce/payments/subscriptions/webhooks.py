@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.org_subscription import (
+    SUB_STATUS_ACTIVE,
     SUB_STATUS_CANCELED,
     SUB_STATUS_PAST_DUE,
     OrgSubscription,
@@ -192,5 +193,63 @@ async def handle_invoice_payment_failed(
     if row is None:
         return None
     row.status = SUB_STATUS_PAST_DUE
+    await db.flush()
+    return row
+
+
+async def handle_invoice_paid(
+    db: AsyncSession, invoice: dict[str, Any]
+) -> OrgSubscription | None:
+    """Clear past_due + roll the period window when an invoice settles.
+
+    Without this, a customer who updates their card after a
+    ``payment_failed`` keeps the ``past_due`` banner on the FE until
+    the *next* ``customer.subscription.updated`` event happens to
+    fire — which can be weeks. Handling ``invoice.paid`` /
+    ``invoice.payment_succeeded`` (Stripe ships both with the same
+    semantics on most plan shapes) flips the row to active the
+    moment the dunning clears.
+
+    Also resyncs the period window — Stripe rolls
+    ``current_period_start/end`` on the invoice object before the
+    subscription object, so reading the invoice here gets us the new
+    window one event sooner than waiting for the subscription.updated
+    that follows.
+    """
+    sub_id = invoice.get("subscription")
+    if not isinstance(sub_id, str):
+        return None
+    row = await db.scalar(
+        select(OrgSubscription).where(
+            OrgSubscription.stripe_subscription_id == sub_id
+        )
+    )
+    if row is None:
+        return None
+
+    # Only clear past_due — don't override e.g. a canceled state that
+    # might race in if the user paid one final invoice on the way out.
+    if row.status == SUB_STATUS_PAST_DUE:
+        row.status = SUB_STATUS_ACTIVE
+
+    # Invoice lines carry the new period window for the recurring
+    # base item. Pick the first non-metered line for the dates; the
+    # metered line covers the *previous* window so its dates would
+    # mislead.
+    lines = (invoice.get("lines") or {}).get("data") or []
+    for line in lines:
+        price = line.get("price") or {}
+        recurring = price.get("recurring") or {}
+        if recurring.get("usage_type") == "metered":
+            continue
+        period = line.get("period") or {}
+        start = _ts(period.get("start"))
+        end = _ts(period.get("end"))
+        if start is not None:
+            row.current_period_start = start
+        if end is not None:
+            row.current_period_end = end
+        break
+
     await db.flush()
     return row

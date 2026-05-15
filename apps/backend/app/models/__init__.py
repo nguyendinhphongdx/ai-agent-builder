@@ -35,6 +35,7 @@ from app.models.personal_access_token import PersonalAccessToken
 from app.models.plugin import Plugin
 from app.models.scim_token import SCIMToken
 from app.models.sso_configuration import SSOConfiguration
+from app.models.stripe_webhook_event import StripeWebhookEvent
 from app.models.tool import Tool
 from app.models.trigger import (
     TRIGGER_TYPE_DISCORD,
@@ -112,5 +113,6 @@ __all__ = [
     "Plugin",
     "SCIMToken",
     "SSOConfiguration",
+    "StripeWebhookEvent",
     "WorkspaceIPRule",
 ]
