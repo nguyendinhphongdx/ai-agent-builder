@@ -22,6 +22,19 @@ export interface OrganizationSummary {
   created_at: string;
 }
 
+/** Full org row from ``GET /api/organizations/{id}`` — includes the
+ *  ``settings`` JSONB blob the list endpoint elides. */
+export interface OrganizationDetail {
+  id: string;
+  name: string;
+  slug: string;
+  billing_email: string | null;
+  plan: string;
+  settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrganizationWorkspaceSummary {
   id: string;
   name: string;

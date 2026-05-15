@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useWorkspacePath } from "@/features/workspaces";
 import { workflowService } from "../services/workflowService";
 import type {
   WorkflowCreateInput,
@@ -37,13 +36,12 @@ export function useWorkflow(id: string) {
 export function useCreateWorkflow() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const wp = useWorkspacePath();
 
   return useMutation({
     mutationFn: (data: WorkflowCreateInput) => workflowService.create(data),
     onSuccess: (wf) => {
       queryClient.invalidateQueries({ queryKey: workflowKeys.list() });
-      router.push(wp(`/workflows/${wf.id}`));
+      router.push(`/ws/workflows/${wf.id}`);
     },
   });
 }
@@ -121,13 +119,12 @@ export function useRotateWebhookToken(id: string) {
 export function useDeleteWorkflow() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const wp = useWorkspacePath();
 
   return useMutation({
     mutationFn: (id: string) => workflowService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workflowKeys.list() });
-      router.push(wp("/workflows"));
+      router.push("/ws/workflows");
     },
   });
 }

@@ -19,10 +19,10 @@ import {
 /**
  * Org → Settings tab. Org name, billing email, danger-zone delete.
  *
- * The slug is read-only here on purpose — renaming the URL slug
- * silently breaks every shared `/app/{slug}/...` link the team has
- * sent each other. A future "rename slug with redirect" flow can
- * land if customers actually ask for it.
+ * The slug is read-only here on purpose. URLs today don't include
+ * the slug, but it's still used in audit logs / outbound webhook
+ * payloads / share-link generation — renaming silently breaks
+ * those. Display name is the editable surface; slug is forever.
  */
 export default function OrgSettingsPage() {
   const router = useRouter();

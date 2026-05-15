@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useKnowledgeBases, useDeleteKnowledgeBase } from "../hooks/useKnowledge";
-import { useWorkspacePath } from "@/features/workspaces";
 import type { KnowledgeBase } from "../types";
 
 function formatDate(iso: string): string {
@@ -40,7 +39,6 @@ function formatNumber(n: number): string {
 
 export function KnowledgeListView() {
   const { data: kbs = [], isLoading } = useKnowledgeBases();
-  const wp = useWorkspacePath();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -66,7 +64,7 @@ export function KnowledgeListView() {
             </Badge>
           )}
         </div>
-        <Link href={wp("/knowledge/new")} className={buttonVariants({ size: "sm", className: "gap-1.5" })}>
+        <Link href={"/ws/knowledge/new"} className={buttonVariants({ size: "sm", className: "gap-1.5" })}>
           <Plus className="h-3.5 w-3.5" />
           Create Knowledge
         </Link>
@@ -109,7 +107,6 @@ export function KnowledgeListView() {
 
 function KBCard({ kb }: { kb: KnowledgeBase }) {
   const router = useRouter();
-  const wp = useWorkspacePath();
   const deleteKB = useDeleteKnowledgeBase();
   const [confirming, setConfirming] = useState(false);
 
@@ -125,7 +122,7 @@ function KBCard({ kb }: { kb: KnowledgeBase }) {
 
   return (
     <div
-      onClick={() => router.push(wp(`/knowledge/${kb.id}`))}
+      onClick={() => router.push(`/ws/knowledge/${kb.id}`)}
       className={cn(
         "group relative flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-card/80 p-4 shadow-sm transition-all",
         "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md",
@@ -148,7 +145,7 @@ function KBCard({ kb }: { kb: KnowledgeBase }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
               <DropdownMenuItem
-                onClick={() => router.push(wp(`/knowledge/${kb.id}?tab=settings`))}
+                onClick={() => router.push(`/ws/knowledge/${kb.id}?tab=settings`)}
                 className="gap-2 text-xs"
               >
                 <Pencil className="h-3 w-3" /> Edit
@@ -199,7 +196,6 @@ function KBCard({ kb }: { kb: KnowledgeBase }) {
 /* ─── Empty state ────────────────────────────────────────────────── */
 
 function EmptyState({ hasSearch }: { hasSearch: boolean }) {
-  const wp = useWorkspacePath();
   return (
     <div className="flex h-64 flex-col items-center justify-center text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-muted">
@@ -217,7 +213,7 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
             Tạo knowledge đầu tiên để agent có thể truy xuất tài liệu (RAG).
           </p>
           <Link
-            href={wp("/knowledge/new")}
+            href={"/ws/knowledge/new"}
             className={buttonVariants({ size: "sm", className: "mt-4 gap-1.5" })}
           >
             <Plus className="h-3.5 w-3.5" />

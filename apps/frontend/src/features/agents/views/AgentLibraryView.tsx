@@ -28,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAgents, useDeleteAgent } from "../hooks/useAgents";
-import { useWorkspacePath } from "@/features/workspaces";
 import { useModelCatalog, findProvider, modelDisplayName, providerOfModel } from "@/lib/models/catalog";
 import type { AgentListItem } from "../types";
 import { cn } from "@/lib/utils";
@@ -48,7 +47,6 @@ function formatDate(value: string) {
 
 export function AgentLibraryView() {
   const { data: agents, isLoading } = useAgents();
-  const wp = useWorkspacePath();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -87,7 +85,7 @@ export function AgentLibraryView() {
           <span className="text-xs text-muted-foreground">{agents?.length ?? 0} agents</span>
         </div>
         <Link
-          href={wp("/agents/new")}
+          href={"/ws/agents/new"}
           className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -162,7 +160,7 @@ export function AgentLibraryView() {
             </p>
             {!search && (
               <Link
-                href={wp("/agents/new")}
+                href={"/ws/agents/new"}
                 className={cn(buttonVariants({ size: "sm" }), "mt-4 gap-1.5")}
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -192,7 +190,6 @@ export function AgentLibraryView() {
 
 function AgentActionsMenu({ agent }: { agent: AgentListItem }) {
   const router = useRouter();
-  const wp = useWorkspacePath();
   const deleteAgent = useDeleteAgent();
 
   const handleDelete = () => {
@@ -215,7 +212,7 @@ function AgentActionsMenu({ agent }: { agent: AgentListItem }) {
         <DropdownMenuItem
           onClick={(e) => {
             e.preventDefault();
-            router.push(wp(`/agents/${agent.id}`));
+            router.push(`/ws/agents/${agent.id}`);
           }}
         >
           <Pencil className="mr-2 h-3.5 w-3.5" />

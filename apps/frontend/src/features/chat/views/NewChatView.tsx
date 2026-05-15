@@ -5,14 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Bot, MessageCircle, Sparkles, Wand2 } from "lucide-react";
 import { useAgents } from "@/features/agents/hooks/useAgents";
-import { useWorkspacePath } from "@/features/workspaces";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useModelCatalog, findProvider, modelDisplayName, providerOfModel } from "@/lib/models/catalog";
 import { cn } from "@/lib/utils";
 
 export function NewChatView() {
   const router = useRouter();
-  const wp = useWorkspacePath();
   const { data: agents = [], isLoading } = useAgents();
   const { data: catalog } = useModelCatalog();
   const [selectedAgentId, setSelectedAgentId] = useState("");
@@ -108,7 +106,7 @@ export function NewChatView() {
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             <Link
-              href={wp("/agents/new")}
+              href={"/ws/agents/new"}
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "gap-1.5 border-sky-300 bg-sky-50/80 text-sky-700 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-300"
@@ -118,7 +116,7 @@ export function NewChatView() {
               Tạo agent mới
             </Link>
             <Link
-              href={wp("/agents")}
+              href={"/ws/agents"}
               className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
             >
               Mở thư viện agent
@@ -128,7 +126,7 @@ export function NewChatView() {
           <Button
             className="h-10 min-w-56 gap-2"
             disabled={!canStart}
-            onClick={() => router.push(wp(`/agents/${selectedAgentId}/chat`))}
+            onClick={() => router.push(`/ws/agents/${selectedAgentId}/chat`)}
           >
             Bắt đầu chat{selectedAgent ? ` với ${selectedAgent.name}` : ""}
             <ArrowRight className="h-4 w-4" />

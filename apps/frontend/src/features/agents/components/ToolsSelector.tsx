@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Plus, Wrench, Globe, Code, Database, Search } from "lucide-react";
-import { useWorkspacePath } from "@/features/workspaces";
 import { cn } from "@/lib/utils";
 
 interface ToolItem {
@@ -56,14 +55,13 @@ export function ToolsSelector({
   onToggle,
   customTools = [],
 }: ToolsSelectorProps) {
-  const wp = useWorkspacePath();
   const allTools = [...SYSTEM_TOOLS, ...customTools];
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Link
-          href={wp("/tools")}
+          href={"/ws/tools"}
           className="text-[11px] font-medium text-primary transition-colors hover:text-primary/80"
         >
           Manage tools →
@@ -135,7 +133,7 @@ export function ToolsSelector({
 
         {allTools.length === 0 && (
           <p className="py-4 text-center text-xs text-muted-foreground">
-            Chưa có tool nào. <Link href={wp("/tools")} className="text-primary hover:underline">Tạo tool mới</Link>
+            Chưa có tool nào. <Link href={"/ws/tools"} className="text-primary hover:underline">Tạo tool mới</Link>
           </p>
         )}
       </div>

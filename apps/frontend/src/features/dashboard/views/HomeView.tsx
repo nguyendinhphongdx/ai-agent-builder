@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { formatPrice } from "@/features/hub/lib/price";
 import { useAgents } from "@/features/agents/hooks/useAgents";
-import { useWorkspacePath } from "@/features/workspaces";
 import { useDashboard } from "../hooks/useDashboard";
 import type { CurrencyRevenue, TokensByModel } from "../services/dashboardService";
 
@@ -22,7 +21,6 @@ import type { CurrencyRevenue, TokensByModel } from "../services/dashboardServic
  * a brand-new user sees friendly CTAs instead of "0"s.
  */
 export function HomeView() {
-  const wp = useWorkspacePath();
   const { data: dash, isLoading } = useDashboard();
   // Existing list query keeps the sidebar fresh and serves the empty-state
   // CTA on this page; cheap because TanStack dedupes the request across hooks.
@@ -56,7 +54,7 @@ export function HomeView() {
           label="Agents"
           value={dash.agents.total}
           hint={renderAgentBreakdown(dash.agents.by_status)}
-          href={wp("/libraries")}
+          href={"/ws/libraries"}
         />
         <StatCard
           icon={MessagesSquare}
@@ -129,7 +127,6 @@ function StatCard({
 }
 
 function FirstRunCTA() {
-  const wp = useWorkspacePath();
   return (
     <div className="mb-6 flex items-start gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 text-sm">
       <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
@@ -140,7 +137,7 @@ function FirstRunCTA() {
           KB-powered support, …).
         </p>
         <Link
-          href={wp("/welcome")}
+          href={"/ws/welcome"}
           className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-300 hover:underline"
         >
           Open the welcome wizard

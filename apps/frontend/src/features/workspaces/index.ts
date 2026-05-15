@@ -7,7 +7,6 @@
  * re-exported here is private to the feature.
  */
 
-export { useWorkspacePath } from "./hooks/useWorkspacePath";
 export { useSession, sessionKeys } from "./hooks/useWorkspaceSession";
 export {
   useWorkspaces,

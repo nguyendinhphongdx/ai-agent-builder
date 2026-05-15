@@ -21,7 +21,6 @@ import { useCreateTool } from "../hooks/useTools";
 import { TOOL_TYPE_META, type JsonSchema, type ToolType } from "../types";
 import { ToolConfigRenderer } from "../components/ToolConfigRenderer";
 import { VariableSchemaEditor } from "../components/VariableSchemaEditor";
-import { useWorkspacePath } from "@/features/workspaces";
 import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -90,7 +89,6 @@ type FormValues = z.infer<typeof schema>;
 
 export function ToolCreateView() {
   const router = useRouter();
-  const wp = useWorkspacePath();
   const createTool = useCreateTool();
   const [selectedType, setSelectedType] = useState<ToolType>("http_request");
   const [config, setConfig] = useState<Record<string, unknown>>(getDefaultConfig("http_request"));
@@ -111,7 +109,7 @@ export function ToolCreateView() {
   const onSubmit = (values: FormValues) => {
     createTool.mutate(
       { ...values, config, input_schema: inputSchema },
-      { onSuccess: (created) => router.push(wp(`/tools/${created.id}`)) }
+      { onSuccess: (created) => router.push(`/ws/tools/${created.id}`) }
     );
   };
 
@@ -123,7 +121,7 @@ export function ToolCreateView() {
       <div className="border-b border-border bg-background/80 px-6 py-3 backdrop-blur sticky top-0 z-10">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href={wp("/tools")}>
+            <Link href={"/ws/tools"}>
               <Button variant="ghost" size="icon-sm">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -136,7 +134,7 @@ export function ToolCreateView() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={wp("/tools")}>
+            <Link href={"/ws/tools"}>
               <Button variant="outline" size="sm">Cancel</Button>
             </Link>
             <Button

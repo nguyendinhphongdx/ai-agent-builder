@@ -35,7 +35,7 @@ export const sessionService = {
     apiClient.get<SessionState>("/auth/session").then((r) => r.data),
 
   /** Verify membership, mint a workspace-scoped token, replace the cookie.
-   *  Caller follows up with ``router.push("/app/" + slug + "/home")``. */
+   *  Caller follows up with ``router.push("/ws/home")``. */
   enter: (workspace_id: string): Promise<EnterWorkspaceResponse> =>
     apiClient
       .post<EnterWorkspaceResponse>("/auth/enter-workspace", { workspace_id })

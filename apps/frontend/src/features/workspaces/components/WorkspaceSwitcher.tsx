@@ -47,21 +47,16 @@ export function WorkspaceSwitcher() {
 
   const enter = useMutation({
     mutationFn: (workspace_id: string) => sessionService.enter(workspace_id),
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Drop every cached query — the next fetch goes through the
       // new workspace_token automatically. The session query is
       // invalidated too so the current-workspace indicator follows.
       qc.invalidateQueries();
-      // If we're already on a workspace-scoped path, swap the slug
-      // so the URL matches the new token (the layout's slug guard
-      // would otherwise redirect, but doing it here avoids a
-      // flicker). Otherwise route into the home of the new ws.
-      const inAppRoute = pathname.startsWith("/app/");
-      if (inAppRoute) {
-        const rest = pathname.replace(/^\/app\/[^/]+/, "");
-        router.push(`/app/${data.workspace_slug}${rest || "/home"}`);
-      } else {
-        router.push(`/app/${data.workspace_slug}/home`);
+      // If we're already on a workspace-scoped path, stay there; the
+      // cookie's new ``ws`` claim takes over and the page re-renders
+      // with the new tenant's data. Otherwise route into /ws/home.
+      if (!pathname.startsWith("/ws/")) {
+        router.push("/ws/home");
       }
     },
     onError: (e) => {

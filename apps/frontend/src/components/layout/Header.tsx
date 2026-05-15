@@ -27,7 +27,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useAuth, useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
-import { useWorkspacePath, WorkspaceSwitcher } from "@/features/workspaces";
 
 interface HeaderProps {
   sidebarOpen?: boolean;
@@ -37,7 +36,6 @@ interface HeaderProps {
 export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
   const { user } = useAuth();
   const logout = useLogout();
-  const wp = useWorkspacePath();
 
   const initials = user?.full_name
     ? user.full_name
@@ -99,7 +97,7 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={wp("/home")} className="cursor-pointer">
+            <Link href={"/ws/home"} className="cursor-pointer">
               <Home className="mr-2 h-3.5 w-3.5" />
               Home
             </Link>

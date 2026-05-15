@@ -82,14 +82,14 @@ returns a token of whatever type was active.
    /org/security             SSO, SCIM, IP allowlist
    /org/audit                org-level audit log
    /org/settings             org name, billing email, branding
-/app/{ws-slug}               workspace-scoped dashboard (PHASE 2+)
-   /app/{ws-slug}/home
-   /app/{ws-slug}/agents
-   /app/{ws-slug}/chat
-   /app/{ws-slug}/knowledge
-   /app/{ws-slug}/workflows
-   /app/{ws-slug}/tools
-   /app/{ws-slug}/settings   workspace-level settings (members,
+/ws               workspace-scoped dashboard (PHASE 2+)
+   /ws/home
+   /ws/agents
+   /ws/chat
+   /ws/knowledge
+   /ws/workflows
+   /ws/tools
+   /ws/settings   workspace-level settings (members,
                               rename, danger zone — NO quota tab)
 ```
 
@@ -161,7 +161,7 @@ working at every boundary — no half-built state.
   - "Manage in Hub" link → push `/org/workspaces`
 
 ### Phase 2 — Route refactor
-- New routes under `/app/{ws-slug}/*` — alias to current
+- New routes under `/ws/*` — alias to current
   `(dashboard)/*` content.
 - Old `(dashboard)/*` routes 301 → `/app/{current-ws-slug}/...`.
 - `get_current_user` enforces `ws` claim presence on all `/app/*`

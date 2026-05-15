@@ -13,7 +13,6 @@ import {
   useUpdateKnowledgeBase,
   useDeleteKnowledgeBase,
 } from "../../hooks/useKnowledge";
-import { useWorkspacePath } from "@/features/workspaces";
 import type { KnowledgeBase } from "../../types";
 
 interface KBSettingsTabProps {
@@ -22,7 +21,6 @@ interface KBSettingsTabProps {
 
 export function KBSettingsTab({ kb }: KBSettingsTabProps) {
   const router = useRouter();
-  const wp = useWorkspacePath();
   const update = useUpdateKnowledgeBase(kb.id);
   const destroy = useDeleteKnowledgeBase();
 
@@ -65,7 +63,7 @@ export function KBSettingsTab({ kb }: KBSettingsTabProps) {
   const handleDelete = () => {
     if (confirmDelete) {
       destroy.mutate(kb.id, {
-        onSuccess: () => router.push(wp("/knowledge")),
+        onSuccess: () => router.push("/ws/knowledge"),
       });
     } else {
       setConfirmDelete(true);

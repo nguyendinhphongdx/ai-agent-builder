@@ -1,28 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAgents } from "@/features/agents/hooks/useAgents";
 import { HomeView } from "@/features/dashboard/views/HomeView";
 
 /**
- * Workspace-scoped home (Phase 2 of Hub refactor). Mirrors the legacy
- * /home page but lives under /app/{ws-slug}/home — the URL slug
- * matches the workspace_token's ``ws`` claim.
+ * Workspace home (``/ws/home``). Empty-agent users bounce to the
+ * welcome wizard at /ws/welcome.
  */
 export default function WorkspaceHomePage() {
   const router = useRouter();
-  const params = useParams();
-  const wsSlug = (params?.["ws-slug"] as string) ?? "";
   const { data: agents, isLoading } = useAgents();
 
   useEffect(() => {
     if (isLoading) return;
     if (!agents || agents.length === 0) {
-      router.replace(`/app/${wsSlug}/welcome`);
+      router.replace("/ws/welcome");
     }
-  }, [router, agents, isLoading, wsSlug]);
+  }, [router, agents, isLoading]);
 
   if (isLoading) {
     return (
@@ -32,9 +29,7 @@ export default function WorkspaceHomePage() {
     );
   }
 
-  if (!agents || agents.length === 0) {
-    return null;
-  }
+  if (!agents || agents.length === 0) return null;
 
   return <HomeView />;
 }
