@@ -46,7 +46,7 @@ payload:
   , exp: ... }
 
   Reaches: /api/auth/me, /api/organizations/*,
-           /api/billing/*, /hub/* (FE)
+           /api/billing/*, /org/* (FE)
 
   Cannot reach: /api/workspaces/{id}/*, /api/agents/*,
                 /api/conversations/*, /api/knowledge-bases/*,
@@ -75,13 +75,13 @@ returns a token of whatever type was active.
 ```
 /login                       login form
 /register                    signup form
-/hub                         org-level landing (PHASE 1+)
-   /hub/workspaces           list, create, delete, quota cap
-   /hub/members              org members (invite, role, remove)
-   /hub/billing              plan, invoices, payment method
-   /hub/security             SSO, SCIM, IP allowlist
-   /hub/audit                org-level audit log
-   /hub/settings             org name, billing email, branding
+/org                         org-level landing (PHASE 1+)
+   /org/workspaces           list, create, delete, quota cap
+   /org/members              org members (invite, role, remove)
+   /org/billing              plan, invoices, payment method
+   /org/security             SSO, SCIM, IP allowlist
+   /org/audit                org-level audit log
+   /org/settings             org name, billing email, branding
 /app/{ws-slug}               workspace-scoped dashboard (PHASE 2+)
    /app/{ws-slug}/home
    /app/{ws-slug}/agents
@@ -115,7 +115,7 @@ POST /api/auth/exit-workspace
 
 GET  /api/auth/me
   Already exists; gains a {token_type} field so the FE can route
-  to /hub vs /app/* without an extra round-trip.
+  to /org vs /app/* without an extra round-trip.
 
 GET  /api/organizations/{org_id}/workspaces
   Lists every workspace under one org — org-admins who never joined
@@ -133,7 +133,7 @@ click — BE mints new token, FE swaps `router.push` to
 `/app/{new-slug}/home`. No round-trip through Hub.
 
 The "Back to Hub" button issues `POST /api/auth/exit-workspace` then
-`router.push("/hub")`.
+`router.push("/org")`.
 
 ## Migration phases
 
@@ -151,14 +151,14 @@ working at every boundary — no half-built state.
 - No FE change yet.
 
 ### Phase 1 — Hub UI (workspaces tab only)
-- `/hub` layout with sidebar nav.
-- `/hub/workspaces` — list + create + delete + per-row quota cap
+- `/org` layout with sidebar nav.
+- `/org/workspaces` — list + create + delete + per-row quota cap
   edit (the quota cap UI moves from workspace-settings here).
 - Workspace-settings Quota tab → read-only banner pointing at
-  `/hub/workspaces`.
+  `/org/workspaces`.
 - WorkspaceSwitcher refactor:
   - dropdown items: `enter-workspace` → push `/app/{slug}/home`
-  - "Manage in Hub" link → push `/hub/workspaces`
+  - "Manage in Hub" link → push `/org/workspaces`
 
 ### Phase 2 — Route refactor
 - New routes under `/app/{ws-slug}/*` — alias to current
@@ -175,12 +175,12 @@ working at every boundary — no half-built state.
 - BE: drop header fallback in `get_current_user`.
 
 ### Phase 4 — Hub feature build-out
-- /hub/members  — uses existing `/api/organizations/{id}/members`.
-- /hub/billing  — relocate `/settings/billing` here, change scope
+- /org/members  — uses existing `/api/organizations/{id}/members`.
+- /org/billing  — relocate `/settings/billing` here, change scope
                   resolution to read org from user_token claim.
-- /hub/security — SSO/SCIM/IP allowlist forms (BE already exists).
-- /hub/audit    — uses existing audit router.
-- /hub/settings — org name, billing email, branding.
+- /org/security — SSO/SCIM/IP allowlist forms (BE already exists).
+- /org/audit    — uses existing audit router.
+- /org/settings — org name, billing email, branding.
 
 ### Phase 5 — Org switcher
 - Multi-org users get an Org switcher in the Hub sidebar.
@@ -197,7 +197,7 @@ During Phases 0–2 the old behaviour continues to work:
 Phase 3 is the **breaking commit** — at that point, every client
 must be issuing workspace_tokens (no header fallback). Users with
 stale tabs get a 401 on next request → forced re-login → bounce to
-`/hub` → re-enter workspace → continue.
+`/org` → re-enter workspace → continue.
 
 A future "client-version handshake" header would smooth this, but
 v1 just accepts a one-time forced re-login. Document in the release
@@ -208,9 +208,9 @@ notes.
 - **Why same cookie name across token types**: minimises FE state.
   The FE inspects `/api/auth/me` for `token_type` instead of
   juggling two cookie slots.
-- **Why Linear-style switcher (not Slack-style /hub bounce)**:
+- **Why Linear-style switcher (not Slack-style /org bounce)**:
   switching workspaces is a frequent action; round-tripping through
-  /hub for every switch is annoying. The "Manage in Hub" affordance
+  /org for every switch is annoying. The "Manage in Hub" affordance
   is still one click away.
 - **Why URL slug + token claim both**: slug = shareable bookmark +
   readable URL. Token claim = the actual security boundary. URL
@@ -232,7 +232,7 @@ notes.
 
 | Risk | Mitigation |
 |------|-----------|
-| User mid-action when token expires + workspace was deleted in another tab | Refresh endpoint refuses to re-mint workspace_token for a vanished workspace; FE catches 401 → routes to /hub. |
+| User mid-action when token expires + workspace was deleted in another tab | Refresh endpoint refuses to re-mint workspace_token for a vanished workspace; FE catches 401 → routes to /org. |
 | Cross-tab desync (tab A in ws-1, tab B in ws-2) | Two tabs share one cookie. Switching in tab A invalidates tab B's effective state. Document; advise users to use private windows for multi-workspace. Phase 5 could add per-tab token scoping. |
 | Forgetting to gate a new route under `/app/*` | Route convention: every workspace-scoped page imports a shared `requireWorkspaceToken` server helper at the top. ESLint rule enforces. |
 | Org-admin needs occasional workspace-level access (e.g. seed an agent for a team) | enter-workspace works for org-admins even without a `workspace_members` row — role promotion already handles this in `effective_workspace_role`. |

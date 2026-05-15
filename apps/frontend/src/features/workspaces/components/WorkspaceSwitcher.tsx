@@ -134,9 +134,9 @@ export function WorkspaceSwitcher() {
             Create workspace
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/hub/workspaces" className="cursor-pointer">
+            <Link href="/org/workspaces" className="cursor-pointer">
               <Layers className="mr-2 h-3.5 w-3.5" />
-              Manage in Hub
+              Manage in Org
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

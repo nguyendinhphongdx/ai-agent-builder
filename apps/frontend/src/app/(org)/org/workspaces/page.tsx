@@ -13,11 +13,11 @@ import { organizationsService, type OrganizationWorkspaceSummary } from "@/lib/a
 import { workspaceService } from "@/lib/api/workspaceService";
 import { sessionService } from "@/lib/api/sessionService";
 import { billingService } from "@/lib/api/billingService";
-import { useActiveOrg } from "@/features/hub/components/HubLayout";
+import { useActiveOrg } from "@/features/organizations/components/OrgLayout";
 import { cn } from "@/lib/utils";
 
 /**
- * Hub → Workspaces tab.
+ * Org → Workspaces tab.
  *
  * Shows every workspace under the active org (not just ones the
  * caller is a direct member of — the BE endpoint widens the view

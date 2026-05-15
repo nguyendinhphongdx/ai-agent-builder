@@ -446,8 +446,8 @@ function GeneralPanel({ workspaceId, name }: { workspaceId: string; name: string
 /* ─── Quota cap ─────────────────────────────────────────────────── */
 
 /**
- * Per-workspace quota cap is set in the Org-level Hub now
- * (/hub/workspaces). This panel shows the *current* cap read-only,
+ * Per-workspace quota cap is set in the Org settings now
+ * (/org/workspaces). This panel shows the *current* cap read-only,
  * with a link out — workspace admins shouldn't be able to lift their
  * own cap (defeats the cap's purpose).
  */
@@ -456,7 +456,7 @@ function QuotaPanel({ workspace }: { workspace: WorkspaceSummaryProp }) {
     <SettingsStack>
       <SettingsCard
         title="Workspace quota cap"
-        description="Read-only. Caps are set by org-admins in the Hub so workspace admins can't lift their own cap."
+        description="Read-only. Caps are set by org-admins in Org settings so workspace admins can't lift their own cap."
       >
         <div className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -475,7 +475,7 @@ function QuotaPanel({ workspace }: { workspace: WorkspaceSummaryProp }) {
               pool draws.
             </p>
             <Button asChild size="sm" variant="outline">
-              <Link href="/hub/workspaces">Edit in Hub →</Link>
+              <Link href="/org/workspaces">Edit in Org →</Link>
             </Button>
           </div>
         </div>

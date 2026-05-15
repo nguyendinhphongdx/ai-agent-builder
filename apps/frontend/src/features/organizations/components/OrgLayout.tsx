@@ -8,25 +8,30 @@ import { organizationsService } from "@/lib/api/organizationsService";
 import { cn } from "@/lib/utils";
 
 /**
- * Hub shell — org-level surface. Sidebar lists the org-scoped tabs
- * (Workspaces, Members, Billing, Security, Audit, Settings); top
- * holds the brand + org switcher when the user belongs to many orgs.
+ * Org shell — org-level surface (path: /org/*). Sidebar lists the
+ * org-scoped tabs (Workspaces, Members, Billing, Security, Audit,
+ * Settings); top holds the brand + org switcher when the user
+ * belongs to many orgs.
  *
  * Distinct from the workspace dashboard layout: no workspace
  * switcher here (you're *above* a workspace), no per-workspace
  * resources (agents, chat, …).
+ *
+ * Naming: the existing /hub path belongs to the *marketplace* (paid
+ * template store). This page is the *organization* landing — hence
+ * /org and not /hub.
  */
 
 const NAV: Array<{ href: string; label: string; icon: React.ElementType }> = [
-  { href: "/hub/workspaces", label: "Workspaces", icon: Layers },
+  { href: "/org/workspaces", label: "Workspaces", icon: Layers },
   // Phase 4 — placeholders so the sidebar shape is stable.
-  { href: "/hub/members", label: "Members", icon: Users },
-  { href: "/hub/billing", label: "Billing", icon: CreditCard },
-  { href: "/hub/security", label: "Security", icon: ShieldCheck },
-  { href: "/hub/settings", label: "Settings", icon: Building2 },
+  { href: "/org/members", label: "Members", icon: Users },
+  { href: "/org/billing", label: "Billing", icon: CreditCard },
+  { href: "/org/security", label: "Security", icon: ShieldCheck },
+  { href: "/org/settings", label: "Settings", icon: Building2 },
 ];
 
-export function HubLayout({ children }: { children: React.ReactNode }) {
+export function OrgLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const orgsQ = useQuery({
     queryKey: ["organizations"],
@@ -90,6 +95,12 @@ export function HubLayout({ children }: { children: React.ReactNode }) {
             className="block rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-foreground"
           >
             ← Back to workspace
+          </Link>
+          <Link
+            href="/hub"
+            className="mt-1 block rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Browse marketplace →
           </Link>
         </div>
       </aside>
