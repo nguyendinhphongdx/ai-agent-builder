@@ -232,8 +232,9 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       {collapsed && <div className="flex-1" />}
 
       <div className={cn("border-t border-border", collapsed ? "p-1.5" : "p-2")}>
-        <NavLink href="/ws/settings" icon={Settings} label="Settings"
-          active={pathname.startsWith("/ws/settings")} collapsed={collapsed} />
+        <NavLink href="/settings" icon={Settings} label="Settings"
+          active={pathname === "/settings" || pathname.startsWith("/settings/")}
+          collapsed={collapsed} />
       </div>
     </aside>
   );

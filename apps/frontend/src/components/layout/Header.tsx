@@ -104,9 +104,9 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings/security" className="cursor-pointer">
+            <Link href="/ws/settings" className="cursor-pointer">
               <Settings className="mr-2 h-3.5 w-3.5" />
-              Account & security
+              Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
