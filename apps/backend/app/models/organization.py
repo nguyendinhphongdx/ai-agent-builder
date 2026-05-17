@@ -10,7 +10,7 @@ through the same code paths as multi-tenant teams.
 """
 from __future__ import annotations
 
-from sqlalchemy import String
+from sqlalchemy import Boolean, Index, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,9 +24,27 @@ ORG_PLAN_STARTER = "starter"
 ORG_PLAN_PRO = "pro"
 ORG_PLAN_ENTERPRISE = "enterprise"
 
+# Slug + name used by ``seed_root_org`` when bootstrapping the platform
+# owner's org. The slug is for routing / display; the AUTH source of
+# truth is the ``is_system`` column on the row (see below) — never check
+# slug for permission decisions.
+SYSTEM_ORG_SLUG = "system"
+SYSTEM_ORG_NAME = "AgentForge Platform"
+
 
 class Organization(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "organizations"
+    __table_args__ = (
+        # DB-enforced singleton: at most one row may have ``is_system=true``.
+        # The partial WHERE clause keeps the rest of the table free to share
+        # the default ``false`` value. Source of truth for platform-admin auth.
+        Index(
+            "ux_organizations_system_singleton",
+            "is_system",
+            unique=True,
+            postgresql_where=text("is_system = true"),
+        ),
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     # URL-safe identifier (lowercase, hyphenated). Used in subdomain or
@@ -43,6 +61,12 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     # White-label / branding settings (logo URL, primary color, …).
     # Free-form JSON so the UI can evolve without migrations.
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}", nullable=False)
+    # Platform-owner marker. Exactly one row may have ``True`` (partial
+    # unique index in migration). This is the SOURCE OF TRUTH for
+    # platform-admin authorization — see ``require_platform_admin``.
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     workspaces: Mapped[list["Workspace"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

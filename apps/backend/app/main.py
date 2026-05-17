@@ -30,6 +30,7 @@ if _settings.LOG_FORMAT == "json":
     install_json_formatter()
 
 from app.modules.api.admin.router import router as admin_router
+from app.modules.api.system.router import router as system_router
 from app.modules.api.external.router import router as external_router
 from app.modules.api.internal.router import router as internal_router
 from app.modules.commerce.hub.router import auth_router as hub_auth_router
@@ -306,6 +307,10 @@ def create_app() -> FastAPI:
     app.include_router(momo_webhook_router, prefix=settings.API_PREFIX)
     # Platform admin — gated by user.role hierarchy (moderator/support/admin).
     app.include_router(admin_router, prefix=settings.API_PREFIX)
+    # System (root) org surface — gated by membership in the org with
+    # ``is_system=true``. See modules/api/system for the Base.vn-style
+    # rationale: platform owner runs from one designated org.
+    app.include_router(system_router, prefix=settings.API_PREFIX)
     # Author payouts — Stripe Connect onboarding + status + payment history.
     app.include_router(payouts_router, prefix=settings.API_PREFIX)
     # Personal dashboard — combined stats endpoint.

@@ -20,6 +20,10 @@ export interface OrganizationSummary {
   role: OrgRole;
   billing_email: string | null;
   created_at: string;
+  /** True for the platform owner's org (a la Base.vn id=1). Lets the
+   *  switcher show a distinct icon + route to ``/system`` instead of
+   *  ``/ws`` when picked. */
+  is_system?: boolean;
 }
 
 /** Full org row from ``GET /api/organizations/{id}`` — includes the

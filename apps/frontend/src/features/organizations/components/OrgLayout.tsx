@@ -12,9 +12,11 @@ import {
   Layers,
   Loader2,
   Plus,
+  Shield,
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useSystemAccess } from "@/features/system/hooks/useSystemAccess";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,7 @@ export function OrgLayout({ children }: { children: React.ReactNode }) {
   });
   const orgs = orgsQ.data ?? [];
   const activeOrg = useResolvedActiveOrg(orgs);
+  const sys = useSystemAccess();
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
@@ -121,6 +124,16 @@ export function OrgLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-border p-3 text-[11px] text-muted-foreground">
+          {sys.isMember && (
+            <Link
+              href="/system/organizations"
+              className="mb-1 flex items-center gap-1.5 rounded-md bg-primary/5 px-2 py-1.5 font-medium text-primary transition-colors hover:bg-primary/10"
+              title="Platform-owner admin surface"
+            >
+              <Shield className="h-3 w-3" />
+              Platform admin
+            </Link>
+          )}
           <Link
             href="/ws/home"
             className="block rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-foreground"

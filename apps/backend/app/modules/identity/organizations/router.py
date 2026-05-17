@@ -63,6 +63,9 @@ async def list_orgs_endpoint(
             "plan": org.plan,
             "role": role,
             "is_default": org.id == current_user.default_organization_id,
+            # Lets the switcher show a platform icon + route to /system/*
+            # when the user picks this org.
+            "is_system": org.is_system,
         }
         for org, role in rows
     ]
