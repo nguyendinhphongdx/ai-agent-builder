@@ -90,25 +90,20 @@ async def stripe_webhook(
     event_type = event.get("type") or ""
     logger.info(f"stripe webhook: type={event_type} id={event_id}")
 
-    handler = _resolve_handler(event_type)
-    if handler is None:
-        # Unknown / unhandled event — still 200 so Stripe stops
-        # retrying it. We don't record it in the dedupe table because
-        # there's no side effect to guard.
+    # Dispatch decision before opening the DB transaction so we don't
+    # claim a dedupe row for events we'd just ignore.
+    dispatch = _resolve_dispatch(event_type)
+    if dispatch is None:
         return JSONResponse({"received": True, "ignored": True})
 
-    obj = event.get("data", {}).get("object", {})
     async with async_session_factory() as db:
         try:
             claimed = await _claim_event(db, event_id, event_type)
             if not claimed:
-                # Re-delivery of an already-processed event. The dedupe
-                # row is committed, so a redundant SELECT would also
-                # return it; we just short-circuit here.
                 logger.info("stripe webhook: dedupe skip event=%s", event_id)
                 await db.commit()
                 return JSONResponse({"received": True, "deduped": True})
-            await handler(db, obj)
+            await dispatch(db, event)
             await db.commit()
         except Exception:
             logger.exception(
@@ -122,45 +117,53 @@ async def stripe_webhook(
     return JSONResponse({"received": True})
 
 
-def _resolve_handler(event_type: str):
-    """Map event.type → coroutine ``handler(db, obj)``.
+# ─── Per-concern adapters ────────────────────────────────────────
+# Each adapter wraps the right downstream handler in the uniform
+# ``async (db, event) -> None`` shape used by the dispatcher table.
 
-    Lazy import per branch so we don't pull every subsystem in just to
-    receive the receiver module. Returns None for events we don't
-    care about — caller acks with 200 + ``ignored=True`` so Stripe
-    stops retrying.
+
+async def _dispatch_hub_checkout(db, event: dict) -> None:
+    obj = event.get("data", {}).get("object", {})
+    await handle_checkout_completed(db, obj)
+
+
+async def _dispatch_connect_account_update(db, event: dict) -> None:
+    from app.modules.commerce.payments.payouts.service import sync_account_from_event
+
+    obj = event.get("data", {}).get("object", {})
+    await sync_account_from_event(db, obj)
+
+
+async def _dispatch_subscription(db, event: dict) -> None:
+    from app.modules.commerce.payments.subscriptions.providers.stripe import (
+        StripeSubscriptionProvider,
+    )
+
+    await StripeSubscriptionProvider().process_event(db, event=event)
+
+
+def _resolve_dispatch(event_type: str):
+    """Map event type → uniform adapter, or None to ignore.
+
+    Three flows share this single Stripe URL (Stripe Dashboard only
+    lets you configure one webhook endpoint per signing secret):
+      * Hub one-time checkout (checkout.session.completed)
+      * Connect onboarding flag sync (account.updated)
+      * Org subscriptions (customer.subscription.* + invoice.*),
+        delegated to StripeSubscriptionProvider.process_event.
     """
     if event_type == "checkout.session.completed":
-        return handle_checkout_completed
-
+        return _dispatch_hub_checkout
     if event_type == "account.updated":
-        from app.modules.commerce.payments.payouts.service import sync_account_from_event
+        return _dispatch_connect_account_update
 
-        return sync_account_from_event
+    # Subscription provider self-declares which event types it owns.
+    # Lazy import so deployments without Stripe don't pay for the
+    # provider class load at module import time.
+    from app.modules.commerce.payments.subscriptions.providers.stripe import (
+        StripeSubscriptionProvider,
+    )
 
-    if event_type in (
-        "customer.subscription.created",
-        "customer.subscription.updated",
-    ):
-        from app.modules.commerce.payments.subscriptions.webhooks import handle_subscription_event
-
-        return handle_subscription_event
-
-    if event_type == "customer.subscription.deleted":
-        from app.modules.commerce.payments.subscriptions.webhooks import handle_subscription_deleted
-
-        return handle_subscription_deleted
-
-    if event_type in ("invoice.paid", "invoice.payment_succeeded"):
-        from app.modules.commerce.payments.subscriptions.webhooks import handle_invoice_paid
-
-        return handle_invoice_paid
-
-    if event_type == "invoice.payment_failed":
-        from app.modules.commerce.payments.subscriptions.webhooks import (
-            handle_invoice_payment_failed,
-        )
-
-        return handle_invoice_payment_failed
-
+    if StripeSubscriptionProvider.handles_event(event_type):
+        return _dispatch_subscription
     return None

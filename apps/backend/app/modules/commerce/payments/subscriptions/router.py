@@ -17,8 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organization import Organization
 from app.models.workspace import Workspace
+from app.modules.commerce.payments.subscriptions import providers as sub_providers
 from app.modules.commerce.payments.subscriptions import service as billing_service
-from app.modules.commerce.payments.subscriptions import stripe_client
 from app.modules.commerce.payments.subscriptions.plans import PLAN_FREE, get_plan, self_serve_plans
 from app.modules.commerce.payments.subscriptions.schemas import (
     BillingOverview,
@@ -185,19 +185,23 @@ async def create_checkout(
     the FE polls the subscription endpoint until status flips to
     active.
     """
-    if not stripe_client.is_configured():
+    # Provider selection: caller can pin one explicitly via ``provider``
+    # field (forthcoming on CheckoutRequest); otherwise fall back to the
+    # first configured one. Right now only Stripe ships; this stays
+    # forward-compatible with MoMo/VNPay recurring once those land.
+    provider = sub_providers.default_provider()
+    if provider is None:
         raise HTTPException(status_code=503, detail="billing_unavailable")
+
     plan = get_plan(body.plan_code)
     if plan.code == PLAN_FREE:
-        # Free-tier "checkout" is just a downgrade; route through the
-        # portal (or the cancel flow once Block 4 wires it).
         raise HTTPException(status_code=400, detail="cannot_checkout_free_plan")
     if not plan.is_self_serve():
         raise HTTPException(status_code=400, detail="plan_not_self_serve")
 
     org = await _resolve_org(db)
     try:
-        url = await stripe_client.create_checkout_session(
+        url = await provider.create_checkout(
             db,
             organization=org,
             plan=plan,
@@ -206,6 +210,8 @@ async def create_checkout(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     await db.commit()
     return CheckoutSessionInfo(url=url)
 
@@ -222,11 +228,17 @@ async def create_portal(
     via Stripe-hosted plan-update flow. Means we don't have to
     build any of those routes ourselves.
     """
-    if not stripe_client.is_configured():
+    provider = sub_providers.default_provider()
+    if provider is None:
         raise HTTPException(status_code=503, detail="billing_unavailable")
+    if not provider.supports_customer_portal:
+        raise HTTPException(status_code=400, detail="portal_not_supported")
     org = await _resolve_org(db)
-    url = await stripe_client.create_portal_session(
-        db, organization=org, return_url=body.return_url
-    )
+    try:
+        url = await provider.create_portal_session(
+            db, organization=org, return_url=body.return_url
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     await db.commit()
     return PortalSessionInfo(url=url)

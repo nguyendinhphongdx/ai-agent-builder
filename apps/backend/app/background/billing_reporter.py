@@ -49,7 +49,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.org_subscription import LIVE_STATUSES, OrgSubscription
 from app.models.usage_event import EVENT_LLM_CALL, UsageEvent
-from app.modules.commerce.payments.subscriptions import stripe_client
+from app.modules.commerce.payments.subscriptions.providers.stripe import (
+    StripeSubscriptionProvider,
+    _stripe,
+)
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
@@ -150,7 +153,7 @@ async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
     # so the last partial chunk doesn't fall off the invoice.
     quantity = math.ceil(tokens / 1000)
 
-    stripe = stripe_client._stripe()
+    stripe = _stripe()
     now_ts = int(datetime.now(timezone.utc).timestamp())
     # action="increment" is additive; the idempotency key keyed on
     # (sub_item, cursor_to) means a retry after Stripe ACK'd but
@@ -210,7 +213,7 @@ async def _sweep_once() -> int:
 
 async def run_forever() -> None:
     """Long-lived report loop."""
-    if not stripe_client.is_configured():
+    if not StripeSubscriptionProvider.is_configured():
         logger.info("billing.usage_reporter: disabled (Stripe not configured)")
         return
 

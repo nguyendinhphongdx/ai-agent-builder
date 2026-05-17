@@ -261,6 +261,29 @@
     "summary": "Two-stage auth model — user_token gates the Org Hub, workspace_token binds a session to one workspace. Replaces localStorage workspace state."
   },
   {
+    "id": "arch-multi-provider-payments",
+    "path": "architecture/multi-provider-payments.md",
+    "title": "Multi-Provider Payment Architecture",
+    "domain": "architecture",
+    "tags": [
+      "payments",
+      "providers",
+      "stripe",
+      "momo",
+      "vnpay",
+      "sepay",
+      "subscriptions",
+      "hub",
+      "abstraction",
+      "strategy-pattern"
+    ],
+    "related": [
+      "flows-subscription-billing",
+      "backend-module-commerce-payments"
+    ],
+    "summary": "Strategy-pattern abstraction over payment providers (Stripe, MoMo, …) for two distinct flows — one-time Hub template purchases (PaymentProvider) and recurring org subscriptions (SubscriptionProvider). Each gateway implements the appropriate interface, registers in a per-flow registry, and the router talks to the abstraction. Covers contract design, registry lookup, webhook dispatch (shared-URL vs dedicated-URL), provider capability flags, and step-by-step \"add a new provider\" cookbook."
+  },
+  {
     "id": "arch-operations",
     "path": "architecture/operations.md",
     "title": "Operations - Observability, Payouts, Bootstrap",
