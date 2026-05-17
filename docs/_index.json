@@ -240,6 +240,27 @@
     "summary": "12-month plan to evolve AgentForge from MVP to enterprise SaaS. Four phases — Phase 0 prerequisites (CI, tests); Phase 1 multi-tenancy + queue + SSO + audit; Phase 2 hybrid RAG + OTEL/Langfuse + usage-based billing + cron triggers; Phase 3 plugin system + LLM/vector breadth + i18n + E2E tests + notifications; Phase 4 Helm + Terraform + on-prem + SOC2 + white-label. Includes schema DDL, code touchpoints, acceptance criteria, effort estimates, risks, team sizing, and budget."
   },
   {
+    "id": "arch-hub-auth-refactor",
+    "path": "architecture/hub-auth-refactor.md",
+    "title": "Hub + workspace-in-token refactor",
+    "domain": "architecture",
+    "tags": [
+      "auth",
+      "multi-tenancy",
+      "workspace",
+      "organization",
+      "jwt",
+      "hub",
+      "refactor"
+    ],
+    "related": [
+      "arch-system-overview",
+      "arch-deployment",
+      "arch-operations"
+    ],
+    "summary": "Two-stage auth model — user_token gates the Org Hub, workspace_token binds a session to one workspace. Replaces localStorage workspace state."
+  },
+  {
     "id": "arch-operations",
     "path": "architecture/operations.md",
     "title": "Operations - Observability, Payouts, Bootstrap",
@@ -974,6 +995,26 @@
       "frontend-feature-agents-editor"
     ],
     "summary": "End-to-end flow for both supervisor (delegate to workers) and peer (sequential chain) multi-agent patterns using LangGraph StateGraphs."
+  },
+  {
+    "id": "flows-subscription-billing",
+    "path": "flows/subscription-billing.md",
+    "title": "Subscription Signup & Billing Flow",
+    "domain": "flows",
+    "tags": [
+      "billing",
+      "subscriptions",
+      "stripe",
+      "plans",
+      "quota",
+      "webhooks"
+    ],
+    "related": [
+      "frontend-feature-billing",
+      "api-billing-endpoints",
+      "backend-module-commerce-payments"
+    ],
+    "summary": "End-to-end flow from picking a paid plan, completing Stripe Checkout, receiving webhook confirmation, and ongoing lifecycle (renewals, plan swap, cancel, dunning)."
   },
   {
     "id": "flows-tool-execution",
