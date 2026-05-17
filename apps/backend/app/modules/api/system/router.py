@@ -8,12 +8,16 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.api.system import service
+from app.modules.api.system import packages_service, service, subs_service
 from app.modules.api.system.schemas import (
     SystemOrgCreate,
     SystemOrgDetail,
     SystemOrgPatch,
-    SystemOrgRow,
+    SystemPackageRow,
+    SystemSubscriptionCancel,
+    SystemSubscriptionRow,
+    SystemSubscriptionSetPlan,
+    SystemSubscriptionStats,
 )
 from app.modules.identity.auth.permissions import require_platform_admin
 from app.platform.db.session import get_db
@@ -122,3 +126,81 @@ async def delete_org_endpoint(
         raise HTTPException(status_code=404, detail="org_not_found")
     await db.commit()
     return None
+
+
+# ─── Subscriptions ────────────────────────────────────────────────
+
+
+@router.get("/subscriptions")
+async def list_subscriptions_endpoint(
+    status_filter: str | None = Query(default=None, alias="status", max_length=32),
+    plan: str | None = Query(default=None, max_length=32),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """All orgs with their (optional) subscription row, joined for one-shot display.
+
+    ``status=none`` filters to orgs that never had a sub (implicit free).
+    """
+    rows, total = await subs_service.list_subscriptions(
+        db, status=status_filter, plan=plan, limit=limit, offset=offset
+    )
+    return {"rows": [r.model_dump() for r in rows], "total": total}
+
+
+@router.get("/subscriptions/stats", response_model=SystemSubscriptionStats)
+async def subscriptions_stats_endpoint(db: AsyncSession = Depends(get_db)):
+    """Aggregate counters for the admin header tile."""
+    return await subs_service.aggregate(db)
+
+
+@router.get("/subscriptions/{org_id}", response_model=SystemSubscriptionRow)
+async def get_subscription_endpoint(
+    org_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    row = await subs_service.get_subscription_detail(db, org_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="org_not_found")
+    return row
+
+
+@router.post("/subscriptions/{org_id}/set-plan", response_model=SystemSubscriptionRow)
+async def set_plan_endpoint(
+    org_id: uuid.UUID,
+    body: SystemSubscriptionSetPlan,
+    db: AsyncSession = Depends(get_db),
+):
+    """Comp an org onto a plan without Stripe — used for trials,
+    enterprise deals signed offline, internal staff orgs, etc."""
+    await subs_service.set_plan(db, org_id, body.plan_code)
+    await db.commit()
+    row = await subs_service.get_subscription_detail(db, org_id)
+    assert row is not None
+    return row
+
+
+@router.post("/subscriptions/{org_id}/cancel", response_model=SystemSubscriptionRow)
+async def cancel_subscription_endpoint(
+    org_id: uuid.UUID,
+    body: SystemSubscriptionCancel,
+    db: AsyncSession = Depends(get_db),
+):
+    sub = await subs_service.cancel(db, org_id, immediate=body.immediate)
+    if sub is None:
+        raise HTTPException(status_code=404, detail="subscription_not_found")
+    await db.commit()
+    row = await subs_service.get_subscription_detail(db, org_id)
+    assert row is not None
+    return row
+
+
+# ─── Packages (read-only) ─────────────────────────────────────────
+
+
+@router.get("/packages", response_model=list[SystemPackageRow])
+async def list_packages_endpoint(db: AsyncSession = Depends(get_db)):
+    """Plan catalogue with live active-org counts per tier. Read-only
+    — to change a plan, edit ``plans.py`` and redeploy."""
+    return await packages_service.list_packages(db)

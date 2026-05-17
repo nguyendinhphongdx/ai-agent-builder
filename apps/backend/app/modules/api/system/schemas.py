@@ -54,3 +54,65 @@ class SystemOrgPatch(BaseModel):
     plan: str | None = None
     billing_email: EmailStr | None = None
     settings: dict | None = None
+
+
+# ─── Subscriptions ────────────────────────────────────────────────
+
+
+class SystemSubscriptionRow(BaseModel):
+    """Row in ``/system/subscriptions``. Joins org + sub for one-shot display."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    org_id: uuid.UUID
+    org_name: str
+    org_slug: str
+    plan_code: str
+    status: str
+    is_live: bool
+    current_period_end: datetime | None
+    cancel_at_period_end: bool
+    stripe_subscription_id: str | None
+    created_at: datetime
+
+
+class SystemSubscriptionStats(BaseModel):
+    """Aggregate billing snapshot — single tile in the admin header."""
+
+    total_orgs: int
+    live_subs: int
+    by_status: dict[str, int]          # status → count
+    by_plan: dict[str, int]            # plan_code → count
+    trialing: int
+    cancel_scheduled: int               # cancel_at_period_end = true
+
+
+class SystemSubscriptionSetPlan(BaseModel):
+    plan_code: str = Field(min_length=1, max_length=32)
+
+
+class SystemSubscriptionCancel(BaseModel):
+    """Body for cancel — defaults to end-of-period (don't yank live users)."""
+
+    immediate: bool = False
+
+
+# ─── Packages (read-only PLANS catalogue) ─────────────────────────
+
+
+class SystemPackageRow(BaseModel):
+    """One plan in the comparison matrix. ``active_orgs`` is the count
+    of orgs currently *resolved* to this plan (live sub OR org.plan
+    fallback)."""
+
+    code: str
+    name: str
+    monthly_llm_tokens: int             # 0 = unlimited
+    monthly_kb_queries: int             # 0 = unlimited
+    max_workspaces: int                 # 0 = unlimited
+    max_members: int                    # 0 = unlimited
+    features: dict[str, bool | int]
+    stripe_price_id: str | None
+    stripe_metered_price_id: str | None
+    is_self_serve: bool
+    active_orgs: int

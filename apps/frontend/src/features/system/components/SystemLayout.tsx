@@ -25,8 +25,8 @@ import { useSystemAccess } from "../hooks/useSystemAccess";
 
 const NAV = [
   { href: "/system/organizations", label: "Organizations", icon: Building2 },
-  { href: "/system/subscriptions", label: "Subscriptions", icon: CreditCard, disabled: true },
-  { href: "/system/packages", label: "Packages", icon: Package, disabled: true },
+  { href: "/system/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { href: "/system/packages", label: "Packages", icon: Package },
   { href: "/system/contracts", label: "Contracts", icon: FileText, disabled: true },
 ] as const;
 
@@ -43,7 +43,7 @@ export function SystemLayout({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
@@ -51,7 +51,7 @@ export function SystemLayout({ children }: { children: React.ReactNode }) {
 
   if (!isMember) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-background text-center">
+      <div className="flex h-dvh items-center justify-center bg-background text-center">
         <div className="space-y-2">
           <ShieldOff className="mx-auto h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium">Platform admin only</p>
@@ -62,7 +62,7 @@ export function SystemLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-muted/20">
         <div className="border-b border-border px-5 py-4">
           <Link href="/" className="flex items-center gap-2.5">
