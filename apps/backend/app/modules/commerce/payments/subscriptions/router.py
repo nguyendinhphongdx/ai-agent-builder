@@ -189,7 +189,7 @@ async def create_checkout(
     # field (forthcoming on CheckoutRequest); otherwise fall back to the
     # first configured one. Right now only Stripe ships; this stays
     # forward-compatible with MoMo/VNPay recurring once those land.
-    provider = sub_providers.default_provider()
+    provider = await sub_providers.default_provider()
     if provider is None:
         raise HTTPException(status_code=503, detail="billing_unavailable")
 
@@ -228,7 +228,7 @@ async def create_portal(
     via Stripe-hosted plan-update flow. Means we don't have to
     build any of those routes ourselves.
     """
-    provider = sub_providers.default_provider()
+    provider = await sub_providers.default_provider()
     if provider is None:
         raise HTTPException(status_code=503, detail="billing_unavailable")
     if not provider.supports_customer_portal:

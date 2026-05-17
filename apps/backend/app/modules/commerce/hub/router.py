@@ -219,7 +219,7 @@ async def purchase_endpoint(
         raise HTTPException(status_code=404, detail="Template not found")
 
     provider = get_provider_for_template(template)
-    if not provider.is_configured():
+    if not await provider.is_configured():
         raise HTTPException(
             status_code=503,
             detail=f"Paid templates via {provider.name} are not available on this deployment",

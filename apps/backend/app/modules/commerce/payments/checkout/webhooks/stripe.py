@@ -32,9 +32,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.models.stripe_webhook_event import StripeWebhookEvent
 from app.modules.commerce.payments.checkout.providers.stripe import (
     handle_checkout_completed,
-    is_stripe_configured,
 )
-from app.platform.config import settings
+from app.modules.commerce.payments.subscriptions.providers.stripe import (
+    get_stripe_webhook_secret,
+)
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
@@ -68,7 +69,10 @@ async def stripe_webhook(
     request: Request,
     stripe_signature: str | None = Header(default=None, alias="stripe-signature"),
 ):
-    if not is_stripe_configured():
+    webhook_secret = await get_stripe_webhook_secret()
+    if not webhook_secret:
+        # No configured-and-enabled Stripe row → behave as if the URL
+        # doesn't exist, so a misrouted scanner doesn't get a 5xx.
         raise HTTPException(status_code=404, detail="Stripe webhook not configured")
     if not stripe_signature:
         raise HTTPException(status_code=400, detail="Missing Stripe signature")
@@ -79,7 +83,7 @@ async def stripe_webhook(
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET
+            payload, stripe_signature, webhook_secret
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")

@@ -93,7 +93,8 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Authors register with MoMo Business out-of-band (Vietnamese business
     # registration required) and paste the resulting trio into Settings.
     # NULL = not connected; VND checkout falls back to platform-collects
-    # using settings.MOMO_*. Secret values encrypted via app.platform.security.crypto.
+    # using the MoMo payment_provider_configs row. Secret values encrypted
+    # via app.platform.security.crypto.
     momo_partner_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     momo_access_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     momo_secret_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)

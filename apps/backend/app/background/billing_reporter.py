@@ -51,7 +51,8 @@ from app.models.org_subscription import LIVE_STATUSES, OrgSubscription
 from app.models.usage_event import EVENT_LLM_CALL, UsageEvent
 from app.modules.commerce.payments.subscriptions.providers.stripe import (
     StripeSubscriptionProvider,
-    _stripe,
+    _stripe_with,
+    get_stripe_secret_key,
 )
 from app.platform.db.session import async_session_factory
 
@@ -133,7 +134,9 @@ async def _sum_tokens_since(
     return int(row.tokens or 0), row.max_created_at, max_id
 
 
-async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
+async def _report_org(
+    db: AsyncSession, sub: OrgSubscription, *, stripe_api_key: str
+) -> int:
     """Ship one org's pending usage to Stripe. Returns tokens posted."""
     if not sub.stripe_metered_item_id:
         return 0
@@ -153,7 +156,7 @@ async def _report_org(db: AsyncSession, sub: OrgSubscription) -> int:
     # so the last partial chunk doesn't fall off the invoice.
     quantity = math.ceil(tokens / 1000)
 
-    stripe = _stripe()
+    stripe = _stripe_with(stripe_api_key)
     now_ts = int(datetime.now(timezone.utc).timestamp())
     # action="increment" is additive; the idempotency key keyed on
     # (sub_item, cursor_to) means a retry after Stripe ACK'd but
@@ -179,6 +182,14 @@ async def _sweep_once() -> int:
     Returns the total tokens shipped this tick — useful for logging
     + future Prometheus instrumentation.
     """
+    # Resolve the Stripe key once per sweep — the config TTL means it
+    # was likely cached anyway, but avoiding a DB hit per subscription
+    # keeps the sweep cheap when an org list grows.
+    api_key = await get_stripe_secret_key()
+    if not api_key:
+        logger.info("billing.usage_reporter: Stripe secret unavailable, skipping sweep")
+        return 0
+
     async with async_session_factory() as db:
         subs: Sequence[OrgSubscription] = (
             await db.execute(
@@ -191,7 +202,7 @@ async def _sweep_once() -> int:
         total_tokens = 0
         for sub in subs:
             try:
-                shipped = await _report_org(db, sub)
+                shipped = await _report_org(db, sub, stripe_api_key=api_key)
                 if shipped:
                     logger.info(
                         "billing.usage_reporter: org=%s tokens=%d",
@@ -213,7 +224,7 @@ async def _sweep_once() -> int:
 
 async def run_forever() -> None:
     """Long-lived report loop."""
-    if not StripeSubscriptionProvider.is_configured():
+    if not await StripeSubscriptionProvider.is_configured():
         logger.info("billing.usage_reporter: disabled (Stripe not configured)")
         return
 

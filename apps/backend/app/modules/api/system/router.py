@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.api.system import (
     dashboard_service,
     packages_service,
+    payment_providers_service,
     service,
     subs_service,
 )
@@ -19,12 +20,14 @@ from app.modules.api.system.schemas import (
     SystemOrgDetail,
     SystemOrgPatch,
     SystemPackageRow,
+    SystemPaymentProviderUpsert,
     SystemSubscriptionCancel,
     SystemSubscriptionRow,
     SystemSubscriptionSetPlan,
     SystemSubscriptionStats,
 )
 from app.modules.identity.auth.permissions import require_platform_admin
+from app.platform.context import current_user_id
 from app.platform.db.session import get_db
 
 # Router-level dep — every endpoint below requires system-org admin.
@@ -224,3 +227,60 @@ async def list_packages_endpoint(db: AsyncSession = Depends(get_db)):
     """Plan catalogue with live active-org counts per tier. Read-only
     — to change a plan, edit ``plans.py`` and redeploy."""
     return await packages_service.list_packages(db)
+
+
+# ─── Payment providers ────────────────────────────────────────────
+
+
+@router.get("/payment-providers")
+async def list_payment_providers_endpoint():
+    """All rows in ``payment_provider_configs`` with masked secrets +
+    per-provider key catalogue so the FE can render edit forms."""
+    return await payment_providers_service.list_for_admin()
+
+
+@router.get("/payment-providers/{code}")
+async def get_payment_provider_endpoint(code: str):
+    row = await payment_providers_service.get_for_admin(code)
+    if row is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    return row
+
+
+@router.put("/payment-providers/{code}")
+async def upsert_payment_provider_endpoint(
+    code: str,
+    body: SystemPaymentProviderUpsert,
+):
+    """Create or replace a provider config. Secrets are Fernet-encrypted
+    server-side; sending ``secrets=null`` keeps the existing blob so the
+    admin can tweak non-secret config without re-entering keys."""
+    return await payment_providers_service.upsert_from_admin(
+        code,
+        display_name=body.display_name,
+        kind=body.kind,
+        is_enabled=body.is_enabled,
+        is_test_mode=body.is_test_mode,
+        secrets=body.secrets,
+        config=body.config,
+        description=body.description,
+        actor_user_id=current_user_id(),
+    )
+
+
+@router.delete(
+    "/payment-providers/{code}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_payment_provider_endpoint(code: str):
+    ok = await payment_providers_service.delete_from_admin(code)
+    if not ok:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    return None
+
+
+@router.post("/payment-providers/{code}/test")
+async def test_payment_provider_endpoint(code: str):
+    """Live ping the provider with the stored credentials. Result is
+    persisted to ``last_tested_at`` / ``last_test_result`` so the grid
+    can show green/red without re-testing on every render."""
+    return await payment_providers_service.run_test_connection(code)

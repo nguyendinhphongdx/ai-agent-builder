@@ -7,8 +7,8 @@
   ``account.updated`` webhook onto the User row.
 - **Payment history** (``list_history``, ``get_summary``). Author-side
   view of purchases of templates they own. Stripe gross deducts the
-  platform fee (computed deterministically from
-  ``STRIPE_PLATFORM_FEE_BPS``); MoMo is platform-collects so net = gross.
+  platform fee (computed deterministically from the Stripe provider
+  config's ``platform_fee_bps``); MoMo is platform-collects so net = gross.
 """
 from __future__ import annotations
 
@@ -22,25 +22,46 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent_template import AgentTemplate
 from app.models.agent_template_purchase import AgentTemplatePurchase
+from app.models.payment_provider_config import PROVIDER_STRIPE
 from app.models.user import User
-from app.modules.commerce.payments.checkout.providers.stripe import _stripe, is_stripe_configured
-from app.platform.config import settings
+from app.modules.commerce.payments.checkout.providers.stripe import (
+    DEFAULT_PLATFORM_FEE_BPS,
+    _stripe_with,
+)
+from app.modules.commerce.payments.config import ProviderConfig, get_provider_config
 from app.platform.context import current_user_id
 from app.platform.security.crypto import encrypt_secret, mask_secret
 
 logger = logging.getLogger("agentforge")
 
 
-def _platform_fee_cents(price_cents: int, provider: str) -> int:
-    """Deterministic platform fee — must match what Stripe collects on
-    the actual charge (`application_fee_amount` in the Checkout call).
+async def _stripe_config_strict() -> ProviderConfig:
+    config = await get_provider_config(PROVIDER_STRIPE)
+    if config is None or not config.is_enabled:
+        raise RuntimeError("Stripe Connect not configured")
+    if not config.secret("secret_key"):
+        raise RuntimeError("Stripe secret_key missing in config")
+    return config
 
-    MoMo currently has no platform-side fee on the charge; we settle
-    authors out-of-band, so net = gross from the author's perspective.
+
+def _platform_fee_cents_with_config(
+    price_cents: int, provider: str, config: ProviderConfig | None
+) -> int:
+    """Deterministic platform fee — must match what Stripe collected on
+    the actual charge (``application_fee_amount`` in the Checkout call).
+    Falls back to ``DEFAULT_PLATFORM_FEE_BPS`` when no Stripe config row
+    exists (shouldn't happen post-checkout but keeps history readable).
+
+    MoMo currently has no platform-side fee on the charge; net = gross.
     """
-    if provider == "stripe":
-        return (price_cents * settings.STRIPE_PLATFORM_FEE_BPS) // 10_000
-    return 0
+    if provider != "stripe":
+        return 0
+    bps = (
+        int(config.config.get("platform_fee_bps", DEFAULT_PLATFORM_FEE_BPS))
+        if config
+        else DEFAULT_PLATFORM_FEE_BPS
+    )
+    return (price_cents * bps) // 10_000
 
 
 def can_receive_payouts(user: User) -> bool:
@@ -67,14 +88,16 @@ async def start_onboarding(db: AsyncSession) -> str:
     every call. The frontend opens the URL in a new tab and polls
     ``/me/payouts/status`` until ``charges_enabled`` flips.
     """
-    if not is_stripe_configured():
-        raise RuntimeError("Stripe Connect not configured")
-    if not (settings.STRIPE_CONNECT_RETURN_URL and settings.STRIPE_CONNECT_REFRESH_URL):
+    config = await _stripe_config_strict()
+    return_url = config.config.get("connect_return_url")
+    refresh_url = config.config.get("connect_refresh_url")
+    if not (return_url and refresh_url):
         raise RuntimeError(
-            "STRIPE_CONNECT_RETURN_URL and STRIPE_CONNECT_REFRESH_URL must be set"
+            "Stripe Connect URLs missing — add ``connect_return_url`` + "
+            "``connect_refresh_url`` to the Stripe provider config"
         )
 
-    stripe = _stripe()
+    stripe = _stripe_with(config.secret("secret_key"))
     user = await _get_user_strict(db)
 
     if not user.stripe_account_id:
@@ -98,8 +121,8 @@ async def start_onboarding(db: AsyncSession) -> str:
 
     link = stripe.AccountLink.create(
         account=user.stripe_account_id,
-        refresh_url=settings.STRIPE_CONNECT_REFRESH_URL,
-        return_url=settings.STRIPE_CONNECT_RETURN_URL,
+        refresh_url=refresh_url,
+        return_url=return_url,
         type="account_onboarding",
     )
     return link.url
@@ -181,15 +204,14 @@ async def create_dashboard_link(db: AsyncSession) -> str:
     The author manages payouts, taxes, and disputes there — we never touch
     that data ourselves. Empty / not-yet-connected → caller maps to 400.
     """
-    if not is_stripe_configured():
-        raise RuntimeError("Stripe Connect not configured")
+    config = await _stripe_config_strict()
     user = await _get_user_strict(db)
     if not user.stripe_account_id:
         raise ValueError("No Stripe account — start onboarding first")
     if not user.stripe_charges_enabled:
         raise ValueError("Onboarding not complete — finish the Connect form first")
 
-    stripe = _stripe()
+    stripe = _stripe_with(config.secret("secret_key"))
     link = stripe.Account.create_login_link(user.stripe_account_id)
     return link.url
 
@@ -251,9 +273,16 @@ async def list_history(
         .offset(offset)
     )
 
+    # Fetch Stripe config once — fee calc reads ``platform_fee_bps`` for
+    # every row. None when Stripe isn't configured (degrades to default
+    # bps, matching what historical charges used).
+    stripe_config = await get_provider_config(PROVIDER_STRIPE)
+
     items: list[dict[str, Any]] = []
     for purchase, template_title, buyer_email in rows.all():
-        fee = _platform_fee_cents(purchase.price_paid_cents, purchase.provider)
+        fee = _platform_fee_cents_with_config(
+            purchase.price_paid_cents, purchase.provider, stripe_config
+        )
         items.append(
             {
                 "id": str(purchase.id),
@@ -326,16 +355,15 @@ async def get_summary(db: AsyncSession) -> dict[str, Any]:
         lambda: {"gross": 0, "fees": 0, "net": 0, "count": 0}
     )
 
+    stripe_config = await get_provider_config(PROVIDER_STRIPE)
     for month, currency, provider, count, gross in rows.all():
         cur = (currency or "USD").upper()
-        # `month` is a Postgres timestamp at the start of the month; format
-        # as "YYYY-MM" for the FE. Defensive isinstance for older drivers.
         if isinstance(month, datetime):
             month_key = month.strftime("%Y-%m")
         else:
             month_key = str(month)[:7]
 
-        fee = _platform_fee_cents(int(gross or 0), provider)
+        fee = _platform_fee_cents_with_config(int(gross or 0), provider, stripe_config)
 
         bucket_m = by_month[(month_key, cur)]
         bucket_m["count"] += count

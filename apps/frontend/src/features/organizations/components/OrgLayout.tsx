@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SidebarUserMenu } from "@/components/layout/SidebarUserMenu";
 import {
   organizationsService,
   type OrganizationSummary,
@@ -146,6 +147,10 @@ export function OrgLayout({ children }: { children: React.ReactNode }) {
           >
             Browse marketplace →
           </Link>
+        </div>
+
+        <div className="border-t border-border p-2">
+          <SidebarUserMenu />
         </div>
       </aside>
 

@@ -116,3 +116,25 @@ class SystemPackageRow(BaseModel):
     stripe_metered_price_id: str | None
     is_self_serve: bool
     active_orgs: int
+
+
+# ─── Payment providers ────────────────────────────────────────────
+
+
+class SystemPaymentProviderUpsert(BaseModel):
+    """Body for create/update of a payment-provider config row.
+
+    ``secrets`` semantics:
+      - ``None``  → keep existing secrets untouched (admin only edited
+                    non-secret config).
+      - ``{}``    → clear all secrets.
+      - non-empty → replace the secrets blob with this dict.
+    """
+
+    display_name: str = Field(min_length=1, max_length=64)
+    kind: str = Field(default="both", pattern=r"^(free|paid|both)$")
+    is_enabled: bool = False
+    is_test_mode: bool = True
+    secrets: dict[str, str] | None = None
+    config: dict | None = None
+    description: str | None = None

@@ -7,7 +7,7 @@ Buyer-side flow (mirrored in :class:`MoMoProvider`):
   3. Buyer pays
   4. Stripe POSTs to /api/webhooks/stripe (handled by `webhooks.stripe`)
        └─ verify signature → mark Purchase paid → fork agent in background
-  5. Stripe redirects browser to STRIPE_SUCCESS_URL (FE polls /purchase-status)
+  5. Stripe redirects browser to config.success_url (FE polls /purchase-status)
 
 Why Checkout Session (not Elements):
   - PCI compliance lives entirely with Stripe.
@@ -16,7 +16,7 @@ Why Checkout Session (not Elements):
 
 Stripe-specific concerns kept here:
   - Connect destination charges (author's `stripe_account_id`).
-  - Application fee in basis points (settings.STRIPE_PLATFORM_FEE_BPS).
+  - Application fee in basis points (config.platform_fee_bps in DB).
   - `account.updated` webhook → mirrored to User row (handled in
     `app.modules.commerce.payments.payouts.service.sync_account_from_event`, not here).
 """
@@ -33,49 +33,62 @@ from app.models.agent import Agent
 from app.models.agent_template import AgentTemplate
 from app.models.agent_template_purchase import AgentTemplatePurchase
 from app.models.agent_template_version import AgentTemplateVersion
+from app.models.payment_provider_config import PROVIDER_STRIPE
 from app.models.user import User
 from app.modules.commerce.hub.snapshot import fork_snapshot_into_agent
 from app.modules.commerce.payments.checkout.base import PaymentProvider
-from app.platform.config import settings
+from app.modules.commerce.payments.config import ProviderConfig, get_provider_config
 from app.platform.context import current_user_id, reset_current_user_id, set_current_user_id
 
 logger = logging.getLogger("agentforge")
 
 
-def _stripe():
-    """Lazy import — keeps stripe out of the critical path when not configured.
+# Default platform fee when the admin hasn't pinned it in config.
+# Industry comparison: Gumroad 10%, Apple/Google 15-30%, Replit 25%.
+DEFAULT_PLATFORM_FEE_BPS = 1500
 
-    Exposed at module level (not method) because `app.modules.commerce.payments.payouts.service`
-    needs the same lazy-imported, api-key-stamped client for Connect
-    onboarding flows.
-    """
+
+def _stripe_with(api_key: str):
+    """Stamp the Stripe SDK with the per-config secret key. Lazy import
+    keeps Stripe out of the critical path when not configured."""
     import stripe
 
-    stripe.api_key = settings.STRIPE_SECRET_KEY
+    stripe.api_key = api_key
     return stripe
 
 
-def is_stripe_configured() -> bool:
-    """Module-level alias kept for callers that don't go through the Provider
-    abstraction (e.g. webhook router doing its own pre-check)."""
-    return StripeProvider.is_configured()
+async def _stripe_config() -> ProviderConfig:
+    """Load the enabled Stripe config row or raise. Hot path is
+    in-memory after first read (TTL cache)."""
+    config = await get_provider_config(PROVIDER_STRIPE)
+    if config is None or not config.is_enabled:
+        raise RuntimeError(
+            "Paid templates are unavailable — Stripe not configured"
+        )
+    if not config.secret("secret_key"):
+        raise RuntimeError("Stripe secret_key missing in config")
+    return config
 
 
 class StripeProvider(PaymentProvider):
     """Stripe Checkout via destination charges (Connect)."""
 
-    name: ClassVar[str] = "stripe"
+    name: ClassVar[str] = PROVIDER_STRIPE
 
     @classmethod
-    def is_configured(cls) -> bool:
-        return bool(settings.STRIPE_SECRET_KEY) and bool(settings.STRIPE_WEBHOOK_SECRET)
+    async def is_configured(cls) -> bool:
+        config = await get_provider_config(cls.name)
+        return bool(
+            config
+            and config.is_enabled
+            and config.secret("secret_key")
+            and config.secret("webhook_secret")
+        )
 
     async def create_checkout(
         self, db: AsyncSession, template_id: uuid.UUID
     ) -> tuple[str, AgentTemplatePurchase]:
-        if not self.is_configured():
-            raise RuntimeError("Paid templates are unavailable — Stripe not configured")
-
+        config = await _stripe_config()
         user_id = current_user_id()
         template = await db.get(AgentTemplate, template_id)
         if template is None or template.status != "published":
@@ -120,11 +133,17 @@ class StripeProvider(PaymentProvider):
         user = await db.get(User, user_id)
         customer_email = user.email if user else None
 
-        platform_fee_cents = (
-            template.price_cents * settings.STRIPE_PLATFORM_FEE_BPS
-        ) // 10_000
+        platform_fee_bps = int(
+            config.config.get("platform_fee_bps", DEFAULT_PLATFORM_FEE_BPS)
+        )
+        platform_fee_cents = (template.price_cents * platform_fee_bps) // 10_000
 
-        stripe = _stripe()
+        success_url = config.config.get("success_url") or (
+            "https://example.com/?session_id={CHECKOUT_SESSION_ID}"
+        )
+        cancel_url = config.config.get("cancel_url") or "https://example.com/"
+
+        stripe = _stripe_with(config.secret("secret_key"))
         session = stripe.checkout.Session.create(
             mode="payment",
             line_items=[
@@ -144,9 +163,8 @@ class StripeProvider(PaymentProvider):
                 "application_fee_amount": platform_fee_cents,
                 "transfer_data": {"destination": author.stripe_account_id},
             },
-            success_url=settings.STRIPE_SUCCESS_URL
-            or "https://example.com/?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=settings.STRIPE_CANCEL_URL or "https://example.com/",
+            success_url=success_url,
+            cancel_url=cancel_url,
             customer_email=customer_email,
             metadata={
                 "template_id": str(template_id),
@@ -188,10 +206,8 @@ class StripeProvider(PaymentProvider):
         """
         if not purchase.provider_transaction_id:
             raise ValueError("Purchase has no Stripe transaction id to refund")
-        if not self.is_configured():
-            raise RuntimeError("Stripe not configured — cannot refund")
-
-        stripe = _stripe()
+        config = await _stripe_config()
+        stripe = _stripe_with(config.secret("secret_key"))
         try:
             stripe.Refund.create(
                 payment_intent=purchase.provider_transaction_id,

@@ -166,68 +166,16 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str = ""
     LANGFUSE_HOST: str = ""
 
-    # ── Stripe (Hub V2 paid templates) ─────────────────────────────────
-    # Empty = paid templates disabled — POST /templates/{id}/purchase
-    # returns 503 instead of erroring deeper into the stack.
-    # STRIPE_WEBHOOK_SECRET must match the endpoint's signing secret in
-    # the Stripe Dashboard (`whsec_...`).
-    STRIPE_SECRET_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
-    # Where Stripe redirects after Checkout. {SESSION_ID} placeholder is
-    # filled by Stripe with the real session id at redirect time.
-    STRIPE_SUCCESS_URL: str = ""  # e.g. https://app.example.com/hub/purchase-complete?session_id={CHECKOUT_SESSION_ID}
-    STRIPE_CANCEL_URL: str = ""   # e.g. https://app.example.com/hub
-    # Platform fee on paid template sales, in basis points (1/100 of a
-    # percent). 1500 = 15%. Stripe also takes its own processing fee on
-    # top, paid by the platform; net to author ~= price * 0.85 - $0.30
-    # - 2.9%*price after Stripe processing. Industry comparison:
-    # Gumroad 10%, Apple/Google 15-30%, Replit Bounties 25%.
-    # Set to 0 for free passthrough during promotion / staging tests.
-    STRIPE_PLATFORM_FEE_BPS: int = 1500
-    # Where Stripe sends the author after the Connect onboarding flow.
-    # {ACCOUNT_ID} is replaced by Stripe at redirect time.
-    STRIPE_CONNECT_RETURN_URL: str = ""  # e.g. https://app.example.com/settings/payouts?ok=1
-    STRIPE_CONNECT_REFRESH_URL: str = "" # e.g. https://app.example.com/settings/payouts?refresh=1
-
-    # ── Phase 2.3 platform subscriptions ───────────────────────────────
-    # Recurring SaaS plans the PLATFORM bills its tenants on (distinct
-    # from the marketplace destination-charge prices above). Each plan
-    # has up to two prices:
-    #   STRIPE_PRICE_<TIER>          – monthly recurring base fee
-    #   STRIPE_PRICE_<TIER>_METERED  – per-1k-token overage (Stripe
-    #                                  "usage" pricing). Empty = base
-    #                                  fee only, no overage line item.
-    # Leaving STRIPE_PRICE_<TIER> empty hides that tier from the
-    # self-serve picker. Enterprise is typically empty (sales-led).
-    # Where Stripe redirects after a billing Checkout finishes/cancels.
-    # Distinct from STRIPE_SUCCESS_URL/CANCEL_URL which are for the
-    # marketplace template purchase flow.
-    STRIPE_BILLING_SUCCESS_URL: str = ""  # e.g. https://app.example.com/settings/billing?ok=1
-    STRIPE_BILLING_CANCEL_URL: str = ""   # e.g. https://app.example.com/settings/billing?cancel=1
-    STRIPE_PRICE_STARTER: str = ""
-    STRIPE_PRICE_STARTER_METERED: str = ""
-    STRIPE_PRICE_PRO: str = ""
-    STRIPE_PRICE_PRO_METERED: str = ""
-    STRIPE_PRICE_ENTERPRISE: str = ""
-    STRIPE_PRICE_ENTERPRISE_METERED: str = ""
-
-    # ── MoMo (VND payments — Vietnam) ─────────────────────────────────
-    # Vietnamese e-wallet. Currency-locked to VND. Empty MOMO_PARTNER_CODE
-    # disables VND checkout entirely (POST /purchase on a VND template
-    # returns 503). Authors don't onboard a Connect-equivalent — V1 is
-    # platform-collects with manual settlement.
-    MOMO_PARTNER_CODE: str = ""
-    MOMO_ACCESS_KEY: str = ""
-    MOMO_SECRET_KEY: str = ""
-    # Production: https://payment.momo.vn  ·  Sandbox: https://test-payment.momo.vn
-    MOMO_ENDPOINT: str = "https://test-payment.momo.vn"
-    # Where MoMo redirects the buyer's browser after payment. {orderId}
-    # is appended by the gateway. Set to your /hub/purchase-complete page.
-    MOMO_RETURN_URL: str = ""
-    # Public HTTPS URL MoMo POSTs IPN events to (must match the host
-    # serving /api/webhooks/momo). Leave empty in dev — IPN won't fire,
-    # tests rely on the redirect query string instead.
-    MOMO_NOTIFY_URL: str = ""
+    # ── Payment provider config ───────────────────────────────────────
+    # All Stripe / MoMo / VNPay / Sepay secrets + price ids + URLs live
+    # in the ``payment_provider_configs`` table (Fernet-encrypted) so a
+    # platform admin can enable / rotate keys / swap test-live from the
+    # /system/payment-providers UI without redeploying. Bootstrap on
+    # first install: log in as the system org owner → paste keys →
+    # click Test → enable.
+    #
+    # See ``app.modules.commerce.payments.config`` for the service layer
+    # providers call to read their config.
 
     # Embedding config cho Knowledge Base (platform-owned, snapshot vào KB khi create).
     # Provider module tự đọc env cho credentials (OPENAI_EMBEDDING_API_KEY, OLLAMA_BASE_URL...).

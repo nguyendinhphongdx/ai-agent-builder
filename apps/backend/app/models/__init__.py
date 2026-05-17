@@ -31,6 +31,11 @@ from app.models.organization_member import (
     ORG_ROLES,
     OrganizationMember,
 )
+from app.models.payment_provider_config import (
+    PROVIDER_MOMO,
+    PROVIDER_STRIPE,
+    PaymentProviderConfig,
+)
 from app.models.personal_access_token import PersonalAccessToken
 from app.models.plugin import Plugin
 from app.models.scim_token import SCIMToken

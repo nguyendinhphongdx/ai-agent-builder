@@ -1,9 +1,10 @@
 """Stripe Subscription provider — recurring billing via Stripe Checkout
 + Billing Portal. Implements :class:`SubscriptionProvider`.
 
-This is the canonical implementation; logic was previously inlined in
-``stripe_client.py`` (kept as a thin re-export shim during the
-abstraction migration).
+Secrets + price ids come from ``payment_provider_configs`` (Fernet-
+encrypted in the DB, cached in-process by
+:mod:`commerce.payments.config`). Nothing is read from env here — the
+platform admin configures everything via /system/payment-providers.
 """
 from __future__ import annotations
 
@@ -22,6 +23,8 @@ from app.models.org_subscription import (
     OrgSubscription,
 )
 from app.models.organization import Organization
+from app.models.payment_provider_config import PROVIDER_STRIPE
+from app.modules.commerce.payments.config import ProviderConfig, get_provider_config
 from app.modules.commerce.payments.subscriptions import service as billing_service
 from app.modules.commerce.payments.subscriptions.base import SubscriptionProvider
 from app.modules.commerce.payments.subscriptions.plans import PLAN_FREE, Plan
@@ -30,12 +33,30 @@ from app.platform.config import settings
 logger = logging.getLogger("agentforge")
 
 
-def _stripe():
-    """Lazy import — keeps Stripe out of the import graph when not
-    configured. Free-tier-only deployments stay zero-dep."""
+# Default redirect URLs when the admin hasn't pinned anything in the
+# config row. FRONTEND_URL stays in env because it's a platform-wide
+# fact, not a payment secret.
+def _default_billing_success_url() -> str:
+    return (
+        f"{settings.FRONTEND_URL}/org/billing?ok=1&session_id={{CHECKOUT_SESSION_ID}}"
+    )
+
+
+def _default_billing_cancel_url() -> str:
+    return f"{settings.FRONTEND_URL}/org/billing?cancel=1"
+
+
+def _default_portal_return_url() -> str:
+    return f"{settings.FRONTEND_URL}/org/billing"
+
+
+def _stripe_with(api_key: str):
+    """Configure the Stripe SDK with the per-provider key and return
+    the module. Lazy import keeps Stripe out of the import graph when
+    no provider is configured (free-tier deployments stay zero-dep)."""
     import stripe
 
-    stripe.api_key = settings.STRIPE_SECRET_KEY
+    stripe.api_key = api_key
     return stripe
 
 
@@ -46,32 +67,53 @@ def _ts(unix_seconds: int | None) -> datetime | None:
 
 
 class StripeSubscriptionProvider(SubscriptionProvider):
-    name: ClassVar[str] = "stripe"
+    name: ClassVar[str] = PROVIDER_STRIPE
     display_name: ClassVar[str] = "Stripe (Card)"
     supports_self_serve_signup: ClassVar[bool] = True
     supports_customer_portal: ClassVar[bool] = True
 
+    # ─── Config access ─────────────────────────────────────────
+
     @classmethod
-    def is_configured(cls) -> bool:
-        # Webhook secret could be missing on a brand-new deploy that
-        # hasn't wired Stripe yet — but Checkout itself needs only the
-        # secret key. ``handle_webhook_event`` raises if the webhook
-        # secret is missing at that codepath.
-        return bool(settings.STRIPE_SECRET_KEY)
+    async def is_configured(cls) -> bool:
+        config = await get_provider_config(cls.name)
+        return bool(config and config.is_enabled and config.secret("secret_key"))
+
+    async def _config(self) -> ProviderConfig:
+        config = await get_provider_config(self.name)
+        if config is None or not config.is_enabled:
+            raise RuntimeError("Stripe is not configured")
+        if not config.secret("secret_key"):
+            raise RuntimeError("Stripe secret_key missing in config")
+        return config
+
+    def _resolve_plan_price(self, config: ProviderConfig, plan: Plan) -> tuple[str | None, str | None]:
+        """Look up the Stripe price ids for a plan from the config row.
+
+        Config keys follow ``price_<plan_code>`` / ``price_<plan_code>_metered``
+        — kept human-readable so the admin can paste from the Stripe
+        dashboard URL.
+        """
+        base = config.config.get(f"price_{plan.code}") or None
+        metered = config.config.get(f"price_{plan.code}_metered") or None
+        return base, metered
 
     # ─── Customer bootstrap ────────────────────────────────────
 
     async def _ensure_customer(
-        self, db: AsyncSession, organization: Organization
+        self,
+        db: AsyncSession,
+        organization: Organization,
+        *,
+        config: ProviderConfig,
     ) -> tuple[str, OrgSubscription]:
-        """Resolve or create the Stripe Customer for ``organization``."""
         sub = await billing_service.get_subscription(db, organization.id)
         if sub is not None and sub.stripe_customer_id:
             return sub.stripe_customer_id, sub
 
-        stripe = _stripe()
-        # ``metadata.organization_id`` is the canonical reverse-lookup
-        # path for webhooks — never trust email matching.
+        stripe = _stripe_with(config.secret("secret_key"))
+        # metadata.organization_id is the canonical reverse-lookup path
+        # for webhooks — never trust email matching.
         customer = stripe.Customer.create(
             email=organization.billing_email or None,
             name=organization.name,
@@ -91,7 +133,6 @@ class StripeSubscriptionProvider(SubscriptionProvider):
         else:
             sub.stripe_customer_id = customer.id
             await db.flush()
-
         return customer.id, sub
 
     # ─── SubscriptionProvider implementation ───────────────────
@@ -105,26 +146,22 @@ class StripeSubscriptionProvider(SubscriptionProvider):
         success_url: str | None = None,
         cancel_url: str | None = None,
     ) -> str:
-        if not self.is_configured():
-            raise RuntimeError("Stripe is not configured")
-        base_price = plan.stripe_price_id()
-        if not base_price:
-            raise ValueError(
-                f"Plan {plan.code!r} has no Stripe price configured — "
-                "set the corresponding STRIPE_PRICE_* env var"
-            )
         if plan.code == PLAN_FREE:
             raise ValueError("Cannot checkout the free plan")
 
-        customer_id, _ = await self._ensure_customer(db, organization)
+        config = await self._config()
+        base_price, metered_price = self._resolve_plan_price(config, plan)
+        if not base_price:
+            raise ValueError(
+                f"Plan {plan.code!r} has no Stripe price configured — "
+                "add ``price_{plan.code}`` to the Stripe provider config"
+            )
 
-        stripe = _stripe()
+        customer_id, _ = await self._ensure_customer(db, organization, config=config)
+
+        stripe = _stripe_with(config.secret("secret_key"))
         line_items: list[dict[str, Any]] = [{"price": base_price, "quantity": 1}]
-        metered_price = plan.stripe_metered_price_id()
         if metered_price:
-            # Metered overage line item — quantity starts at 0 on
-            # Checkout for usage_type=metered; usage records arrive
-            # via the reporter loop.
             line_items.append({"price": metered_price})
 
         session = stripe.checkout.Session.create(
@@ -133,13 +170,13 @@ class StripeSubscriptionProvider(SubscriptionProvider):
             line_items=line_items,
             success_url=(
                 success_url
-                or settings.STRIPE_BILLING_SUCCESS_URL
-                or f"{settings.FRONTEND_URL}/org/billing?ok=1&session_id={{CHECKOUT_SESSION_ID}}"
+                or config.config.get("billing_success_url")
+                or _default_billing_success_url()
             ),
             cancel_url=(
                 cancel_url
-                or settings.STRIPE_BILLING_CANCEL_URL
-                or f"{settings.FRONTEND_URL}/org/billing?cancel=1"
+                or config.config.get("billing_cancel_url")
+                or _default_billing_cancel_url()
             ),
             subscription_data={
                 "metadata": {
@@ -159,16 +196,15 @@ class StripeSubscriptionProvider(SubscriptionProvider):
         organization: Organization,
         return_url: str | None = None,
     ) -> str:
-        if not self.is_configured():
-            raise RuntimeError("Stripe is not configured")
-        customer_id, _ = await self._ensure_customer(db, organization)
-        stripe = _stripe()
+        config = await self._config()
+        customer_id, _ = await self._ensure_customer(db, organization, config=config)
+        stripe = _stripe_with(config.secret("secret_key"))
         session = stripe.billing_portal.Session.create(
             customer=customer_id,
             return_url=(
                 return_url
-                or settings.STRIPE_BILLING_SUCCESS_URL
-                or f"{settings.FRONTEND_URL}/org/billing"
+                or config.config.get("billing_success_url")
+                or _default_portal_return_url()
             ),
         )
         return session.url
@@ -181,13 +217,14 @@ class StripeSubscriptionProvider(SubscriptionProvider):
         immediate: bool = False,
     ) -> OrgSubscription:
         if not sub.stripe_subscription_id:
-            # Manual / comp sub (set_plan backdoor) — just flip status.
+            # Manual / comp sub (set_plan backdoor) — flip status only.
             sub.status = SUB_STATUS_CANCELED if immediate else sub.status
             sub.cancel_at_period_end = not immediate
             await db.flush()
             return sub
 
-        stripe = _stripe()
+        config = await self._config()
+        stripe = _stripe_with(config.secret("secret_key"))
         if immediate:
             stripe.Subscription.delete(sub.stripe_subscription_id)
             sub.status = SUB_STATUS_CANCELED
@@ -201,13 +238,13 @@ class StripeSubscriptionProvider(SubscriptionProvider):
         return sub
 
     # ─── Webhook handling ──────────────────────────────────────
-    #
     # Stripe events arrive at the shared Hub receiver
     # (``checkout/webhooks/stripe.py``). The receiver verifies the
-    # signature once, then asks us via :meth:`handles_event` whether
-    # this event is ours; if yes it calls :meth:`process_event` with
-    # the parsed payload. We don't override ``handle_raw_webhook``
-    # because we don't own a dedicated URL.
+    # signature once using the webhook_secret from the provider config,
+    # then asks us via :meth:`handles_event` whether this event is
+    # ours; if yes it calls :meth:`process_event` with the parsed
+    # payload. We don't override ``handle_raw_webhook`` because we
+    # don't own a dedicated URL.
 
     SUBSCRIPTION_EVENT_PREFIXES: ClassVar[tuple[str, ...]] = (
         "customer.subscription.",
@@ -218,9 +255,6 @@ class StripeSubscriptionProvider(SubscriptionProvider):
 
     @classmethod
     def handles_event(cls, event_type: str) -> bool:
-        """Whether the shared Stripe webhook router should route this
-        event type to our :meth:`process_event` instead of the Hub
-        checkout handler."""
         return any(event_type.startswith(p) for p in cls.SUBSCRIPTION_EVENT_PREFIXES)
 
     async def process_event(
@@ -391,3 +425,25 @@ class StripeSubscriptionProvider(SubscriptionProvider):
             break
         await db.flush()
         return row
+
+
+# ─── Public utilities for the Hub Stripe webhook receiver ───────────
+#
+# The shared receiver needs the secret_key + webhook_secret for the
+# Stripe SDK upfront, before any provider dispatch. Exposing these
+# small helpers keeps the receiver from importing the provider's
+# internals.
+
+
+async def get_stripe_secret_key() -> str | None:
+    config = await get_provider_config(PROVIDER_STRIPE)
+    if config is None or not config.is_enabled:
+        return None
+    return config.secret("secret_key") or None
+
+
+async def get_stripe_webhook_secret() -> str | None:
+    config = await get_provider_config(PROVIDER_STRIPE)
+    if config is None or not config.is_enabled:
+        return None
+    return config.secret("webhook_secret") or None

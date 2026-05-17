@@ -7,7 +7,7 @@ Buyer-side flow mirrors :class:`StripeProvider`:
   3. Buyer pays via QR / e-wallet / linked card
   4. MoMo POSTs IPN to /api/webhooks/momo (HMAC-SHA256 signature verified)
        └─ mark Purchase paid → fork agent in background
-  5. MoMo redirects browser to MOMO_RETURN_URL (FE polls /purchase-status)
+  5. MoMo redirects browser to config.return_url (FE polls /purchase-status)
 
 MoMo-specific concerns:
   - VND only — no currency conversion. Templates priced in VND go here.
@@ -37,7 +37,6 @@ from app.models.agent_template_version import AgentTemplateVersion
 from app.models.user import User
 from app.modules.commerce.hub.snapshot import fork_snapshot_into_agent
 from app.modules.commerce.payments.checkout.base import PaymentProvider
-from app.platform.config import settings
 from app.platform.context import current_user_id, reset_current_user_id, set_current_user_id
 from app.platform.security.crypto import decrypt_secret
 
@@ -58,7 +57,8 @@ def _author_credentials(author: User) -> tuple[str, str, str] | None:
     """Return ``(partner_code, access_key, secret_key)`` for an author with
     a connected MoMo Business account, or ``None`` if they haven't connected.
 
-    Falls back to platform-collects (`settings.MOMO_*`) at the call site.
+    Falls back to platform-collects (DB-driven via
+    :func:`MoMoProvider._platform_creds`) at the call site.
     """
     if not (
         author.momo_partner_code
@@ -79,12 +79,48 @@ class MoMoProvider(PaymentProvider):
     name: ClassVar[str] = "momo"
 
     @classmethod
-    def is_configured(cls) -> bool:
+    async def is_configured(cls) -> bool:
+        from app.models.payment_provider_config import PROVIDER_MOMO
+        from app.modules.commerce.payments.config import get_provider_config
+
+        config = await get_provider_config(PROVIDER_MOMO)
         return bool(
-            settings.MOMO_PARTNER_CODE
-            and settings.MOMO_ACCESS_KEY
-            and settings.MOMO_SECRET_KEY
+            config
+            and config.is_enabled
+            and config.secret("partner_code")
+            and config.secret("access_key")
+            and config.secret("secret_key")
         )
+
+    @staticmethod
+    async def _platform_creds() -> tuple[str, str, str] | None:
+        """Return (partner_code, access_key, secret_key) from the DB
+        config, or None when MoMo isn't fully configured."""
+        from app.models.payment_provider_config import PROVIDER_MOMO
+        from app.modules.commerce.payments.config import get_provider_config
+
+        config = await get_provider_config(PROVIDER_MOMO)
+        if config is None or not config.is_enabled:
+            return None
+        pc = config.secret("partner_code")
+        ak = config.secret("access_key")
+        sk = config.secret("secret_key")
+        if not (pc and ak and sk):
+            return None
+        return pc, ak, sk
+
+    @staticmethod
+    async def _platform_url(key: str) -> str:
+        """Read a URL from the MoMo provider config (eg. return_url,
+        notify_url, endpoint). Empty string when not set so the
+        signature string stays predictable."""
+        from app.models.payment_provider_config import PROVIDER_MOMO
+        from app.modules.commerce.payments.config import get_provider_config
+
+        config = await get_provider_config(PROVIDER_MOMO)
+        if config is None:
+            return ""
+        return str(config.config.get(key) or "")
 
     async def create_checkout(
         self, db: AsyncSession, template_id: uuid.UUID
@@ -102,22 +138,29 @@ class MoMoProvider(PaymentProvider):
 
         # Per-author Connect: if the template author has stored MoMo
         # merchant credentials, route the buyer's payment to *their*
-        # MoMo balance. Falls back to platform-collects (settings.MOMO_*)
-        # when the author hasn't connected — then ops settles them
-        # out-of-band as before.
+        # MoMo balance. Falls back to platform-collects (DB config) when
+        # the author hasn't connected — then ops settles them out-of-band
+        # as before.
         author = await db.get(User, template.user_id)
         if author is None:
             raise RuntimeError("Template author missing")
         author_creds = _author_credentials(author)
         if author_creds is not None:
             partner_code, access_key, secret_key = author_creds
-        elif self.is_configured():
-            partner_code = settings.MOMO_PARTNER_CODE
-            access_key = settings.MOMO_ACCESS_KEY
-            secret_key = settings.MOMO_SECRET_KEY
         else:
+            platform_creds = await self._platform_creds()
+            if platform_creds is None:
+                raise RuntimeError(
+                    "VND payments are unavailable — neither author nor platform has MoMo configured"
+                )
+            partner_code, access_key, secret_key = platform_creds
+
+        notify_url = await self._platform_url("notify_url")
+        return_url = await self._platform_url("return_url")
+        endpoint = await self._platform_url("endpoint")
+        if not (notify_url and return_url and endpoint):
             raise RuntimeError(
-                "VND payments are unavailable — neither author nor platform has MoMo configured"
+                "MoMo provider config missing notify_url / return_url / endpoint"
             )
 
         existing_paid = await db.execute(
@@ -158,11 +201,11 @@ class MoMoProvider(PaymentProvider):
             f"accessKey={access_key}"
             f"&amount={amount_vnd}"
             f"&extraData={extra_data}"
-            f"&ipnUrl={settings.MOMO_NOTIFY_URL}"
+            f"&ipnUrl={notify_url}"
             f"&orderId={txn_id}"
             f"&orderInfo={order_info}"
             f"&partnerCode={partner_code}"
-            f"&redirectUrl={settings.MOMO_RETURN_URL}"
+            f"&redirectUrl={return_url}"
             f"&requestId={txn_id}"
             f"&requestType=captureWallet"
         )
@@ -173,8 +216,8 @@ class MoMoProvider(PaymentProvider):
             "orderId": txn_id,
             "amount": str(amount_vnd),
             "orderInfo": order_info,
-            "redirectUrl": settings.MOMO_RETURN_URL,
-            "ipnUrl": settings.MOMO_NOTIFY_URL,
+            "redirectUrl": return_url,
+            "ipnUrl": notify_url,
             "requestType": "captureWallet",
             "extraData": extra_data,
             "lang": "vi",
@@ -183,7 +226,7 @@ class MoMoProvider(PaymentProvider):
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                f"{settings.MOMO_ENDPOINT}/v2/gateway/api/create", json=body
+                f"{endpoint}/v2/gateway/api/create", json=body
             )
             resp.raise_for_status()
             data = resp.json()
@@ -234,14 +277,17 @@ class MoMoProvider(PaymentProvider):
         author_creds = _author_credentials(author) if author else None
         if author_creds is not None:
             partner_code, access_key, secret_key = author_creds
-        elif self.is_configured():
-            partner_code = settings.MOMO_PARTNER_CODE
-            access_key = settings.MOMO_ACCESS_KEY
-            secret_key = settings.MOMO_SECRET_KEY
         else:
-            raise RuntimeError(
-                "MoMo not configured — neither author nor platform credentials available"
-            )
+            platform_creds = await self._platform_creds()
+            if platform_creds is None:
+                raise RuntimeError(
+                    "MoMo not configured — neither author nor platform credentials available"
+                )
+            partner_code, access_key, secret_key = platform_creds
+
+        endpoint = await self._platform_url("endpoint")
+        if not endpoint:
+            raise RuntimeError("MoMo provider config missing endpoint")
 
         # MoMo identifies the original payment by its `transId`. We replaced
         # `provider_transaction_id` with that id when we received the IPN.
@@ -277,7 +323,7 @@ class MoMoProvider(PaymentProvider):
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
                 resp = await client.post(
-                    f"{settings.MOMO_ENDPOINT}/v2/gateway/api/refund", json=body
+                    f"{endpoint}/v2/gateway/api/refund", json=body
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -361,8 +407,10 @@ async def resolve_ipn_credentials(
                 _, access_key, secret_key = author_creds
                 return access_key, secret_key
 
-    if settings.MOMO_ACCESS_KEY and settings.MOMO_SECRET_KEY:
-        return settings.MOMO_ACCESS_KEY, settings.MOMO_SECRET_KEY
+    platform_creds = await MoMoProvider._platform_creds()
+    if platform_creds is not None:
+        _, access_key, secret_key = platform_creds
+        return access_key, secret_key
     return None
 
 

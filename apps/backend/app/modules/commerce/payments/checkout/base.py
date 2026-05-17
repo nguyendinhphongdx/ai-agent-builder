@@ -36,11 +36,12 @@ class PaymentProvider(ABC):
 
     @classmethod
     @abstractmethod
-    def is_configured(cls) -> bool:
-        """Cheap pre-check: does this deployment have the secrets to use it?
+    async def is_configured(cls) -> bool:
+        """Is the provider enabled with valid secrets?
 
-        Hub router uses this to short-circuit with 503 instead of erroring
-        deeper in the stack.
+        Async because the answer comes from ``payment_provider_configs``
+        (via :mod:`commerce.payments.config`). Hub router awaits this
+        before dispatching so callers see a clean 503.
         """
 
     @abstractmethod

@@ -58,7 +58,8 @@ class CheckoutRequest(BaseModel):
     plan_code: str
     # FE can override the post-checkout redirect for embed scenarios
     # (e.g. opening Checkout inside a modal that needs to close on
-    # success). Optional — falls back to settings.STRIPE_BILLING_*.
+    # success). Optional — falls back to billing_success_url / billing_cancel_url
+    # in the Stripe provider config row.
     success_url: str | None = None
     cancel_url: str | None = None
 

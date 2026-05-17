@@ -22,7 +22,6 @@ from app.modules.commerce.payments.checkout.providers.momo import (
     resolve_ipn_credentials,
     verify_ipn_signature,
 )
-from app.platform.config import settings
 from app.platform.db.session import async_session_factory
 
 logger = logging.getLogger("agentforge")
@@ -32,15 +31,13 @@ router = APIRouter(prefix="/webhooks/momo", tags=["webhooks"])
 
 @router.post("")
 async def momo_ipn(request: Request):
-    # Allow either platform OR per-author Connect to keep this endpoint
-    # alive — without per-author Connect we still need platform creds,
-    # but if at least one author has connected we should accept their
-    # IPN even when platform creds are blank.
-    if not (
-        MoMoProvider.is_configured()
-        or (settings.MOMO_ACCESS_KEY or settings.MOMO_SECRET_KEY)
-    ):
-        # Honest 404 when nothing is configured at all.
+    # Honest 404 only when the platform isn't configured at all.
+    # `resolve_ipn_credentials` below also tries per-author Connect, so
+    # an unconfigured platform with at least one connected author still
+    # accepts that author's IPNs through that branch — but if `MoMoProvider`
+    # is enabled, we accept up front and let credential resolution do the
+    # per-row decision.
+    if not await MoMoProvider.is_configured():
         raise HTTPException(status_code=404, detail="MoMo webhook not configured")
 
     try:

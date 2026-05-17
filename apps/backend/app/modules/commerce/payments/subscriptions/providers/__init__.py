@@ -33,22 +33,26 @@ def get_provider(name: str) -> SubscriptionProvider:
     return cls()
 
 
-def configured_providers() -> list[SubscriptionProvider]:
-    """Every registered provider whose env / DB secrets are present.
-    Used by ``/api/billing/providers`` so the FE picker can render
-    one button per active gateway."""
-    return [cls() for cls in _PROVIDERS.values() if cls.is_configured()]
+async def configured_providers() -> list[SubscriptionProvider]:
+    """Every registered provider with an enabled DB row + valid
+    secrets. Used by ``/api/billing/providers`` so the FE picker can
+    render one button per active gateway.
 
-
-def default_provider() -> SubscriptionProvider | None:
-    """First configured provider. Used as the auto-pick when the
-    legacy single-provider flow (``POST /api/billing/checkout``
-    without explicit provider) is invoked.
-
-    Returns None when nothing is configured — caller maps to 503.
-    """
+    Async because ``is_configured`` reads the cached
+    ``payment_provider_configs`` row (TTL 30s, so the hot path is
+    in-memory after first read)."""
+    out: list[SubscriptionProvider] = []
     for cls in _PROVIDERS.values():
-        if cls.is_configured():
+        if await cls.is_configured():
+            out.append(cls())
+    return out
+
+
+async def default_provider() -> SubscriptionProvider | None:
+    """First enabled provider — auto-pick for the single-provider
+    checkout flow. None when nothing is configured (caller → 503)."""
+    for cls in _PROVIDERS.values():
+        if await cls.is_configured():
             return cls()
     return None
 

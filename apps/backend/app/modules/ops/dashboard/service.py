@@ -26,7 +26,6 @@ from app.modules.ops.dashboard.schemas import (
     TokensByModel,
     TokensStats,
 )
-from app.platform.config import settings
 from app.platform.context import current_user_id
 
 
@@ -108,12 +107,24 @@ async def _revenue_stats(db: AsyncSession, user_id) -> RevenueSummary:
     """Author-side revenue — purchases of templates owned by the user.
 
     Free purchases (price=0) are excluded — they don't represent revenue.
-    Platform fee is computed deterministically from
-    ``STRIPE_PLATFORM_FEE_BPS``; MoMo currently takes no fee on our side
-    (platform-collects, we settle authors out-of-band — full amount is
-    counted as gross + net).
+    Platform fee is computed deterministically from the Stripe provider
+    config's ``platform_fee_bps`` (defaults to ``DEFAULT_PLATFORM_FEE_BPS``
+    when no row exists). MoMo currently takes no fee on our side —
+    platform-collects, we settle authors out-of-band, full amount counted
+    as gross + net.
     """
-    bps = settings.STRIPE_PLATFORM_FEE_BPS  # int, e.g. 1500 = 15.00%
+    from app.models.payment_provider_config import PROVIDER_STRIPE
+    from app.modules.commerce.payments.checkout.providers.stripe import (
+        DEFAULT_PLATFORM_FEE_BPS,
+    )
+    from app.modules.commerce.payments.config import get_provider_config
+
+    stripe_config = await get_provider_config(PROVIDER_STRIPE)
+    bps = (
+        int(stripe_config.config.get("platform_fee_bps", DEFAULT_PLATFORM_FEE_BPS))
+        if stripe_config
+        else DEFAULT_PLATFORM_FEE_BPS
+    )
 
     rows = await db.execute(
         select(

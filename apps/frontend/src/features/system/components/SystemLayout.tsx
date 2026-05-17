@@ -11,9 +11,11 @@ import {
   LayoutDashboard,
   Loader2,
   Package,
+  Plug,
   ShieldOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SidebarUserMenu } from "@/components/layout/SidebarUserMenu";
 import { useSystemAccess } from "../hooks/useSystemAccess";
 
 /**
@@ -36,6 +38,7 @@ const NAV: readonly NavItem[] = [
   { href: "/system/organizations", label: "Organizations", icon: Building2 },
   { href: "/system/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/system/packages", label: "Packages", icon: Package },
+  { href: "/system/payment-providers", label: "Payment providers", icon: Plug },
   { href: "/system/contracts", label: "Contracts", icon: FileText, disabled: true },
 ];
 
@@ -136,6 +139,10 @@ export function SystemLayout({ children }: { children: React.ReactNode }) {
           >
             ← Back to workspace
           </Link>
+        </div>
+
+        <div className="border-t border-border p-2">
+          <SidebarUserMenu />
         </div>
       </aside>
 

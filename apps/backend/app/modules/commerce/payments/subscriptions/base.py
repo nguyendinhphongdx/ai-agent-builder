@@ -64,10 +64,14 @@ class SubscriptionProvider(ABC):
 
     @classmethod
     @abstractmethod
-    def is_configured(cls) -> bool:
-        """Cheap pre-check — does this deployment have the secrets to
-        use this provider? Router uses this to 503 cleanly instead of
-        erroring deeper in the stack."""
+    async def is_configured(cls) -> bool:
+        """Is the provider enabled with valid secrets in the DB?
+
+        Async because the answer comes from ``payment_provider_configs``
+        (via the cached :mod:`commerce.payments.config` service). Router
+        awaits this before delegating, so callers see a clean 503
+        instead of an upstream API error from missing keys.
+        """
 
     @abstractmethod
     async def create_checkout(
