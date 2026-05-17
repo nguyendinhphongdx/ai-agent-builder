@@ -19,11 +19,24 @@ export interface SystemPaymentProviderKey {
   is_set?: boolean;
 }
 
+export interface SystemPaymentProviderGuideSection {
+  title: string;
+  steps: string[];
+}
+
+export interface SystemPaymentProviderGuideWebhook {
+  path: string;
+  events: string[];
+  note?: string;
+}
+
 export interface SystemPaymentProviderGuide {
   intro: string;
-  webhook_path?: string | null;
-  steps: string[];
-  docs?: { 0: string; 1: string }[] | [string, string][];
+  requirements?: string[];
+  webhook?: SystemPaymentProviderGuideWebhook | null;
+  sections?: SystemPaymentProviderGuideSection[];
+  tips?: string[];
+  docs?: [string, string][];
 }
 
 export interface SystemPaymentProviderRow {

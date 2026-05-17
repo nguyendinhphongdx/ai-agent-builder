@@ -7,11 +7,15 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Copy,
   ExternalLink,
+  Lightbulb,
   Loader2,
   Plug,
+  Webhook,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -380,15 +384,22 @@ function SetupGuide({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const docs = (guide.docs ?? []) as [string, string][];
+  const sections = guide.sections ?? [];
+  const requirements = guide.requirements ?? [];
+  const tips = guide.tips ?? [];
+
   return (
     <section className="rounded-md border border-border bg-muted/20">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-accent/30"
+        aria-expanded={open}
       >
         <BookOpen className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium text-foreground">Setup guide</span>
+        <span className="text-xs font-medium text-foreground">
+          Hướng dẫn tích hợp
+        </span>
         <span className="ml-auto">
           {open ? (
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -398,35 +409,71 @@ function SetupGuide({
         </span>
       </button>
       {open && (
-        <div className="space-y-4 border-t border-border px-4 py-4 text-xs leading-relaxed text-foreground/90">
-          <p className="text-muted-foreground">{guide.intro}</p>
+        <div className="space-y-5 border-t border-border px-5 py-5 text-xs leading-relaxed text-foreground/90">
+          <RichText text={guide.intro} className="text-muted-foreground" />
 
-          {guide.webhook_path && (
-            <div className="rounded-md border border-border bg-background px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Webhook URL to register with the provider
-              </p>
-              <code className="mt-1 block break-all font-mono text-[11px] text-foreground">
-                {"<your-api-base>"}
-                {guide.webhook_path}
-              </code>
+          {requirements.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Yêu cầu trước khi bắt đầu
+              </h4>
+              <ul className="space-y-1.5 pl-4">
+                {requirements.map((r, i) => (
+                  <li
+                    key={i}
+                    className="relative pl-3 before:absolute before:left-0 before:top-2 before:h-1 before:w-1 before:rounded-full before:bg-muted-foreground"
+                  >
+                    <RichText text={r} />
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
-          <ol className="list-decimal space-y-2 pl-5 marker:text-muted-foreground">
-            {guide.steps.map((step, i) => (
-              <li key={i} className="text-foreground/90">
-                {step}
-              </li>
-            ))}
-          </ol>
+          {guide.webhook && (
+            <WebhookBox webhook={guide.webhook} />
+          )}
+
+          {sections.map((s, i) => (
+            <div key={i}>
+              <h4 className="mb-2 text-[11px] font-semibold text-foreground">
+                {s.title}
+              </h4>
+              <ol className="list-decimal space-y-2 pl-5 marker:text-muted-foreground">
+                {s.steps.map((step, j) => (
+                  <li key={j} className="pl-1 text-foreground/90">
+                    <RichText text={step} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+
+          {tips.length > 0 && (
+            <div className="rounded-md border border-amber-200/40 bg-amber-50/40 px-4 py-3 dark:border-amber-900/30 dark:bg-amber-950/20">
+              <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                <Lightbulb className="h-3 w-3" />
+                Mẹo & lưu ý
+              </h4>
+              <ul className="space-y-1.5 pl-4">
+                {tips.map((t, i) => (
+                  <li
+                    key={i}
+                    className="relative pl-3 text-amber-900/90 before:absolute before:left-0 before:top-2 before:h-1 before:w-1 before:rounded-full before:bg-amber-600 dark:text-amber-100/90"
+                  >
+                    <RichText text={t} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {docs.length > 0 && (
             <div className="border-t border-border pt-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Reference docs
-              </p>
-              <ul className="mt-1.5 space-y-1">
+              <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Tài liệu tham khảo
+              </h4>
+              <ul className="space-y-1">
                 {docs.map(([label, url]) => (
                   <li key={url}>
                     <a
@@ -447,6 +494,137 @@ function SetupGuide({
       )}
     </section>
   );
+}
+
+function WebhookBox({
+  webhook,
+}: {
+  webhook: NonNullable<SystemPaymentProviderGuide["webhook"]>;
+}) {
+  const fullUrl = `<your-api-base>${webhook.path}`;
+  const copyPath = async () => {
+    try {
+      await navigator.clipboard.writeText(webhook.path);
+      toast.success("Đã copy webhook path");
+    } catch {
+      toast.error("Không copy được — hãy copy thủ công");
+    }
+  };
+  return (
+    <div className="space-y-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
+      <div className="flex items-center gap-1.5">
+        <Webhook className="h-3.5 w-3.5 text-primary" />
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+          Webhook URL
+        </h4>
+      </div>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 break-all rounded bg-background px-2 py-1.5 font-mono text-[11px] text-foreground">
+          {fullUrl}
+        </code>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2"
+          onClick={copyPath}
+          title="Copy webhook path"
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Thay <code className="rounded bg-background px-1">{"<your-api-base>"}</code>{" "}
+        bằng base URL của deployment (ví dụ <code className="rounded bg-background px-1">https://api.yourdomain.com</code>).
+      </p>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Events / payload cần subscribe
+        </p>
+        <ul className="space-y-0.5 pl-1">
+          {webhook.events.map((e) => (
+            <li
+              key={e}
+              className="font-mono text-[10px] text-foreground/80"
+            >
+              · {e}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {webhook.note && (
+        <p className="border-t border-primary/10 pt-2 text-[10px] leading-relaxed text-muted-foreground">
+          <RichText text={webhook.note} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Minimal markdown — supports `**bold**` and `` `inline code` ``.
+ *  Anything else is rendered as plain text. Keeping this tiny avoids
+ *  pulling in a full markdown lib for what is essentially decorated
+ *  prose in the setup guides. */
+function RichText({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const parts = parseInline(text);
+  return (
+    <span className={className}>
+      {parts.map((p, i) => {
+        if (p.kind === "bold") {
+          return (
+            <strong key={i} className="font-semibold text-foreground">
+              {p.value}
+            </strong>
+          );
+        }
+        if (p.kind === "code") {
+          return (
+            <code
+              key={i}
+              className="rounded bg-muted px-1 font-mono text-[10px] text-foreground"
+            >
+              {p.value}
+            </code>
+          );
+        }
+        return <span key={i}>{p.value}</span>;
+      })}
+    </span>
+  );
+}
+
+type InlinePart = { kind: "text" | "bold" | "code"; value: string };
+
+function parseInline(text: string): InlinePart[] {
+  const out: InlinePart[] = [];
+  // Pattern order matters: longer / more specific first. Greedy but
+  // non-nested — bold inside code or code inside bold isn't supported.
+  const re = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      out.push({ kind: "text", value: text.slice(last, m.index) });
+    }
+    if (m[2] !== undefined) {
+      out.push({ kind: "bold", value: m[2] });
+    } else if (m[3] !== undefined) {
+      out.push({ kind: "code", value: m[3] });
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    out.push({ kind: "text", value: text.slice(last) });
+  }
+  return out;
 }
 
 function ToggleRow({
