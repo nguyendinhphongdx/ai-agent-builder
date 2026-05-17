@@ -18,6 +18,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
+from app.models.organization_member import (
+    ORG_ROLE_ADMIN,
+    ORG_ROLE_OWNER,
+    OrganizationMember,
+)
 from app.models.user import User
 from app.models.workspace_member import (
     WORKSPACE_ROLE_ADMIN,
@@ -90,20 +97,34 @@ async def create_workspace(
     workspace and the caller becomes owner of both.
     """
     if body.organization_id is not None:
-        # Membership check: must be admin+ in any workspace under the
-        # target org to attach a new one there. Owner of the org is a
-        # consequence of owning at least one workspace in it.
-        result = await service.list_user_workspaces(db, current_user.id)
-        same_org_admin = any(
-            ws.organization_id == body.organization_id
-            and role_at_least(role, WORKSPACE_ROLE_ADMIN)
-            for ws, role in result
-        )
-        if not same_org_admin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorised to create workspaces in this organization",
+        # Authorization: either
+        #   (a) ``organization_members.role >= admin`` for the target org
+        #       (covers org owners + admins, including the system org's
+        #       owner who otherwise has zero workspaces and would be
+        #       locked out by the workspace-only check below), OR
+        #   (b) ``workspace_members.role >= admin`` in *any* workspace
+        #       under the target org (covers workspace-admins promoted
+        #       through the team flow).
+        org_member_role = await db.scalar(
+            select(OrganizationMember.role).where(
+                OrganizationMember.organization_id == body.organization_id,
+                OrganizationMember.user_id == current_user.id,
             )
+        )
+        is_org_admin = org_member_role in (ORG_ROLE_OWNER, ORG_ROLE_ADMIN)
+
+        if not is_org_admin:
+            result = await service.list_user_workspaces(db, current_user.id)
+            is_ws_admin = any(
+                ws.organization_id == body.organization_id
+                and role_at_least(role, WORKSPACE_ROLE_ADMIN)
+                for ws, role in result
+            )
+            if not is_ws_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorised to create workspaces in this organization",
+                )
 
     try:
         ws = await service.create_team_workspace(
