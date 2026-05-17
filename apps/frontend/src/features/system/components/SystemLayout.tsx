@@ -8,6 +8,7 @@ import {
   Building2,
   CreditCard,
   FileText,
+  LayoutDashboard,
   Loader2,
   Package,
   ShieldOff,
@@ -23,12 +24,20 @@ import { useSystemAccess } from "../hooks/useSystemAccess";
  * invisible from the rest of the app's nav.
  */
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+};
+
+const NAV: readonly NavItem[] = [
+  { href: "/system/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/system/organizations", label: "Organizations", icon: Building2 },
   { href: "/system/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/system/packages", label: "Packages", icon: Package },
   { href: "/system/contracts", label: "Contracts", icon: FileText, disabled: true },
-] as const;
+];
 
 export function SystemLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

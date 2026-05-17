@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Landing for /system → push to the first usable page.
+// Landing for /system → executive overview.
 export default function Page() {
-  redirect("/system/organizations");
+  redirect("/system/dashboard");
 }

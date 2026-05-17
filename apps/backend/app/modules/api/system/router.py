@@ -8,7 +8,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.api.system import packages_service, service, subs_service
+from app.modules.api.system import (
+    dashboard_service,
+    packages_service,
+    service,
+    subs_service,
+)
 from app.modules.api.system.schemas import (
     SystemOrgCreate,
     SystemOrgDetail,
@@ -28,6 +33,21 @@ router = APIRouter(
     tags=["system"],
     dependencies=[Depends(require_platform_admin())],
 )
+
+
+# ─── Dashboard ────────────────────────────────────────────────────
+
+
+@router.get("/dashboard")
+async def dashboard_endpoint(db: AsyncSession = Depends(get_db)):
+    """Whole-platform snapshot — KPIs + revenue + usage + top orgs.
+
+    Returns one fat payload so the FE renders the page in a single
+    round-trip. Numbers are estimates (MRR uses Plan.monthly_price_*
+    × live-sub count, not real Stripe invoices) — the dashboard is
+    for operational visibility, not accounting.
+    """
+    return await dashboard_service.aggregate(db)
 
 
 # ─── Organizations ────────────────────────────────────────────────

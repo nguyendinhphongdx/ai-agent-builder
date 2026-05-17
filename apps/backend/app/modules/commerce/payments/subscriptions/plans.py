@@ -52,6 +52,15 @@ class Plan:
     stripe_price_setting: str = ""
     # Metered price for token-overage billing. Optional.
     stripe_metered_price_setting: str = ""
+    # Posted monthly price — what we charge if the Stripe price runs
+    # with this plan. Kept in sync manually with the Stripe dashboard;
+    # used for the platform admin's MRR/ARR estimate so we don't have
+    # to hit the Stripe API on every dashboard render. ``0`` = free /
+    # custom-quoted (enterprise).
+    monthly_price_cents_usd: int = 0
+    # Vietnamese MoMo / bank-transfer price (đồng). Same purpose;
+    # zero when the plan isn't offered in VND.
+    monthly_price_vnd: int = 0
 
     def stripe_price_id(self) -> str | None:
         return getattr(settings, self.stripe_price_setting, "") or None if self.stripe_price_setting else None
@@ -112,6 +121,8 @@ PLANS: dict[str, Plan] = {
         },
         stripe_price_setting="STRIPE_PRICE_STARTER",
         stripe_metered_price_setting="STRIPE_PRICE_STARTER_METERED",
+        monthly_price_cents_usd=1900,        # $19
+        monthly_price_vnd=470_000,
     ),
     PLAN_PRO: Plan(
         code=PLAN_PRO,
@@ -130,6 +141,8 @@ PLANS: dict[str, Plan] = {
         },
         stripe_price_setting="STRIPE_PRICE_PRO",
         stripe_metered_price_setting="STRIPE_PRICE_PRO_METERED",
+        monthly_price_cents_usd=9900,        # $99
+        monthly_price_vnd=2_500_000,
     ),
     PLAN_ENTERPRISE: Plan(
         code=PLAN_ENTERPRISE,
