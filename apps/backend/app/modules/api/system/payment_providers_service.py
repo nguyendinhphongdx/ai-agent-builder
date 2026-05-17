@@ -21,6 +21,7 @@ from app.modules.commerce.payments.config import (
     test_provider_connection,
     upsert_provider_config,
 )
+from app.platform.config import settings
 
 # Per-provider key catalogue — what the FE should render input fields
 # for. Each entry: (key, label, hint). Secrets get a password field +
@@ -108,27 +109,27 @@ PROVIDER_GUIDES: dict[str, dict[str, Any]] = {
                 "steps": [
                     "Đăng nhập dashboard.stripe.com, vào Developers → API keys.",
                     "Bật **Test mode** (góc trên phải dashboard) để lấy bộ key sk_test_… + pk_test_… trước. Triển khai đến lúc nào ổn rồi mới quay lại đây tắt Test mode + dán key live.",
-                    "Copy Secret key (sk_test_… / sk_live_…) → dán vào ô **Secret key** bên dưới.",
-                    "Tùy chọn: copy Publishable key (pk_…) → dán vào ô **Publishable key** nếu frontend có nhúng Stripe.js.",
+                    "Copy Secret key (sk_test_… / sk_live_…) → dán vào ô [Secret key](#secret-secret_key) bên dưới.",
+                    "Tùy chọn: copy Publishable key (pk_…) → dán vào ô [Publishable key](#secret-publishable_key) nếu frontend có nhúng Stripe.js.",
                 ],
             },
             {
                 "title": "Bước 2 — Đăng ký webhook endpoint",
                 "steps": [
                     "Developers → Webhooks → **Add endpoint**.",
-                    "Endpoint URL = `<your-api-base>` + `/api/webhooks/stripe` (xem ô Webhook URL bên dưới).",
+                    "Endpoint URL: copy từ box **Webhook URL** bên dưới (đã build sẵn từ `settings.BASE_URL`).",
                     "Description: tùy ý, ví dụ `AgentForge production`.",
                     "Ở phần **Select events**, chọn các event liệt kê trong Webhook box bên dưới. Khuyến nghị chọn từng cái thay vì `*` để giảm noise.",
-                    "Sau khi tạo, Stripe hiện **Signing secret** (whsec_…) — copy NGAY vì chỉ hiện 1 lần. Dán vào ô **Webhook signing secret** bên dưới.",
+                    "Sau khi tạo, Stripe hiện **Signing secret** (whsec_…) — copy NGAY vì chỉ hiện 1 lần. Dán vào ô [Webhook signing secret](#secret-webhook_secret) bên dưới.",
                 ],
             },
             {
                 "title": "Bước 3 — Bật Stripe Connect (chỉ nếu bán Hub)",
                 "steps": [
                     "Settings → Connect → **Get started**. Chọn loại account = **Express** (đơn giản, Stripe hosted onboarding).",
-                    "Trong Connect settings, thêm các URL: `connect_return_url` và `connect_refresh_url` (dán vào ô Config bên dưới — thường là trang `/settings/payouts` của FE).",
+                    "Trong Connect settings, thêm các URL: [Connect return URL](#cfg-connect_return_url) và [Connect refresh URL](#cfg-connect_refresh_url) (thường là trang `/settings/payouts` của FE).",
                     "Tác giả khi vào FE bấm Connect sẽ được redirect sang Stripe để onboard tài khoản của họ. Sau khi xong, tiền họ nhận sẽ vào tài khoản đó, không qua tài khoản platform.",
-                    "Phí nền tảng (`platform_fee_bps`) trừ trực tiếp khi destination charge — buyer trả 100 USD, platform giữ 15 USD (mặc định 1500 bps), tác giả nhận 85 USD.",
+                    "Phí nền tảng [platform_fee_bps](#cfg-platform_fee_bps) trừ trực tiếp khi destination charge — buyer trả 100 USD, platform giữ 15 USD (mặc định 1500 bps), tác giả nhận 85 USD.",
                 ],
             },
             {
@@ -187,15 +188,15 @@ PROVIDER_GUIDES: dict[str, dict[str, Any]] = {
                     "Vào business.momo.vn → đăng ký với thông tin doanh nghiệp (MST, giấy phép kinh doanh, đại diện pháp lý).",
                     "Sandbox: vào developers.momo.vn → tạo merchant test (chỉ cần email, không cần duyệt). Lấy 3 keys test trước để dev.",
                     "Production: gửi hồ sơ + ký hợp đồng. MoMo cấp 3 keys live sau 5-15 ngày làm việc.",
-                    "Kết quả: bạn có bộ **Partner Code + Access Key + Secret Key**. Dán vào 3 ô Secrets bên dưới.",
+                    "Kết quả: bạn có 3 keys — dán vào [Partner Code](#secret-partner_code), [Access Key](#secret-access_key), [Secret Key](#secret-secret_key) bên dưới.",
                 ],
             },
             {
                 "title": "Bước 2 — Cấu hình endpoint + URLs",
                 "steps": [
-                    "**Endpoint** = `https://test-payment.momo.vn` cho sandbox, `https://payment.momo.vn` cho production. Phải khớp toggle **Test mode** trong UI này.",
-                    "**IPN Notify URL** = `<your-api-base>` + `/api/webhooks/momo` (xem Webhook box bên dưới). MoMo POST kết quả về đây.",
-                    "**Browser Return URL** = trang FE buyer được redirect về sau khi thanh toán (vd `https://yourdomain.com/purchase/result`). Trang này nên poll `/api/purchase-status?txn_id=…` để hiện kết quả.",
+                    "Đặt [Endpoint](#cfg-endpoint) = `https://test-payment.momo.vn` cho sandbox, `https://payment.momo.vn` cho production. Phải khớp toggle **Test mode** ở đầu form.",
+                    "[IPN Notify URL](#cfg-notify_url): copy từ box **Webhook URL** bên dưới (đã build sẵn từ `settings.BASE_URL`). MoMo POST kết quả về URL này.",
+                    "[Browser Return URL](#cfg-return_url) = trang FE buyer được redirect về sau khi thanh toán (vd `https://yourdomain.com/purchase/result`). Trang này nên poll `/api/purchase-status?txn_id=…` để hiện kết quả.",
                     "Đăng ký 2 URL trên trong MoMo Business dashboard ở mục **Cấu hình kỹ thuật → IPN URL / Return URL**.",
                 ],
             },
@@ -264,9 +265,30 @@ def _serialize(cfg: ProviderConfig, *, persisted: bool = True) -> dict[str, Any]
             {"key": k, "label": label, "hint": hint}
             for k, label, hint in PROVIDER_CONFIG_KEYS.get(cfg.code, [])
         ],
-        "guide": PROVIDER_GUIDES.get(cfg.code),
+        "guide": _guide_for(cfg.code),
         "last_tested_at": cfg.last_tested_at.isoformat() if cfg.last_tested_at else None,
         "last_test_result": cfg.last_test_result,
+    }
+
+
+def _guide_for(code: str) -> dict[str, Any] | None:
+    """Return the guide for ``code`` with webhook URL fully resolved
+    using ``settings.BASE_URL``. Splitting this out keeps PROVIDER_GUIDES
+    declarative — the env lookup happens at request time so a runtime
+    BASE_URL change propagates without a server restart."""
+    guide = PROVIDER_GUIDES.get(code)
+    if guide is None:
+        return None
+    webhook = guide.get("webhook")
+    if not webhook or not webhook.get("path"):
+        return guide
+    base = settings.BASE_URL.rstrip("/")
+    return {
+        **guide,
+        "webhook": {
+            **webhook,
+            "url": f"{base}{webhook['path']}",
+        },
     }
 
 

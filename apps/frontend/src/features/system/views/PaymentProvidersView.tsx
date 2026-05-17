@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import {
   systemPaymentProvidersService,
   type SystemPaymentProviderGuide,
+  type SystemPaymentProviderGuideSection,
   type SystemPaymentProviderRow,
 } from "@/lib/api/systemPaymentProvidersService";
 
@@ -270,7 +271,9 @@ function ProviderEditor({ row }: { row: SystemPaymentProviderRow }) {
                       onChange={(e) =>
                         setSecretEdits((prev) => ({ ...prev, [k.key]: e.target.value }))
                       }
-                      className="h-8 font-mono text-xs"
+                      /* scroll-margin so a deep-link from the guide
+                       * doesn't park the input under the sticky header. */
+                      className="h-8 scroll-mt-24 font-mono text-xs transition-shadow"
                     />
                     {k.hint && (
                       <p className="text-[10px] leading-relaxed text-muted-foreground">
@@ -307,7 +310,7 @@ function ProviderEditor({ row }: { row: SystemPaymentProviderRow }) {
                     onChange={(e) =>
                       setConfigValues((prev) => ({ ...prev, [k.key]: e.target.value }))
                     }
-                    className="h-8 text-xs"
+                    className="h-8 scroll-mt-24 text-xs transition-shadow"
                   />
                   {k.hint && (
                     <p className="text-[10px] leading-relaxed text-muted-foreground">
@@ -435,18 +438,13 @@ function SetupGuide({
           )}
 
           {sections.map((s, i) => (
-            <div key={i}>
-              <h4 className="mb-2 text-[11px] font-semibold text-foreground">
-                {s.title}
-              </h4>
-              <ol className="list-decimal space-y-2 pl-5 marker:text-muted-foreground">
-                {s.steps.map((step, j) => (
-                  <li key={j} className="pl-1 text-foreground/90">
-                    <RichText text={step} />
-                  </li>
-                ))}
-              </ol>
-            </div>
+            <GuideSection
+              key={i}
+              section={s}
+              /* First section expanded by default; rest collapsed to
+               * keep the guide scannable. Admin clicks to drill in. */
+              defaultOpen={i === 0}
+            />
           ))}
 
           {tips.length > 0 && (
@@ -501,11 +499,15 @@ function WebhookBox({
 }: {
   webhook: NonNullable<SystemPaymentProviderGuide["webhook"]>;
 }) {
-  const fullUrl = `<your-api-base>${webhook.path}`;
-  const copyPath = async () => {
+  // BE resolves the URL from settings.BASE_URL. Fall back to the path
+  // alone if BASE_URL is somehow empty so the box still renders.
+  const displayed = webhook.url || webhook.path;
+  const isLocalhost = /\blocalhost\b|\b127\.0\.0\.1\b/.test(displayed);
+
+  const copyUrl = async () => {
     try {
-      await navigator.clipboard.writeText(webhook.path);
-      toast.success("Đã copy webhook path");
+      await navigator.clipboard.writeText(displayed);
+      toast.success("Đã copy webhook URL");
     } catch {
       toast.error("Không copy được — hãy copy thủ công");
     }
@@ -520,23 +522,31 @@ function WebhookBox({
       </div>
       <div className="flex items-center gap-2">
         <code className="flex-1 break-all rounded bg-background px-2 py-1.5 font-mono text-[11px] text-foreground">
-          {fullUrl}
+          {displayed}
         </code>
         <Button
           type="button"
           size="sm"
           variant="ghost"
           className="h-7 px-2"
-          onClick={copyPath}
-          title="Copy webhook path"
+          onClick={copyUrl}
+          title="Copy webhook URL"
         >
           <Copy className="h-3 w-3" />
         </Button>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        Thay <code className="rounded bg-background px-1">{"<your-api-base>"}</code>{" "}
-        bằng base URL của deployment (ví dụ <code className="rounded bg-background px-1">https://api.yourdomain.com</code>).
+        Dán URL này vào dashboard của provider. Nguồn:{" "}
+        <code className="rounded bg-background px-1">settings.BASE_URL</code>{" "}
+        — đổi env này nếu deployment URL thay đổi.
       </p>
+      {isLocalhost && (
+        <p className="rounded border border-amber-300/50 bg-amber-50/50 px-2 py-1.5 text-[10px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          ⚠️ Đang trỏ về <strong>localhost</strong> — không dùng được cho production
+          webhook. Set <code className="rounded bg-background px-1">BASE_URL</code>{" "}
+          trong env tới domain HTTPS công khai trước khi đăng ký với provider.
+        </p>
+      )}
 
       <div>
         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -563,10 +573,67 @@ function WebhookBox({
   );
 }
 
-/** Minimal markdown — supports `**bold**` and `` `inline code` ``.
- *  Anything else is rendered as plain text. Keeping this tiny avoids
- *  pulling in a full markdown lib for what is essentially decorated
- *  prose in the setup guides. */
+function GuideSection({
+  section,
+  defaultOpen,
+}: {
+  section: SystemPaymentProviderGuideSection;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-md border border-border/60 bg-background/60">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-accent/30"
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className="text-[11px] font-semibold text-foreground">
+          {section.title}
+        </span>
+      </button>
+      {open && (
+        <ol className="list-decimal space-y-2 border-t border-border/60 px-3 py-3 pl-9 marker:text-muted-foreground">
+          {section.steps.map((step, j) => (
+            <li key={j} className="pl-1 text-foreground/90">
+              <RichText text={step} />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/** Highlight + focus a form field by id. Adds a brief ring animation
+ *  so it's obvious where the user landed when scrolling past the fold. */
+function jumpToField(fieldId: string) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  // The ring class is toggled briefly — Tailwind doesn't have a built-in
+  // pulse for arbitrary elements so we lean on a transition + setTimeout.
+  el.classList.add("ring-2", "ring-primary", "ring-offset-2");
+  setTimeout(() => {
+    el.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+    // Focus *after* the highlight so the ring outline doesn't fight
+    // with the focus-visible style.
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      el.focus();
+    }
+  }, 1500);
+}
+
+/** Minimal markdown — supports `**bold**`, `` `inline code` ``, and
+ *  `[label](href)` links. Hash-anchor hrefs (#field-id) scroll + focus
+ *  the matching form field so the guide can deep-link into the form.
+ *  Anything else is rendered as plain text. */
 function RichText({
   text,
   className,
@@ -595,29 +662,62 @@ function RichText({
             </code>
           );
         }
+        if (p.kind === "link") {
+          if (p.href.startsWith("#")) {
+            // Field-link: render as a button so the click handler runs
+            // without changing the URL hash (which would mess with
+            // history + page state).
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => jumpToField(p.href.slice(1))}
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                {p.value}
+              </button>
+            );
+          }
+          return (
+            <a
+              key={i}
+              href={p.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              {p.value}
+            </a>
+          );
+        }
         return <span key={i}>{p.value}</span>;
       })}
     </span>
   );
 }
 
-type InlinePart = { kind: "text" | "bold" | "code"; value: string };
+type InlinePart =
+  | { kind: "text" | "bold" | "code"; value: string }
+  | { kind: "link"; value: string; href: string };
 
 function parseInline(text: string): InlinePart[] {
   const out: InlinePart[] = [];
   // Pattern order matters: longer / more specific first. Greedy but
-  // non-nested — bold inside code or code inside bold isn't supported.
-  const re = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+  // non-nested — bold inside code or vice-versa isn't supported. Link
+  // pattern matches `[label](href)` with no nested brackets in either.
+  const re = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) {
       out.push({ kind: "text", value: text.slice(last, m.index) });
     }
-    if (m[2] !== undefined) {
-      out.push({ kind: "bold", value: m[2] });
-    } else if (m[3] !== undefined) {
-      out.push({ kind: "code", value: m[3] });
+    if (m[2] !== undefined && m[3] !== undefined) {
+      out.push({ kind: "link", value: m[2], href: m[3] });
+    } else if (m[4] !== undefined) {
+      out.push({ kind: "bold", value: m[4] });
+    } else if (m[5] !== undefined) {
+      out.push({ kind: "code", value: m[5] });
     }
     last = m.index + m[0].length;
   }

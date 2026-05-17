@@ -25,7 +25,13 @@ export interface SystemPaymentProviderGuideSection {
 }
 
 export interface SystemPaymentProviderGuideWebhook {
+  /** Path portion alone — useful when the operator wants to copy just
+   *  the suffix and combine it with their own base. */
   path: string;
+  /** Fully-qualified URL resolved server-side from settings.BASE_URL.
+   *  This is what an admin should actually paste into the provider's
+   *  dashboard. */
+  url?: string;
   events: string[];
   note?: string;
 }
